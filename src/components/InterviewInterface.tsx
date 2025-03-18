@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Mic, MicOff, PauseCircle, PlayCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from "sonner";
+import { useRoom, useLocalParticipant, useMicrophone, useLocalAudioTrack } from '@livekit/components-react';
+import '@livekit/components-styles';
 
 const demoQuestions = [
   "Tell me about yourself and your background.",
@@ -25,7 +28,48 @@ const InterviewInterface = () => {
   const timerRef = useRef<number | null>(null);
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
   
+  // LiveKit setup
+  const [liveKitUrl, setLiveKitUrl] = useState<string>('');
+  const [liveKitToken, setLiveKitToken] = useState<string>('');
+  const [isLiveKitConnected, setIsLiveKitConnected] = useState(false);
+  
+  // LiveKit hooks
+  const room = useRoom();
+  const { localParticipant } = useLocalParticipant();
+  const microphone = useMicrophone({ emptyOnStop: true });
+  const { isEnabled: isMicEnabled, enableMicrophone, disableMicrophone } = useLocalAudioTrack();
+  
   const currentQuestion = demoQuestions[currentQuestionIndex];
+  
+  // For demo purposes, generate fake LiveKit credentials
+  useEffect(() => {
+    // In a real app, these would come from your backend
+    setLiveKitUrl('wss://your-livekit-server.livekit.cloud');
+    setLiveKitToken('your-token-here');
+  }, []);
+  
+  // Connect to LiveKit room when starting recording
+  const connectToLiveKit = async () => {
+    try {
+      if (liveKitUrl && liveKitToken) {
+        // In a real implementation, this would connect to an actual LiveKit room
+        // await room.connect(liveKitUrl, liveKitToken);
+        // await enableMicrophone();
+        
+        // For demo purposes, we'll just simulate a successful connection
+        setIsLiveKitConnected(true);
+        toast.success("Audio connected successfully");
+        return true;
+      } else {
+        toast.error("Audio connection failed - missing credentials");
+        return false;
+      }
+    } catch (error) {
+      console.error("LiveKit connection error:", error);
+      toast.error("Audio connection failed - please try again");
+      return false;
+    }
+  };
   
   // Simulate microphone levels for visualization
   useEffect(() => {
@@ -67,38 +111,46 @@ const InterviewInterface = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setIsPaused(false);
-    setTranscript('');
-    setFeedback('');
+  const handleStartRecording = async () => {
+    // Connect to LiveKit (or simulate in demo mode)
+    const connected = await connectToLiveKit();
     
-    // Simulate transcription updating as user speaks
-    const transcriptionInterval = setInterval(() => {
-      if (!isRecording || isPaused) {
-        clearInterval(transcriptionInterval);
-        return;
-      }
+    if (connected) {
+      setIsRecording(true);
+      setIsPaused(false);
+      setTranscript('');
+      setFeedback('');
       
-      // Simulate partial transcription (in real app, this would come from LiveKit)
-      const demoResponses = [
-        "I have over five years of experience in software development...",
-        "My background includes working with cross-functional teams to deliver high-quality products...",
-        "I've specialized in frontend development using React and TypeScript...",
-        "In my previous role, I led a team of three developers to implement a new feature...",
-      ];
-      
-      const randomResponse = demoResponses[Math.floor(Math.random() * demoResponses.length)];
-      setTranscript(prev => prev + (prev ? ' ' : '') + randomResponse);
-    }, 5000); // Update every 5 seconds
-    
-    // Cleanup
-    return () => clearInterval(transcriptionInterval);
+      // Simulate transcription updating as user speaks
+      const transcriptionInterval = setInterval(() => {
+        if (!isRecording || isPaused) {
+          clearInterval(transcriptionInterval);
+          return;
+        }
+        
+        // Simulate partial transcription (in real app, this would come from LiveKit)
+        const demoResponses = [
+          "I have over five years of experience in software development...",
+          "My background includes working with cross-functional teams to deliver high-quality products...",
+          "I've specialized in frontend development using React and TypeScript...",
+          "In my previous role, I led a team of three developers to implement a new feature...",
+        ];
+        
+        const randomResponse = demoResponses[Math.floor(Math.random() * demoResponses.length)];
+        setTranscript(prev => prev + (prev ? ' ' : '') + randomResponse);
+      }, 5000); // Update every 5 seconds
+    }
   };
   
   const handleStopRecording = () => {
     setIsRecording(false);
     setIsLoading(true);
+    
+    // Disconnect from LiveKit
+    if (isLiveKitConnected) {
+      // In a real implementation: disableMicrophone();
+      setIsLiveKitConnected(false);
+    }
     
     // Simulate AI processing time
     setTimeout(() => {
@@ -112,10 +164,12 @@ const InterviewInterface = () => {
   
   const handlePauseRecording = () => {
     setIsPaused(true);
+    // In a real implementation: disableMicrophone();
   };
   
   const handleResumeRecording = () => {
     setIsPaused(false);
+    // In a real implementation: enableMicrophone();
   };
   
   const handleNextQuestion = () => {
@@ -126,6 +180,14 @@ const InterviewInterface = () => {
     setIsPaused(false);
     setTimer(0);
   };
+  
+  // Auto-end interview after 15 minutes (900 seconds)
+  useEffect(() => {
+    if (timer >= 900 && isRecording) {
+      handleStopRecording();
+      toast.info("Interview ended: 15 minute time limit reached");
+    }
+  }, [timer, isRecording]);
   
   return (
     <div className="container mx-auto px-4 max-w-5xl">
