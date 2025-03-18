@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,11 +9,11 @@ import {
   BarChart3,
   Upload,
   GraduationCap,
-  ListChecked,
+  ListCheck,
   Linkedin,
   CheckCircle,
   XCircle,
-  FileUpload,
+  FileUp,
   MessageSquare,
   Download,
   ArrowRight
@@ -30,7 +29,6 @@ const StudentDashboard = () => {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [interviewBooked, setInterviewBooked] = useState(true);
   
-  // Mock data
   const studentName = "Alex Johnson";
   const completedInterviews = 2;
   const scheduledInterview = {
@@ -53,7 +51,6 @@ const StudentDashboard = () => {
 
   const handleResumeUpload = (e) => {
     e.preventDefault();
-    // Simulating file upload
     toast.success("Resume uploaded successfully!");
     setResumeUploaded(true);
   };
@@ -129,7 +126,7 @@ const StudentDashboard = () => {
         <Card className="flex flex-col h-full">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileUpload className="h-5 w-5 text-primary" />
+              <FileUp className="h-5 w-5 text-primary" />
               Resume & Profile
             </CardTitle>
             <CardDescription>Upload your resume and add your LinkedIn profile</CardDescription>
