@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { useInView } from '@/lib/animations';
-import { Mic, Video, Brain, MessageSquare, BarChart, Award } from 'lucide-react';
+import { Mic, Headphones, Brain, MessageSquare, BarChart, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FeatureCardProps {
@@ -59,9 +59,9 @@ const Features = () => {
       description: "Track your progress over time and identify areas for improvement."
     },
     {
-      icon: <Video className="h-6 w-6" />,
-      title: "Mock Video Interviews",
-      description: "Practice with realistic video interviews to prepare for remote positions."
+      icon: <Headphones className="h-6 w-6" />,
+      title: "Realistic Audio Interviews",
+      description: "Experience immersive audio-based interview sessions to prepare for phone and virtual interviews."
     },
     {
       icon: <Award className="h-6 w-6" />,
