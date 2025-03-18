@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Mic, MicOff, PauseCircle, PlayCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
-import { useRoom, useLocalParticipant, useMicrophone, useLocalAudioTrack } from '@livekit/components-react';
+import { Room } from 'livekit-client';
 import '@livekit/components-styles';
 
 const demoQuestions = [
@@ -32,12 +32,8 @@ const InterviewInterface = () => {
   const [liveKitUrl, setLiveKitUrl] = useState<string>('');
   const [liveKitToken, setLiveKitToken] = useState<string>('');
   const [isLiveKitConnected, setIsLiveKitConnected] = useState(false);
-  
-  // LiveKit hooks
-  const room = useRoom();
-  const { localParticipant } = useLocalParticipant();
-  const microphone = useMicrophone({ emptyOnStop: true });
-  const { isEnabled: isMicEnabled, enableMicrophone, disableMicrophone } = useLocalAudioTrack();
+  const [room, setRoom] = useState<Room | null>(null);
+  const [isMicEnabled, setIsMicEnabled] = useState(false);
   
   const currentQuestion = demoQuestions[currentQuestionIndex];
   
@@ -53,8 +49,11 @@ const InterviewInterface = () => {
     try {
       if (liveKitUrl && liveKitToken) {
         // In a real implementation, this would connect to an actual LiveKit room
-        // await room.connect(liveKitUrl, liveKitToken);
-        // await enableMicrophone();
+        // const newRoom = new Room();
+        // await newRoom.connect(liveKitUrl, liveKitToken);
+        // setRoom(newRoom);
+        // await newRoom.localParticipant.enableMicrophone();
+        // setIsMicEnabled(true);
         
         // For demo purposes, we'll just simulate a successful connection
         setIsLiveKitConnected(true);
@@ -68,6 +67,27 @@ const InterviewInterface = () => {
       console.error("LiveKit connection error:", error);
       toast.error("Audio connection failed - please try again");
       return false;
+    }
+  };
+  
+  const enableMicrophone = async () => {
+    try {
+      // In a real implementation, this would enable the microphone
+      // await room?.localParticipant.enableMicrophone();
+      setIsMicEnabled(true);
+    } catch (error) {
+      console.error("Error enabling microphone:", error);
+      toast.error("Failed to enable microphone");
+    }
+  };
+  
+  const disableMicrophone = async () => {
+    try {
+      // In a real implementation, this would disable the microphone
+      // await room?.localParticipant.disableMicrophone();
+      setIsMicEnabled(false);
+    } catch (error) {
+      console.error("Error disabling microphone:", error);
     }
   };
   
@@ -148,7 +168,8 @@ const InterviewInterface = () => {
     
     // Disconnect from LiveKit
     if (isLiveKitConnected) {
-      // In a real implementation: disableMicrophone();
+      disableMicrophone();
+      // In a real implementation: room?.disconnect();
       setIsLiveKitConnected(false);
     }
     
@@ -164,12 +185,12 @@ const InterviewInterface = () => {
   
   const handlePauseRecording = () => {
     setIsPaused(true);
-    // In a real implementation: disableMicrophone();
+    disableMicrophone();
   };
   
   const handleResumeRecording = () => {
     setIsPaused(false);
-    // In a real implementation: enableMicrophone();
+    enableMicrophone();
   };
   
   const handleNextQuestion = () => {
