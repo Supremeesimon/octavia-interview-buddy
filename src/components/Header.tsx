@@ -61,7 +61,7 @@ const Header = () => {
           <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
             <span className="text-white text-lg font-bold">O</span>
           </span>
-          <span className="font-medium text-xl">Octavia</span>
+          <span className="font-medium text-xl">Octavia Artificial intelligence</span>
         </Link>
         
         {/* Desktop Navigation */}
