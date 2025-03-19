@@ -17,7 +17,7 @@ const Footer = () => {
               <span className="font-medium text-lg">Octavia</span>
             </Link>
             <p className="text-muted-foreground max-w-xs">
-              Empowering job seekers with AI-powered interview practice that builds confidence and improves performance.
+              Empowering Students with AI-powered interview practice that builds confidence and improves performance.
             </p>
           </div>
           
