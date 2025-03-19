@@ -41,16 +41,16 @@ const Signup = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-grow py-28 flex items-center justify-center">
-        <div className="container px-4 max-w-md">
-          <Card className="p-6 shadow-lg rounded-xl">
-            <div className="text-center mb-6">
+      <main className="flex-grow flex items-center justify-center py-16 px-4">
+        <div className="w-full max-w-md">
+          <Card className="p-8 shadow-lg rounded-xl">
+            <div className="text-center mb-8">
               <h1 className="text-2xl font-bold mb-2">Student Registration</h1>
               <p className="text-muted-foreground">Sign up with your educational email</p>
             </div>
             
             <form onSubmit={handleSignup}>
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
                   <Label htmlFor="fullName">Full Name</Label>
                   <Input 
@@ -59,6 +59,7 @@ const Signup = () => {
                     onChange={(e) => setFullName(e.target.value)} 
                     required 
                     placeholder="Enter your full name" 
+                    className="mt-1"
                   />
                 </div>
                 
@@ -71,8 +72,9 @@ const Signup = () => {
                     onChange={(e) => setEmail(e.target.value)} 
                     required 
                     placeholder="your.name@university.edu" 
+                    className="mt-1"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-2">
                     Must be a valid educational email (.edu)
                   </p>
                 </div>
@@ -86,6 +88,7 @@ const Signup = () => {
                     onChange={(e) => setPassword(e.target.value)} 
                     required 
                     placeholder="Create a secure password" 
+                    className="mt-1"
                   />
                 </div>
                 
@@ -95,7 +98,7 @@ const Signup = () => {
               </div>
             </form>
             
-            <div className="mt-6 text-center text-sm">
+            <div className="mt-8 text-center text-sm">
               <p className="text-muted-foreground">
                 By signing up, you agree to our Terms of Service and Privacy Policy
               </p>
