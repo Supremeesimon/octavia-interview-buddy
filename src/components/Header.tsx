@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { scrollToSection } from '@/lib/animations';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,10 +25,25 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    // Check for hash in URL and scroll to section
+    if (location.hash) {
+      const id = location.hash.substring(1);
+      setTimeout(() => {
+        scrollToSection(id);
+      }, 0);
+    }
+  }, [location]);
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    scrollToSection(id);
+  };
+
   const navLinks = [
     { name: 'Home', path: '/' },
-    { name: 'How It Works', path: '/#how-it-works' },
-    { name: 'Features', path: '/#features' },
+    { name: 'How It Works', path: '/#how-it-works', id: 'how-it-works' },
+    { name: 'Features', path: '/#features', id: 'features' },
   ];
 
   const authLinks = [
@@ -54,6 +70,7 @@ const Header = () => {
             <Link 
               key={link.name}
               to={link.path}
+              onClick={link.id ? (e) => handleNavClick(e, link.id) : undefined}
               className={cn(
                 'text-sm transition-colors duration-200',
                 location.pathname === link.path || 
@@ -100,7 +117,12 @@ const Header = () => {
             <DropdownMenuContent align="end" className="w-48">
               {navLinks.map((link) => (
                 <DropdownMenuItem key={link.name} asChild>
-                  <Link to={link.path}>{link.name}</Link>
+                  <Link 
+                    to={link.path}
+                    onClick={link.id ? (e) => handleNavClick(e, link.id) : undefined}
+                  >
+                    {link.name}
+                  </Link>
                 </DropdownMenuItem>
               ))}
               <DropdownMenuItem className="border-t mt-1 pt-1" asChild>
@@ -121,3 +143,4 @@ const Header = () => {
 };
 
 export default Header;
+
