@@ -37,7 +37,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-grow flex items-center justify-center py-16 px-4">
+      <main className="flex-grow flex items-center justify-center py-36 px-4 mt-16">
         <div className="w-full max-w-md">
           <Card className="p-8 shadow-lg rounded-xl">
             <div className="text-center mb-8">
