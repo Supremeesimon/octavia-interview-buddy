@@ -22,20 +22,18 @@ import { Progress } from '@/components/ui/progress';
 import { Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from "sonner";
+import BookingCalendar from './BookingCalendar';
 
 const StudentDashboard = () => {
   const [resumeUploaded, setResumeUploaded] = useState(false);
   const [linkedinUrlAdded, setLinkedinUrlAdded] = useState(false);
   const [linkedinUrl, setLinkedinUrl] = useState('');
-  const [interviewBooked, setInterviewBooked] = useState(true);
+  const [interviewBooked, setInterviewBooked] = useState(false);
+  const [showBookingCalendar, setShowBookingCalendar] = useState(false);
   
   const studentName = "Alex Johnson";
   const completedInterviews = 2;
-  const scheduledInterview = {
-    date: "June 15, 2023",
-    time: "2:00 PM",
-    title: "General Behavioral Interview"
-  };
+  const [scheduledInterview, setScheduledInterview] = useState<{date: string, time: string, title: string} | null>(null);
   
   const interviewHistory = [
     { id: 1, date: "May 28, 2023", title: "Technical Interview Practice", score: 82 },
@@ -63,6 +61,16 @@ const StudentDashboard = () => {
     } else {
       toast.error("Please enter a valid LinkedIn URL");
     }
+  };
+  
+  const handleBookingComplete = (date: Date, time: string) => {
+    setScheduledInterview({
+      date: date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+      time: time,
+      title: "General Behavioral Interview"
+    });
+    setInterviewBooked(true);
+    setShowBookingCalendar(false);
   };
   
   return (
@@ -209,7 +217,13 @@ const StudentDashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-grow">
-            {scheduledInterview ? (
+            {showBookingCalendar ? (
+              <BookingCalendar 
+                onBookingComplete={handleBookingComplete}
+                allowedBookingsPerMonth={2}
+                usedBookings={1}
+              />
+            ) : scheduledInterview ? (
               <>
                 <div className="mb-4">
                   <div className="text-xl font-medium mb-2">{scheduledInterview.title}</div>
@@ -240,12 +254,12 @@ const StudentDashboard = () => {
               <div className="flex flex-col items-center justify-center text-center h-40">
                 <Calendar className="h-12 w-12 text-muted-foreground opacity-30 mb-4" />
                 <p className="text-muted-foreground mb-4">No interviews scheduled</p>
-                <Button>Book an Interview</Button>
+                <Button onClick={() => setShowBookingCalendar(true)}>Book an Interview</Button>
               </div>
             )}
           </CardContent>
           <CardFooter className="pt-2">
-            {scheduledInterview && (
+            {scheduledInterview && !showBookingCalendar && (
               <div className="w-full flex flex-col gap-3">
                 <Button asChild className="w-full flex items-center gap-2">
                   <Link to="/interview">
@@ -253,8 +267,24 @@ const StudentDashboard = () => {
                     Start Interview
                   </Link>
                 </Button>
-                <Button variant="outline" className="w-full">Reschedule</Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setShowBookingCalendar(true)}
+                >
+                  Reschedule
+                </Button>
               </div>
+            )}
+            
+            {showBookingCalendar && (
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setShowBookingCalendar(false)}
+              >
+                Cancel
+              </Button>
             )}
           </CardFooter>
         </Card>

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Mic, MicOff, PauseCircle, PlayCircle, Loader2 } from 'lucide-react';
+import { Mic, MicOff, PauseCircle, PlayCircle, Loader2, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
 import { Room } from 'livekit-client';
@@ -32,6 +32,8 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [timer, setTimer] = useState(0);
+  const [interviewEnded, setInterviewEnded] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
   const timerRef = useRef<number | null>(null);
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
   
@@ -138,6 +140,23 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
+  // Time remaining calculation (15 minutes = 900 seconds)
+  const totalInterviewTime = 900; // 15 minutes
+  const timeRemaining = totalInterviewTime - timer;
+  
+  // Show warning when 2 minutes are left
+  useEffect(() => {
+    if (timeRemaining <= 120 && timeRemaining > 115 && isRecording) {
+      setShowWarning(true);
+      toast.warning("Only 2 minutes remaining in your interview!");
+      
+      // Hide warning after 5 seconds
+      setTimeout(() => {
+        setShowWarning(false);
+      }, 5000);
+    }
+  }, [timeRemaining, isRecording]);
+  
   const handleStartRecording = async () => {
     // Connect to LiveKit (or simulate in demo mode)
     const connected = await connectToLiveKit();
@@ -206,19 +225,63 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     setFeedback('');
     setIsRecording(false);
     setIsPaused(false);
-    setTimer(0);
+  };
+  
+  const handleEndInterview = () => {
+    handleStopRecording();
+    setInterviewEnded(true);
+    toast.success("Interview completed! Results will be sent to your email shortly.");
   };
   
   // Auto-end interview after 15 minutes (900 seconds)
   useEffect(() => {
     if (timer >= 900 && isRecording) {
-      handleStopRecording();
+      handleEndInterview();
       toast.info("Interview ended: 15 minute time limit reached");
     }
   }, [timer, isRecording]);
   
+  // Calculate progress percentage
+  const progressPercentage = (timer / totalInterviewTime) * 100;
+  
   return (
     <div className="container mx-auto px-4 max-w-5xl">
+      {/* Timer Banner */}
+      {isRecording && (
+        <div className={cn(
+          "sticky top-0 z-10 mb-4 p-3 rounded-lg flex items-center justify-between",
+          showWarning ? "bg-amber-50 border border-amber-200" : "bg-primary/5 border border-primary/10"
+        )}>
+          <div className="flex items-center gap-2">
+            {showWarning ? (
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+            ) : (
+              <Clock className="h-5 w-5 text-primary" />
+            )}
+            <span className="font-medium">
+              {showWarning ? "Time is running out!" : "Interview Time"}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full transition-all duration-1000 ease-linear",
+                  showWarning ? "bg-amber-500" : "bg-primary"
+                )}
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+            <span className={cn(
+              "font-mono font-medium",
+              timeRemaining < 120 ? "text-amber-600" : timeRemaining < 300 ? "text-amber-500" : ""
+            )}>
+              {formatTime(timeRemaining)}
+            </span>
+          </div>
+        </div>
+      )}
+      
       <Card className="border-2 shadow-lg rounded-2xl overflow-hidden">
         <div className="bg-primary/10 p-6 border-b border-border">
           <h2 className="text-2xl font-semibold">Practice Interview</h2>
@@ -226,115 +289,152 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
         </div>
         
         <div className="p-6">
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">Question {currentQuestionIndex + 1}/{demoQuestions.length}</span>
-              {isRecording && (
-                <span className="text-sm font-medium px-3 py-1 rounded-full bg-muted text-muted-foreground">
-                  {formatTime(timer)}
-                </span>
-              )}
+          {interviewEnded ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-2xl font-medium mb-2">Interview Completed!</h3>
+              <p className="text-muted-foreground max-w-md mb-8">
+                Thank you for completing your interview with Octavia AI. Your results and feedback will be emailed to you shortly.
+              </p>
+              <Button asChild>
+                <a href="/dashboard">Return to Dashboard</a>
+              </Button>
             </div>
-            <h3 className="text-xl md:text-2xl font-medium">{currentQuestion}</h3>
-          </div>
-          
-          {isRecording && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-medium">Your Response</h4>
-                <div className="flex items-center gap-2">
-                  <div 
-                    ref={audioVisualizerRef}
-                    className={cn(
-                      "flex items-end gap-[2px] h-[50px] w-[80px]",
-                      isPaused && "opacity-50"
-                    )}
-                  >
-                    {Array.from({ length: 12 }).map((_, i) => (
-                      <div 
-                        key={i}
-                        className={cn(
-                          "audio-bar w-[4px] bg-primary transition-all duration-100",
-                          isPaused && "h-[10px]"
-                        )}
-                        style={{ height: isPaused ? '10px' : '20px' }}
-                      />
-                    ))}
-                  </div>
-                  
-                  {isPaused ? (
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="rounded-full" 
-                      onClick={handleResumeRecording}
-                    >
-                      <PlayCircle className="h-5 w-5 text-primary" />
-                    </Button>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="rounded-full" 
-                      onClick={handlePauseRecording}
-                    >
-                      <PauseCircle className="h-5 w-5 text-primary" />
-                    </Button>
+          ) : (
+            <>
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">Question {currentQuestionIndex + 1}/{demoQuestions.length}</span>
+                  {isRecording && (
+                    <span className="text-sm font-medium px-3 py-1 rounded-full bg-muted text-muted-foreground">
+                      {formatTime(timer)}
+                    </span>
                   )}
                 </div>
+                <h3 className="text-xl md:text-2xl font-medium">{currentQuestion}</h3>
               </div>
               
-              <div className="bg-muted/50 rounded-lg p-4 min-h-[150px] max-h-[300px] overflow-auto">
-                <p className="text-muted-foreground">{transcript || "Waiting for you to speak..."}</p>
+              {isRecording && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium">Your Response</h4>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        ref={audioVisualizerRef}
+                        className={cn(
+                          "flex items-end gap-[2px] h-[50px] w-[80px]",
+                          isPaused && "opacity-50"
+                        )}
+                      >
+                        {Array.from({ length: 12 }).map((_, i) => (
+                          <div 
+                            key={i}
+                            className={cn(
+                              "audio-bar w-[4px] bg-primary transition-all duration-100",
+                              isPaused && "h-[10px]"
+                            )}
+                            style={{ height: isPaused ? '10px' : '20px' }}
+                          />
+                        ))}
+                      </div>
+                      
+                      {isPaused ? (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="rounded-full" 
+                          onClick={handleResumeRecording}
+                        >
+                          <PlayCircle className="h-5 w-5 text-primary" />
+                        </Button>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="rounded-full" 
+                          onClick={handlePauseRecording}
+                        >
+                          <PauseCircle className="h-5 w-5 text-primary" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-muted/50 rounded-lg p-4 min-h-[150px] max-h-[300px] overflow-auto">
+                    <p className="text-muted-foreground">{transcript || "Waiting for you to speak..."}</p>
+                  </div>
+                </div>
+              )}
+              
+              {feedback && (
+                <div className="mb-6">
+                  <h4 className="font-medium mb-2">Octavia's Feedback</h4>
+                  <div className="bg-secondary rounded-lg p-4">
+                    <p>{feedback}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex flex-wrap items-center gap-4 justify-between mt-8">
+                {!isRecording ? (
+                  <Button 
+                    className="rounded-full px-6 flex items-center gap-2" 
+                    onClick={handleStartRecording}
+                  >
+                    <Mic className="h-5 w-5" />
+                    Start Recording
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="destructive" 
+                    className="rounded-full px-6 flex items-center gap-2" 
+                    onClick={handleStopRecording}
+                  >
+                    <MicOff className="h-5 w-5" />
+                    Stop Recording
+                  </Button>
+                )}
+                
+                {feedback && (
+                  <div className="flex gap-3">
+                    <Button 
+                      variant="outline" 
+                      className="rounded-full px-6" 
+                      onClick={handleNextQuestion}
+                    >
+                      Next Question
+                    </Button>
+                    
+                    <Button 
+                      variant="default" 
+                      className="rounded-full px-6" 
+                      onClick={handleEndInterview}
+                    >
+                      End Interview
+                    </Button>
+                  </div>
+                )}
+                
+                {isRecording && !feedback && (
+                  <Button 
+                    variant="outline" 
+                    className="rounded-full px-6" 
+                    onClick={handleEndInterview}
+                  >
+                    End Interview
+                  </Button>
+                )}
               </div>
-            </div>
-          )}
-          
-          {feedback && (
-            <div className="mb-6">
-              <h4 className="font-medium mb-2">Octavia's Feedback</h4>
-              <div className="bg-secondary rounded-lg p-4">
-                <p>{feedback}</p>
-              </div>
-            </div>
-          )}
-          
-          <div className="flex flex-wrap items-center gap-4 justify-between mt-8">
-            {!isRecording ? (
-              <Button 
-                className="rounded-full px-6 flex items-center gap-2" 
-                onClick={handleStartRecording}
-              >
-                <Mic className="h-5 w-5" />
-                Start Recording
-              </Button>
-            ) : (
-              <Button 
-                variant="destructive" 
-                className="rounded-full px-6 flex items-center gap-2" 
-                onClick={handleStopRecording}
-              >
-                <MicOff className="h-5 w-5" />
-                Stop Recording
-              </Button>
-            )}
-            
-            {(feedback || !isRecording) && (
-              <Button 
-                variant="outline" 
-                className="rounded-full px-6" 
-                onClick={handleNextQuestion}
-              >
-                Next Question
-              </Button>
-            )}
-          </div>
-          
-          {isLoading && (
-            <div className="flex items-center justify-center gap-2 mt-6 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Analyzing your response...</span>
-            </div>
+              
+              {isLoading && (
+                <div className="flex items-center justify-center gap-2 mt-6 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Analyzing your response...</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </Card>
