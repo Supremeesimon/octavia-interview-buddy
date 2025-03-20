@@ -9,6 +9,7 @@ import { Room } from 'livekit-client';
 import '@livekit/components-styles';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useNavigate } from 'react-router-dom';
 
 interface InterviewInterfaceProps {
   resumeData?: {
@@ -19,6 +20,7 @@ interface InterviewInterfaceProps {
 
 const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -40,6 +42,20 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const jobData = {
     title: "(SAMPLE) Customer Support Specialist @ Slack",
     resumeName: "Default Resume"
+  };
+
+  const handleTabChange = (value: string) => {
+    switch (value) {
+      case 'interview':
+        // Stay on this page
+        break;
+      case 'resumes':
+        navigate('/resumes');
+        break;
+      case 'jobs':
+        navigate('/jobs');
+        break;
+    }
   };
   
   // For demo purposes, generate fake LiveKit credentials
@@ -226,7 +242,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   
   return (
     <div className="container mx-auto px-4 max-w-7xl">
-      <Tabs defaultValue="interview" className="w-full mb-6">
+      <Tabs defaultValue="interview" className="w-full mb-6" onValueChange={handleTabChange}>
         <TabsList className="w-full max-w-md">
           <TabsTrigger value="interview" className="flex-1">
             Interview

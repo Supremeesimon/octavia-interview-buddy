@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { CheckCircle, Clock, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
 import { format, addDays, isBefore, isToday, startOfDay, addHours, isSameDay } from 'date-fns';
 import { toast } from "sonner";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BookingCalendarProps {
   onBookingComplete: (date: Date, time: string) => void;
@@ -17,6 +18,7 @@ const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBooki
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
+  const isMobile = useIsMobile();
 
   const today = startOfDay(new Date());
   const maxDate = addDays(today, 30); // Allow booking up to 30 days in advance
@@ -128,16 +130,16 @@ const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBooki
                 <h3 className="text-sm font-medium mb-2">Available Time Slots</h3>
                 {selectedDate ? (
                   timeSlots.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {timeSlots.map((time) => (
                         <Button
                           key={time}
                           variant={selectedTime === time ? "default" : "outline"}
-                          className="justify-start"
+                          className="justify-start text-sm w-full truncate"
                           onClick={() => handleTimeSelect(time)}
                         >
-                          <Clock className="mr-2 h-4 w-4" />
-                          {time}
+                          <Clock className="mr-2 h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{time}</span>
                         </Button>
                       ))}
                     </div>
@@ -162,12 +164,12 @@ const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBooki
                 <h3 className="font-medium mb-2">Booking Summary</h3>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4 text-primary" />
-                    <span>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+                    <CalendarIcon className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span className="text-sm break-words">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
-                    <span>{selectedTime}</span>
+                    <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span className="text-sm">{selectedTime}</span>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
