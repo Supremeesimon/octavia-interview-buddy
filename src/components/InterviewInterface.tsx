@@ -1,21 +1,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mic, MicOff, PauseCircle, PlayCircle, Loader2, Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
 import { Room } from 'livekit-client';
 import '@livekit/components-styles';
-
-const demoQuestions = [
-  "Tell me about yourself and your background.",
-  "What are your greatest strengths and how do they help you in your work?",
-  "Describe a challenging situation you faced at work and how you handled it.",
-  "Why are you interested in this role and what can you contribute?",
-  "Where do you see yourself professionally in five years?",
-  "How do you handle pressure or stressful situations?",
-];
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface InterviewInterfaceProps {
   resumeData?: {
@@ -25,11 +18,10 @@ interface InterviewInterfaceProps {
 }
 
 const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
+  const isMobile = useIsMobile();
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [transcript, setTranscript] = useState('');
-  const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [timer, setTimer] = useState(0);
   const [interviewEnded, setInterviewEnded] = useState(false);
@@ -44,7 +36,11 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const [room, setRoom] = useState<Room | null>(null);
   const [isMicEnabled, setIsMicEnabled] = useState(false);
   
-  const currentQuestion = demoQuestions[currentQuestionIndex];
+  // Sample job data
+  const jobData = {
+    title: "(SAMPLE) Customer Support Specialist @ Slack",
+    resumeName: "Default Resume"
+  };
   
   // For demo purposes, generate fake LiveKit credentials
   useEffect(() => {
@@ -165,7 +161,6 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       setIsRecording(true);
       setIsPaused(false);
       setTranscript('');
-      setFeedback('');
       
       // Simulate transcription updating as user speaks
       const transcriptionInterval = setInterval(() => {
@@ -201,10 +196,6 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     
     // Simulate AI processing time
     setTimeout(() => {
-      // Simulate feedback from AI
-      setFeedback(
-        "Your answer demonstrates relevant experience, but could be more concise and structured. Consider using the STAR method (Situation, Task, Action, Result) to organize your response. Your technical qualifications came across well, but you could emphasize more specific achievements with metrics. Good job maintaining professional tone throughout your answer."
-      );
       setIsLoading(false);
     }, 2000);
   };
@@ -217,14 +208,6 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const handleResumeRecording = () => {
     setIsPaused(false);
     enableMicrophone();
-  };
-  
-  const handleNextQuestion = () => {
-    setCurrentQuestionIndex(prev => (prev + 1) % demoQuestions.length);
-    setTranscript('');
-    setFeedback('');
-    setIsRecording(false);
-    setIsPaused(false);
   };
   
   const handleEndInterview = () => {
@@ -241,12 +224,22 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
   }, [timer, isRecording]);
   
-  // Calculate progress percentage
-  const progressPercentage = (timer / totalInterviewTime) * 100;
-  
   return (
-    <div className="container mx-auto px-4 max-w-5xl">
-      {/* Timer Banner */}
+    <div className="container mx-auto px-4 max-w-7xl">
+      <Tabs defaultValue="interview" className="w-full mb-6">
+        <TabsList className="w-full max-w-md">
+          <TabsTrigger value="interview" className="flex-1">
+            Interview
+          </TabsTrigger>
+          <TabsTrigger value="resumes" className="flex-1">
+            Resumes
+          </TabsTrigger>
+          <TabsTrigger value="jobs" className="flex-1">
+            Jobs
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      
       {isRecording && (
         <div className={cn(
           "sticky top-0 z-10 mb-4 p-3 rounded-lg flex items-center justify-between",
@@ -269,7 +262,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                   "h-full transition-all duration-1000 ease-linear",
                   showWarning ? "bg-amber-500" : "bg-primary"
                 )}
-                style={{ width: `${progressPercentage}%` }}
+                style={{ width: `${(timer / totalInterviewTime) * 100}%` }}
               />
             </div>
             <span className={cn(
@@ -282,162 +275,88 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
         </div>
       )}
       
-      <Card className="border-2 shadow-lg rounded-2xl overflow-hidden">
-        <div className="bg-primary/10 p-6 border-b border-border">
-          <h2 className="text-2xl font-semibold">Practice Interview</h2>
-          <p className="text-muted-foreground">Answer the questions as you would in a real interview</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="flex flex-col">
+          <div className="bg-slate-200 aspect-square rounded-lg flex items-center justify-center mb-4">
+            <div className="text-center">
+              <p className="text-2xl font-mono">{formatTime(timer)}</p>
+            </div>
+          </div>
+          
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center">
+                <Mic className="h-10 w-10 text-white" />
+              </div>
+              
+              {isRecording && !isPaused ? (
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
+                  onClick={handlePauseRecording}
+                >
+                  <PauseCircle className="h-5 w-5" />
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
+                  onClick={isRecording ? handleResumeRecording : handleStartRecording}
+                >
+                  <PlayCircle className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          <Button 
+            size="lg"
+            className="mx-auto bg-primary text-white w-28"
+            onClick={isRecording ? handleStopRecording : handleStartRecording}
+          >
+            {isRecording ? "Stop" : "Start"}
+          </Button>
         </div>
         
-        <div className="p-6">
-          {interviewEnded ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                <CheckCircle className="h-8 w-8 text-green-600" />
+        <div className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Interview details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Job</h3>
+                  <p className="text-primary">{jobData.title}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Resume</h3>
+                  <p>{jobData.resumeName}</p>
+                </div>
               </div>
-              <h3 className="text-2xl font-medium mb-2">Interview Completed!</h3>
-              <p className="text-muted-foreground max-w-md mb-8">
-                Thank you for completing your interview with Octavia AI. Your results and feedback will be emailed to you shortly.
-              </p>
-              <Button asChild>
-                <a href="/dashboard">Return to Dashboard</a>
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="mb-8">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">Question {currentQuestionIndex + 1}/{demoQuestions.length}</span>
-                  {isRecording && (
-                    <span className="text-sm font-medium px-3 py-1 rounded-full bg-muted text-muted-foreground">
-                      {formatTime(timer)}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-xl md:text-2xl font-medium">{currentQuestion}</h3>
-              </div>
-              
-              {isRecording && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium">Your Response</h4>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        ref={audioVisualizerRef}
-                        className={cn(
-                          "flex items-end gap-[2px] h-[50px] w-[80px]",
-                          isPaused && "opacity-50"
-                        )}
-                      >
-                        {Array.from({ length: 12 }).map((_, i) => (
-                          <div 
-                            key={i}
-                            className={cn(
-                              "audio-bar w-[4px] bg-primary transition-all duration-100",
-                              isPaused && "h-[10px]"
-                            )}
-                            style={{ height: isPaused ? '10px' : '20px' }}
-                          />
-                        ))}
-                      </div>
-                      
-                      {isPaused ? (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="rounded-full" 
-                          onClick={handleResumeRecording}
-                        >
-                          <PlayCircle className="h-5 w-5 text-primary" />
-                        </Button>
-                      ) : (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="rounded-full" 
-                          onClick={handlePauseRecording}
-                        >
-                          <PauseCircle className="h-5 w-5 text-primary" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-muted/50 rounded-lg p-4 min-h-[150px] max-h-[300px] overflow-auto">
-                    <p className="text-muted-foreground">{transcript || "Waiting for you to speak..."}</p>
-                  </div>
-                </div>
-              )}
-              
-              {feedback && (
-                <div className="mb-6">
-                  <h4 className="font-medium mb-2">Octavia's Feedback</h4>
-                  <div className="bg-secondary rounded-lg p-4">
-                    <p>{feedback}</p>
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex flex-wrap items-center gap-4 justify-between mt-8">
-                {!isRecording ? (
-                  <Button 
-                    className="rounded-full px-6 flex items-center gap-2" 
-                    onClick={handleStartRecording}
-                  >
-                    <Mic className="h-5 w-5" />
-                    Start Recording
-                  </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Transcript</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="min-h-[250px]">
+                {transcript ? (
+                  <p>{transcript}</p>
                 ) : (
-                  <Button 
-                    variant="destructive" 
-                    className="rounded-full px-6 flex items-center gap-2" 
-                    onClick={handleStopRecording}
-                  >
-                    <MicOff className="h-5 w-5" />
-                    Stop Recording
-                  </Button>
-                )}
-                
-                {feedback && (
-                  <div className="flex gap-3">
-                    <Button 
-                      variant="outline" 
-                      className="rounded-full px-6" 
-                      onClick={handleNextQuestion}
-                    >
-                      Next Question
-                    </Button>
-                    
-                    <Button 
-                      variant="default" 
-                      className="rounded-full px-6" 
-                      onClick={handleEndInterview}
-                    >
-                      End Interview
-                    </Button>
-                  </div>
-                )}
-                
-                {isRecording && !feedback && (
-                  <Button 
-                    variant="outline" 
-                    className="rounded-full px-6" 
-                    onClick={handleEndInterview}
-                  >
-                    End Interview
-                  </Button>
+                  <p className="text-muted-foreground text-center py-12">
+                    Start the conversation to see the transcript
+                  </p>
                 )}
               </div>
-              
-              {isLoading && (
-                <div className="flex items-center justify-center gap-2 mt-6 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Analyzing your response...</span>
-                </div>
-              )}
-            </>
-          )}
+            </CardContent>
+          </Card>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
