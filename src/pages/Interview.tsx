@@ -5,8 +5,10 @@ import Footer from '@/components/Footer';
 import InterviewInterface from '@/components/InterviewInterface';
 import ResumeUploadDialog from '@/components/ResumeUploadDialog';
 import PreInterviewDialog from '@/components/PreInterviewDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Interview = () => {
+  const isMobile = useIsMobile();
   const [showResumeDialog, setShowResumeDialog] = useState(true);
   const [showPreInterviewDialog, setShowPreInterviewDialog] = useState(false);
   const [showInterviewInterface, setShowInterviewInterface] = useState(false);
@@ -26,7 +28,7 @@ const Interview = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-grow py-28">
+      <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'}`}>
         {showInterviewInterface && <InterviewInterface resumeData={resumeData} />}
         
         <ResumeUploadDialog 
