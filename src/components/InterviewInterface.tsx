@@ -17,7 +17,14 @@ const demoQuestions = [
   "How do you handle pressure or stressful situations?",
 ];
 
-const InterviewInterface = () => {
+interface InterviewInterfaceProps {
+  resumeData?: {
+    type: 'linkedin' | 'file' | 'text';
+    content: string | File;
+  };
+}
+
+const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
