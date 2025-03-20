@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Briefcase, Clock, Filter } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 
 const JobsList = () => {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   
   const mockJobs = [
@@ -58,9 +60,39 @@ const JobsList = () => {
   
   const appliedJobs = filteredJobs.filter(job => job.applied);
   const availableJobs = filteredJobs.filter(job => !job.applied);
+
+  const handleTabChange = (value: string) => {
+    switch (value) {
+      case 'jobs':
+        // Stay on this page
+        break;
+      case 'interviews':
+        navigate('/interview');
+        break;
+      case 'resumes':
+        navigate('/resumes');
+        break;
+    }
+  };
   
   return (
     <div className="container mx-auto px-4 max-w-5xl">
+      <div className="mb-6">
+        <Tabs defaultValue="jobs" className="w-full mb-6" onValueChange={handleTabChange}>
+          <TabsList className="w-full max-w-md">
+            <TabsTrigger value="interviews" className="flex-1">
+              Interviews
+            </TabsTrigger>
+            <TabsTrigger value="resumes" className="flex-1">
+              Resumes
+            </TabsTrigger>
+            <TabsTrigger value="jobs" className="flex-1">
+              Jobs
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-2xl md:text-3xl font-bold">Jobs</h1>
         
@@ -122,7 +154,15 @@ const JobsList = () => {
               <p className="text-muted-foreground mb-4">
                 Explore available jobs and submit your applications
               </p>
-              <Button variant="default" onClick={() => document.querySelector('[data-value="available"]')?.click()}>
+              <Button 
+                variant="default" 
+                onClick={() => {
+                  const availableTab = document.querySelector('[data-value="available"]');
+                  if (availableTab) {
+                    (availableTab as HTMLElement).click();
+                  }
+                }}
+              >
                 Explore Jobs
               </Button>
             </div>

@@ -11,7 +11,7 @@ const ResumesPage = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className={`flex-grow ${isMobile ? 'py-20' : 'py-28'}`}>
+      <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'}`}>
         <ResumesList />
       </main>
       <Footer />
