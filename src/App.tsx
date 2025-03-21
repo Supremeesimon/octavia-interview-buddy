@@ -15,6 +15,11 @@ import StudentDashboardPage from "./pages/StudentDashboardPage";
 import JobsPage from "./pages/JobsPage";
 import ResumesPage from "./pages/ResumesPage";
 import AdminControlPanel from "./pages/AdminControlPanel";
+import AddInstitutionPage from "./pages/AddInstitutionPage";
+import InstitutionAnalyticsPage from "./pages/InstitutionAnalyticsPage";
+import ExportDataPage from "./pages/ExportDataPage";
+import JobDetailsPage from "./pages/JobDetailsPage";
+import JobApplicationPage from "./pages/JobApplicationPage";
 
 const queryClient = new QueryClient();
 
@@ -33,8 +38,13 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/student" element={<StudentDashboardPage />} />
           <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/jobs/details/:id" element={<JobDetailsPage />} />
+          <Route path="/jobs/apply/:id" element={<JobApplicationPage />} />
           <Route path="/resumes" element={<ResumesPage />} />
           <Route path="/admin" element={<AdminControlPanel />} />
+          <Route path="/admin/add-institution" element={<AddInstitutionPage />} />
+          <Route path="/admin/institution/:id/analytics" element={<InstitutionAnalyticsPage />} />
+          <Route path="/admin/export" element={<ExportDataPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

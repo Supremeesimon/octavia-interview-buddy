@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -110,10 +109,16 @@ const JobsList = () => {
       
       <Tabs defaultValue="applied" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="applied">
+          <TabsTrigger 
+            value="applied" 
+            tooltip="View your submitted job applications"
+          >
             Applied Jobs
           </TabsTrigger>
-          <TabsTrigger value="available">
+          <TabsTrigger 
+            value="available" 
+            tooltip="Browse available job opportunities"
+          >
             Available Jobs
           </TabsTrigger>
         </TabsList>
@@ -122,7 +127,7 @@ const JobsList = () => {
           {appliedJobs.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {appliedJobs.map(job => (
-                <Card key={job.id} className="overflow-hidden">
+                <Card key={job.id} className="overflow-hidden" tooltip={`View details for ${job.title} at ${job.company}`}>
                   <CardContent className="p-0">
                     <div className="p-6">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -139,7 +144,14 @@ const JobsList = () => {
                         </div>
                         <div className="flex flex-col items-start md:items-end gap-2">
                           <span className="text-sm font-medium text-primary">{job.status}</span>
-                          <Button variant="outline" size="sm">View Details</Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            tooltip="View detailed information about this job"
+                            onClick={() => navigate(`/jobs/details/${job.id}`)}
+                          >
+                            View Details
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -162,6 +174,7 @@ const JobsList = () => {
                     (availableTab as HTMLElement).click();
                   }
                 }}
+                tooltip="View available job opportunities"
               >
                 Explore Jobs
               </Button>
@@ -173,7 +186,7 @@ const JobsList = () => {
           {availableJobs.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {availableJobs.map(job => (
-                <Card key={job.id} className="overflow-hidden">
+                <Card key={job.id} className="overflow-hidden" tooltip={`View details for ${job.title} at ${job.company}`}>
                   <CardContent className="p-0">
                     <div className="p-6">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -189,7 +202,13 @@ const JobsList = () => {
                           </div>
                         </div>
                         <div>
-                          <Button size="sm">Apply Now</Button>
+                          <Button 
+                            size="sm"
+                            tooltip="Apply for this job position"
+                            onClick={() => navigate(`/jobs/apply/${job.id}`)}
+                          >
+                            Apply Now
+                          </Button>
                         </div>
                       </div>
                     </div>
