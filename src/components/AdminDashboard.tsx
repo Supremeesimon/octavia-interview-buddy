@@ -32,6 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useNavigate } from 'react-router-dom';
 
 const userActivityData = [
   { name: 'Jan', value: 2500 },
@@ -126,6 +127,7 @@ const institutionAnalytics = {
 
 const AdminDashboard = () => {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedInstitution, setSelectedInstitution] = useState("all");
   
@@ -133,17 +135,17 @@ const AdminDashboard = () => {
     <div className="space-y-6">
       <Tabs defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
         <TabsList>
-          <TabsTrigger value="overview">Platform Overview</TabsTrigger>
-          <TabsTrigger value="institutions">Institutions</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="system">System Status</TabsTrigger>
+          <TabsTrigger value="overview" tooltip="View platform overview and key metrics">Platform Overview</TabsTrigger>
+          <TabsTrigger value="institutions" tooltip="Manage all institutions in the platform">Institutions</TabsTrigger>
+          <TabsTrigger value="analytics" tooltip="View detailed platform analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="system" tooltip="Check system status and health">System Status</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
           <h2 className="text-2xl font-bold">Platform Overview</h2>
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-6 lg:grid-cols-4'}`}>
-            <Card>
+            <Card tooltip="View total users across the platform">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Total Users</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
@@ -154,7 +156,7 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
             
-            <Card>
+            <Card tooltip="View all completed interviews on the platform">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Interviews Completed</CardTitle>
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -165,7 +167,7 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
             
-            <Card>
+            <Card tooltip="Average time users spend in interview sessions">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Avg. Session Time</CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
@@ -176,7 +178,7 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
             
-            <Card>
+            <Card tooltip="Platform engagement percentage showing user activity">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
@@ -189,7 +191,7 @@ const AdminDashboard = () => {
           </div>
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-2 gap-6'}`}>
-            <Card className="col-span-1">
+            <Card className="col-span-1" tooltip="User growth and activity trends over time">
               <CardHeader>
                 <CardTitle>User Activity</CardTitle>
                 <CardDescription>User growth and engagement over time</CardDescription>
@@ -231,7 +233,7 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
             
-            <Card className="col-span-1">
+            <Card className="col-span-1" tooltip="System errors and uptime statistics">
               <CardHeader>
                 <CardTitle>System Health</CardTitle>
                 <CardDescription>Error rates and system uptime</CardDescription>
@@ -275,7 +277,12 @@ const AdminDashboard = () => {
         <TabsContent value="institutions" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Institutions</h2>
-            <Button>Add Institution</Button>
+            <Button 
+              onClick={() => navigate('/admin/add-institution')}
+              tooltip="Add a new institution to the platform"
+            >
+              Add Institution
+            </Button>
           </div>
           
           <Card>
@@ -292,7 +299,11 @@ const AdminDashboard = () => {
                 <div className="flex gap-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="gap-1">
+                      <Button 
+                        variant="outline" 
+                        className="gap-1"
+                        tooltip="Filter institutions by criteria"
+                      >
                         <Filter className="h-4 w-4" />
                         Filter
                         <ChevronDown className="h-4 w-4" />
@@ -308,7 +319,12 @@ const AdminDashboard = () => {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   
-                  <Button variant="outline" className="gap-1">
+                  <Button 
+                    variant="outline" 
+                    className="gap-1"
+                    onClick={() => navigate('/admin/export')}
+                    tooltip="Export institutions data to CSV/Excel"
+                  >
                     <Download className="h-4 w-4" />
                     Export
                   </Button>
@@ -374,13 +390,18 @@ const AdminDashboard = () => {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">Actions</Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                tooltip="Actions for this institution"
+                              >
+                                Actions
+                              </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedInstitution(institution.id);
-                                setActiveTab('analytics');
-                              }}>
+                              <DropdownMenuItem 
+                                onClick={() => navigate(`/admin/institution/${institution.id}/analytics`)}
+                              >
                                 View Analytics
                               </DropdownMenuItem>
                               <DropdownMenuItem>Edit</DropdownMenuItem>
@@ -424,7 +445,12 @@ const AdminDashboard = () => {
                 ))}
               </select>
               
-              <Button variant="outline" className="gap-1">
+              <Button 
+                variant="outline" 
+                className="gap-1"
+                onClick={() => navigate('/admin/export')}
+                tooltip="Export analytics report"
+              >
                 <Download className="h-4 w-4" />
                 Export Report
               </Button>
