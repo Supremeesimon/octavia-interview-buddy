@@ -33,9 +33,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const userActivityData = [
+  { name: 'Jan', value: 2500 },
+  { name: 'Feb', value: 3200 },
+  { name: 'Mar', value: 4100 },
+  { name: 'Apr', value: 4800 },
+  { name: 'May', value: 5500 },
+  { name: 'Jun', value: 6700 },
+  { name: 'Jul', value: 7800 },
+  { name: 'Aug', value: 8932 }
+];
+
+const systemHealthData = [
+  { name: 'Mon', errors: 2 },
+  { name: 'Tue', errors: 1 },
+  { name: 'Wed', errors: 3 },
+  { name: 'Thu', errors: 0 },
+  { name: 'Fri', errors: 1 },
+  { name: 'Sat', errors: 0 },
+  { name: 'Sun', errors: 0 }
+];
+
 const institutionsData = [
   { 
-    id: 1, 
+    id: "1", 
     name: "University of Technology", 
     totalStudents: 1250, 
     activeStudents: 980, 
@@ -46,7 +67,7 @@ const institutionsData = [
     engagement: "High"
   },
   { 
-    id: 2, 
+    id: "2", 
     name: "Business College", 
     totalStudents: 850, 
     activeStudents: 720, 
@@ -57,7 +78,7 @@ const institutionsData = [
     engagement: "Medium"
   },
   { 
-    id: 3, 
+    id: "3", 
     name: "Engineering Institute", 
     totalStudents: 650, 
     activeStudents: 590, 
@@ -68,7 +89,7 @@ const institutionsData = [
     engagement: "Very High"
   },
   { 
-    id: 4, 
+    id: "4", 
     name: "Liberal Arts College", 
     totalStudents: 780, 
     activeStudents: 520, 
