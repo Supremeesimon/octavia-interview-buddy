@@ -137,6 +137,7 @@ const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBooki
                           variant={selectedTime === time ? "default" : "outline"}
                           className="justify-start text-sm w-full truncate"
                           onClick={() => handleTimeSelect(time)}
+                          tooltip={`Select ${time} time slot`}
                         >
                           <Clock className="mr-2 h-4 w-4 flex-shrink-0" />
                           <span className="truncate">{time}</span>
@@ -186,6 +187,7 @@ const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBooki
           onClick={handleBookInterview} 
           disabled={!selectedDate || !selectedTime || isBooking || reachedBookingLimit}
           className="w-full flex gap-2"
+          tooltip="Confirm and schedule your interview"
         >
           {isBooking ? (
             <>Processing...</>

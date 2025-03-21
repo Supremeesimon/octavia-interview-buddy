@@ -82,6 +82,7 @@ const PreInterviewDialog = ({ open, onClose, onStartInterview }: PreInterviewDia
           <Button 
             onClick={onStartInterview}
             className="px-8 rounded-full"
+            tooltip="Begin your practice interview session"
           >
             Start Interview Now
           </Button>
