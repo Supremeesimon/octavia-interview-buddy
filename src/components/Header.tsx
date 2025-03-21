@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Menu } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -41,14 +42,14 @@ const Header = () => {
   };
 
   const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'How It Works', path: '/#how-it-works', id: 'how-it-works' },
-    { name: 'Features', path: '/#features', id: 'features' },
+    { name: 'Home', path: '/', tooltip: 'Go to homepage' },
+    { name: 'How It Works', path: '/#how-it-works', id: 'how-it-works', tooltip: 'Learn how Octavia works' },
+    { name: 'Features', path: '/#features', id: 'features', tooltip: 'Explore Octavia features' },
   ];
 
   const authLinks = [
-    { name: 'Login', path: '/login' },
-    { name: 'Signup', path: '/signup' },
+    { name: 'Login', path: '/login', tooltip: 'Sign in to your account' },
+    { name: 'Signup', path: '/signup', tooltip: 'Create a new account' },
   ];
   
   return (
@@ -57,60 +58,83 @@ const Header = () => {
       scrolled ? 'glass-effect shadow-sm' : 'bg-transparent'
     )}>
       <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
-        <Link to="/" className="flex items-center space-x-2">
-          <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-white text-lg font-bold">O</span>
-          </span>
-          <span className="font-medium text-xl">Octavia Artificial intelligence</span>
-        </Link>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link to="/" className="flex items-center space-x-2">
+              <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                <span className="text-white text-lg font-bold">O</span>
+              </span>
+              <span className="font-medium text-xl">Octavia Artificial intelligence</span>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Go to homepage</p>
+          </TooltipContent>
+        </Tooltip>
         
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-8">
           {navLinks.map((link) => (
-            <Link 
-              key={link.name}
-              to={link.path}
-              onClick={link.id ? (e) => handleNavClick(e, link.id) : undefined}
-              className={cn(
-                'text-sm transition-colors duration-200',
-                location.pathname === link.path || 
-                (location.pathname === '/' && link.path.startsWith('/#'))
-                  ? 'text-primary font-medium'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {link.name}
-            </Link>
+            <Tooltip key={link.name}>
+              <TooltipTrigger asChild>
+                <Link 
+                  to={link.path}
+                  onClick={link.id ? (e) => handleNavClick(e, link.id) : undefined}
+                  className={cn(
+                    'text-sm transition-colors duration-200',
+                    location.pathname === link.path || 
+                    (location.pathname === '/' && link.path.startsWith('/#'))
+                      ? 'text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {link.name}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{link.tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
           ))}
         </nav>
         
         <div className="hidden md:flex items-center space-x-4">
           {authLinks.map((link) => (
-            <Link 
-              key={link.name}
-              to={link.path}
-              className={cn(
-                'text-sm transition-colors duration-200',
-                link.name === 'Signup' 
-                  ? 'bg-primary text-white px-4 py-2 rounded-full hover:bg-primary/90' 
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {link.name}
-            </Link>
+            <Tooltip key={link.name}>
+              <TooltipTrigger asChild>
+                <Link 
+                  to={link.path}
+                  className={cn(
+                    'text-sm transition-colors duration-200',
+                    link.name === 'Signup' 
+                      ? 'bg-primary text-white px-4 py-2 rounded-full hover:bg-primary/90' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {link.name}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{link.tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
           ))}
-          <Link to="/interview">
-            <Button className="rounded-full px-6 shadow-md transition-all hover:shadow-lg hover:scale-105">
+          <Button 
+            className="rounded-full px-6 shadow-md transition-all hover:shadow-lg hover:scale-105"
+            tooltip="Start your interview practice"
+            asChild
+          >
+            <Link to="/interview">
               Start Interview
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
 
         {/* Mobile Navigation */}
         <div className="md:hidden">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" tooltip="Navigation menu">
                 <Menu className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -143,4 +167,3 @@ const Header = () => {
 };
 
 export default Header;
-

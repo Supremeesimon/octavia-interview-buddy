@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
@@ -25,4 +26,23 @@ const TooltipContent = React.forwardRef<
 ))
 TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+// Helper component for common tooltip usage pattern
+const TooltipButton = ({ 
+  tooltip, 
+  children, 
+  className, 
+  ...props 
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { tooltip: string }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <button className={className} {...props}>
+        {children}
+      </button>
+    </TooltipTrigger>
+    <TooltipContent>
+      <p>{tooltip}</p>
+    </TooltipContent>
+  </Tooltip>
+)
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, TooltipButton }

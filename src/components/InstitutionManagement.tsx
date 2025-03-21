@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Building, 
@@ -111,7 +110,10 @@ const InstitutionManagement = () => {
             />
           </div>
           
-          <Button onClick={() => setShowAddDialog(true)}>
+          <Button 
+            onClick={() => setShowAddDialog(true)}
+            tooltip="Add a new institution"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Institution
           </Button>
@@ -172,6 +174,7 @@ const InstitutionManagement = () => {
                           <Button 
                             size="sm" 
                             variant="outline"
+                            tooltip={`Assign admin to ${institution.name}`}
                             onClick={() => {
                               setSelectedInstitution(institution);
                               setShowAssignDialog(true);
@@ -182,11 +185,16 @@ const InstitutionManagement = () => {
                           <Button 
                             size="sm" 
                             variant="outline"
+                            tooltip={`Edit ${institution.name}`}
                             onClick={() => handleEditInstitution(institution)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            tooltip={`Delete ${institution.name}`}
+                          >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
@@ -260,10 +268,17 @@ const InstitutionManagement = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+            <Button 
+              variant="outline" 
+              tooltip="Discard changes"
+              onClick={() => setShowAddDialog(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddInstitution}>
+            <Button 
+              tooltip={selectedInstitution ? "Save institution changes" : "Add new institution"}
+              onClick={handleAddInstitution}
+            >
               {selectedInstitution ? 'Save Changes' : 'Add Institution'}
             </Button>
           </DialogFooter>
@@ -312,10 +327,17 @@ const InstitutionManagement = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>
+            <Button 
+              variant="outline" 
+              tooltip="Discard changes"
+              onClick={() => setShowAssignDialog(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAssignAdmin}>
+            <Button 
+              tooltip="Assign administrator to institution"
+              onClick={handleAssignAdmin}
+            >
               Assign Administrator
             </Button>
           </DialogFooter>

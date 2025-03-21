@@ -157,7 +157,11 @@ const InstitutionContactForm = () => {
                 />
                 
                 <div className="pt-4">
-                  <Button type="submit" className="w-full md:w-auto">
+                  <Button 
+                    type="submit" 
+                    className="w-full md:w-auto"
+                    tooltip="Submit your partnership inquiry"
+                  >
                     Submit Inquiry
                   </Button>
                 </div>
@@ -175,10 +179,13 @@ const InstitutionContactForm = () => {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogAction onClick={() => {
-                setIsOpen(false);
-                toast.success("Inquiry submitted successfully!");
-              }}>
+              <AlertDialogAction 
+                onClick={() => {
+                  setIsOpen(false);
+                  toast.success("Inquiry submitted successfully!");
+                }}
+                tooltip="Close this message"
+              >
                 Great!
               </AlertDialogAction>
             </AlertDialogFooter>
