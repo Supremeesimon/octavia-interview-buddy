@@ -6,6 +6,7 @@ import StudentDashboard from '@/components/StudentDashboard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const StudentDashboardPage = () => {
   const isMobile = useIsMobile();
@@ -33,26 +34,28 @@ const StudentDashboardPage = () => {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'}`}>
-        <div className="container mx-auto px-4 max-w-7xl">
-          <Tabs defaultValue="dashboard" className="w-full mb-6" onValueChange={handleTabChange}>
-            <TabsList className="w-full max-w-md">
-              <TabsTrigger value="dashboard" className="flex-1">
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger value="interviews" className="flex-1">
-                Interviews
-              </TabsTrigger>
-              <TabsTrigger value="jobs" className="flex-1">
-                Jobs
-              </TabsTrigger>
-              <TabsTrigger value="resumes" className="flex-1">
-                Resumes
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          <StudentDashboard />
-        </div>
+        <TooltipProvider>
+          <div className="container mx-auto px-4 max-w-7xl">
+            <Tabs defaultValue="dashboard" className="w-full mb-6" onValueChange={handleTabChange}>
+              <TabsList className="w-full max-w-md">
+                <TabsTrigger value="dashboard" title="View your personal dashboard and progress">
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger value="interviews" title="Schedule and manage your interview sessions">
+                  Interviews
+                </TabsTrigger>
+                <TabsTrigger value="jobs" title="Browse available job opportunities">
+                  Jobs
+                </TabsTrigger>
+                <TabsTrigger value="resumes" title="Upload and manage your resumes">
+                  Resumes
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            
+            <StudentDashboard />
+          </div>
+        </TooltipProvider>
       </main>
       <Footer />
     </div>
