@@ -244,13 +244,13 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     <div className="container mx-auto px-4 max-w-7xl">
       <Tabs defaultValue="interview" className="w-full mb-6" onValueChange={handleTabChange}>
         <TabsList className="w-full max-w-md">
-          <TabsTrigger value="interview" className="flex-1">
+          <TabsTrigger value="interview" tooltip="Practice interview session">
             Interview
           </TabsTrigger>
-          <TabsTrigger value="resumes" className="flex-1">
+          <TabsTrigger value="resumes" tooltip="Manage your resumes">
             Resumes
           </TabsTrigger>
-          <TabsTrigger value="jobs" className="flex-1">
+          <TabsTrigger value="jobs" tooltip="Browse available job opportunities">
             Jobs
           </TabsTrigger>
         </TabsList>
@@ -311,6 +311,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                   size="icon"
                   className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
                   onClick={handlePauseRecording}
+                  tooltip="Pause interview"
                 >
                   <PauseCircle className="h-5 w-5" />
                 </Button>
@@ -320,6 +321,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                   size="icon"
                   className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
                   onClick={isRecording ? handleResumeRecording : handleStartRecording}
+                  tooltip={isRecording ? "Resume interview" : "Start recording"}
                 >
                   <PlayCircle className="h-5 w-5" />
                 </Button>
@@ -331,6 +333,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
             size="lg"
             className="mx-auto bg-primary text-white w-28"
             onClick={isRecording ? handleStopRecording : handleStartRecording}
+            tooltip={isRecording ? "Stop recording" : "Start your interview"}
           >
             {isRecording ? "Stop" : "Start"}
           </Button>
