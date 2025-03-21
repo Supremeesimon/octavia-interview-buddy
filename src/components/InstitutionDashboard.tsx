@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,20 +19,26 @@ import {
   Search,
   ArrowUpDown,
   CheckCheck,
-  X
+  X,
+  ChevronDown,
+  ChevronUp,
+  FileUp,
+  MessageSquare,
+  Star
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { toast } from "sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const InstitutionDashboard = () => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [expandedStudent, setExpandedStudent] = useState(null);
   
-  // Demo data
   const totalLicenses = 1000;
   const usedLicenses = 368;
   const pendingApprovals = 15;
@@ -59,6 +64,118 @@ const InstitutionDashboard = () => {
     { id: 3, studentName: "Wei Zhang", date: "2023-06-16", time: "10:00", type: "Technical" },
   ];
   
+  const resumeAnalytics = [
+    { 
+      id: 1, 
+      studentName: "Emma Thompson", 
+      resumeViews: 24,
+      timeOnSections: { summary: "40s", experience: "75s", education: "30s", skills: "50s" },
+      contactClicks: 5,
+      downloads: 3,
+      improvementScore: 87,
+      aiUsage: 12,
+      resumesGenerated: 3,
+      jobMatches: 8,
+      jobClickRate: "65%"
+    },
+    { 
+      id: 2, 
+      studentName: "John Davis", 
+      resumeViews: 18,
+      timeOnSections: { summary: "35s", experience: "60s", education: "25s", skills: "40s" },
+      contactClicks: 3,
+      downloads: 2,
+      improvementScore: 72,
+      aiUsage: 8,
+      resumesGenerated: 2,
+      jobMatches: 6,
+      jobClickRate: "50%"
+    },
+    { 
+      id: 3, 
+      studentName: "Wei Zhang", 
+      resumeViews: 32,
+      timeOnSections: { summary: "45s", experience: "90s", education: "35s", skills: "65s" },
+      contactClicks: 7,
+      downloads: 4,
+      improvementScore: 93,
+      aiUsage: 15,
+      resumesGenerated: 4,
+      jobMatches: 12,
+      jobClickRate: "75%"
+    }
+  ];
+  
+  const interviewAnalytics = [
+    {
+      id: 1,
+      studentName: "Emma Thompson",
+      responseQuality: 85,
+      commonMistakes: ["Lack of specificity", "Filler words"],
+      avgResponseTime: "45s",
+      sentiment: "Confident",
+      keywordUsage: "High",
+      practiceAttempts: 12,
+      topicPerformance: { behavioral: 88, technical: 82, situational: 86 },
+      feedbackEngagement: "90%",
+      improvementTrajectory: "+15%",
+      benchmarkPercentile: "88th",
+      difficultyTolerance: "High",
+      confidenceLevel: "Moderate",
+      improvementScore: 82,
+      dropOffRate: "5%"
+    },
+    {
+      id: 2,
+      studentName: "John Davis",
+      responseQuality: 78,
+      commonMistakes: ["Rambling", "Limited examples"],
+      avgResponseTime: "52s",
+      sentiment: "Somewhat nervous",
+      keywordUsage: "Medium",
+      practiceAttempts: 8,
+      topicPerformance: { behavioral: 75, technical: 80, situational: 79 },
+      feedbackEngagement: "75%",
+      improvementTrajectory: "+10%",
+      benchmarkPercentile: "65th",
+      difficultyTolerance: "Medium",
+      confidenceLevel: "Low",
+      improvementScore: 74,
+      dropOffRate: "12%"
+    },
+    {
+      id: 3,
+      studentName: "Wei Zhang",
+      responseQuality: 92,
+      commonMistakes: ["Technical overexplanation"],
+      avgResponseTime: "38s",
+      sentiment: "Very confident",
+      keywordUsage: "Very High",
+      practiceAttempts: 15,
+      topicPerformance: { behavioral: 90, technical: 95, situational: 92 },
+      feedbackEngagement: "95%",
+      improvementTrajectory: "+20%",
+      benchmarkPercentile: "95th",
+      difficultyTolerance: "Very High",
+      confidenceLevel: "High",
+      improvementScore: 93,
+      dropOffRate: "2%"
+    }
+  ];
+  
+  const platformEngagement = {
+    resumeInterviewCorrelation: "78%",
+    mostUsedFeatures: ["Interview Practice", "Resume Review", "Job Matching"],
+    licenseActivationRate: "84%",
+    studentsAtRisk: 15,
+    departmentPerformance: [
+      { name: "Computer Science", avgScore: 87 },
+      { name: "Business", avgScore: 82 },
+      { name: "Engineering", avgScore: 85 },
+      { name: "Liberal Arts", avgScore: 79 }
+    ]
+  };
+  
   const copySignupLink = () => {
     navigator.clipboard.writeText(demoSignupLink);
     setCopiedLink(true);
@@ -81,8 +198,19 @@ const InstitutionDashboard = () => {
   const exportData = () => {
     toast.success("Exporting student data...");
   };
-
-  // Filter students based on search query and status filter
+  
+  const exportAnalyticsData = () => {
+    toast.success("Exporting analytics data...");
+  };
+  
+  const toggleStudentDetails = (studentId) => {
+    if (expandedStudent === studentId) {
+      setExpandedStudent(null);
+    } else {
+      setExpandedStudent(studentId);
+    }
+  };
+  
   const filteredStudents = students.filter(student => {
     const matchesSearch = 
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -169,6 +297,7 @@ const InstitutionDashboard = () => {
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
           <TabsTrigger value="interviews">Scheduled Interviews</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -379,6 +508,444 @@ const InstitutionDashboard = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="analytics">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Student Analytics</h2>
+              <Button onClick={exportAnalyticsData} className="gap-2">
+                <Download className="h-4 w-4" />
+                Export Analytics
+              </Button>
+            </div>
+            
+            <Tabs defaultValue="resume">
+              <TabsList className="mb-6">
+                <TabsTrigger value="resume">Resume Analytics</TabsTrigger>
+                <TabsTrigger value="interview">Interview Analytics</TabsTrigger>
+                <TabsTrigger value="platform">Platform Engagement</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="resume">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Resume Analytics</CardTitle>
+                    <CardDescription>
+                      Track how students' resumes perform and evolve over time
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <div className="relative w-full md:w-64">
+                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <input
+                            type="text"
+                            placeholder="Search students..."
+                            className="pl-8 h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <select 
+                            className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            <option value="all">All Departments</option>
+                            <option value="cs">Computer Science</option>
+                            <option value="business">Business</option>
+                            <option value="engineering">Engineering</option>
+                            <option value="liberal-arts">Liberal Arts</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <ScrollArea className="h-[500px]">
+                        <div className="space-y-4">
+                          {resumeAnalytics.map(student => (
+                            <Collapsible 
+                              key={student.id}
+                              open={expandedStudent === student.id}
+                              onOpenChange={() => toggleStudentDetails(student.id)}
+                            >
+                              <Card>
+                                <CardHeader className="pb-2">
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <CardTitle className="text-lg">{student.studentName}</CardTitle>
+                                      <CardDescription>Resume Performance Metrics</CardDescription>
+                                    </div>
+                                    <CollapsibleTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="w-9 p-0">
+                                        {expandedStudent === student.id ? 
+                                          <ChevronUp className="h-4 w-4" /> : 
+                                          <ChevronDown className="h-4 w-4" />
+                                        }
+                                      </Button>
+                                    </CollapsibleTrigger>
+                                  </div>
+                                </CardHeader>
+                                <CardContent className="pb-3 pt-0">
+                                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.resumeViews}</div>
+                                      <div className="text-xs text-muted-foreground">Resume Views</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.contactClicks}</div>
+                                      <div className="text-xs text-muted-foreground">Contact Clicks</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.downloads}</div>
+                                      <div className="text-xs text-muted-foreground">Downloads</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.jobMatches}</div>
+                                      <div className="text-xs text-muted-foreground">Job Matches</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.jobClickRate}</div>
+                                      <div className="text-xs text-muted-foreground">Job Click Rate</div>
+                                    </div>
+                                  </div>
+                                  
+                                  <CollapsibleContent>
+                                    <div className="pt-4 space-y-4">
+                                      <div>
+                                        <h4 className="text-sm font-medium mb-2">Time Spent on Resume Sections</h4>
+                                        <div className="grid grid-cols-4 gap-2">
+                                          {Object.entries(student.timeOnSections).map(([section, time]) => (
+                                            <div key={section} className="bg-muted p-2 rounded-md text-center">
+                                              <div className="text-xs text-muted-foreground capitalize">{section}</div>
+                                              <div className="font-medium">{time}</div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                          <h4 className="text-sm font-medium mb-2">Improvement Score</h4>
+                                          <div className="flex items-center gap-2">
+                                            <Progress value={student.improvementScore} className="h-2 flex-1" />
+                                            <span className="font-medium text-sm">{student.improvementScore}/100</span>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h4 className="text-sm font-medium mb-2">AI Usage Frequency</h4>
+                                          <div className="flex items-center gap-2">
+                                            <Progress value={(student.aiUsage / 20) * 100} className="h-2 flex-1" />
+                                            <span className="font-medium text-sm">{student.aiUsage} times</span>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h4 className="text-sm font-medium mb-2">Resumes Generated</h4>
+                                          <div className="flex items-center gap-2">
+                                            <Progress value={(student.resumesGenerated / 5) * 100} className="h-2 flex-1" />
+                                            <span className="font-medium text-sm">{student.resumesGenerated}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="flex justify-end">
+                                        <Button variant="outline" size="sm">View Full Report</Button>
+                                      </div>
+                                    </div>
+                                  </CollapsibleContent>
+                                </CardContent>
+                              </Card>
+                            </Collapsible>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="interview">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Interview Analytics</CardTitle>
+                    <CardDescription>
+                      Track how students perform during practice interviews
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <div className="relative w-full md:w-64">
+                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <input
+                            type="text"
+                            placeholder="Search students..."
+                            className="pl-8 h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <select 
+                            className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            <option value="all">All Departments</option>
+                            <option value="cs">Computer Science</option>
+                            <option value="business">Business</option>
+                            <option value="engineering">Engineering</option>
+                            <option value="liberal-arts">Liberal Arts</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <ScrollArea className="h-[500px]">
+                        <div className="space-y-4">
+                          {interviewAnalytics.map(student => (
+                            <Collapsible 
+                              key={student.id}
+                              open={expandedStudent === student.id}
+                              onOpenChange={() => toggleStudentDetails(student.id)}
+                            >
+                              <Card>
+                                <CardHeader className="pb-2">
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <CardTitle className="text-lg">{student.studentName}</CardTitle>
+                                      <CardDescription>Interview Performance Metrics</CardDescription>
+                                    </div>
+                                    <CollapsibleTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="w-9 p-0">
+                                        {expandedStudent === student.id ? 
+                                          <ChevronUp className="h-4 w-4" /> : 
+                                          <ChevronDown className="h-4 w-4" />
+                                        }
+                                      </Button>
+                                    </CollapsibleTrigger>
+                                  </div>
+                                </CardHeader>
+                                <CardContent className="pb-3 pt-0">
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.responseQuality}</div>
+                                      <div className="text-xs text-muted-foreground">Response Quality</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.avgResponseTime}</div>
+                                      <div className="text-xs text-muted-foreground">Avg Response Time</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.practiceAttempts}</div>
+                                      <div className="text-xs text-muted-foreground">Practice Attempts</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-2xl font-bold">{student.improvementTrajectory}</div>
+                                      <div className="text-xs text-muted-foreground">Improvement</div>
+                                    </div>
+                                  </div>
+                                  
+                                  <CollapsibleContent>
+                                    <div className="pt-4 space-y-4">
+                                      <div>
+                                        <h4 className="text-sm font-medium mb-2">Topic Performance</h4>
+                                        <div className="grid grid-cols-3 gap-2">
+                                          {Object.entries(student.topicPerformance).map(([topic, score]) => (
+                                            <div key={topic} className="space-y-1">
+                                              <div className="flex justify-between">
+                                                <span className="text-xs text-muted-foreground capitalize">{topic}</span>
+                                                <span className="text-xs font-medium">{score}/100</span>
+                                              </div>
+                                              <Progress value={score} className="h-2" />
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <h4 className="text-sm font-medium mb-2">Common Mistakes</h4>
+                                          <div className="text-sm">
+                                            {student.commonMistakes.map((mistake, index) => (
+                                              <div key={index} className="flex items-center gap-1 text-amber-600">
+                                                <X className="h-3 w-3" />
+                                                <span>{mistake}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h4 className="text-sm font-medium mb-2">Strengths</h4>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <div className="flex items-center gap-2">
+                                              <div className={`h-2 w-2 rounded-full ${student.keywordUsage === 'High' || student.keywordUsage === 'Very High' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+                                              <span className="text-sm">Keyword Usage: {student.keywordUsage}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <div className={`h-2 w-2 rounded-full ${student.sentiment === 'Confident' || student.sentiment === 'Very confident' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+                                              <span className="text-sm">Sentiment: {student.sentiment}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <div className={`h-2 w-2 rounded-full ${student.difficultyTolerance === 'High' || student.difficultyTolerance === 'Very High' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+                                              <span className="text-sm">Difficulty Tolerance: {student.difficultyTolerance}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <div className={`h-2 w-2 rounded-full ${student.confidenceLevel === 'High' || student.confidenceLevel === 'Moderate' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+                                              <span className="text-sm">Confidence: {student.confidenceLevel}</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                          <h4 className="text-sm font-medium mb-2">Feedback Engagement</h4>
+                                          <div className="flex items-center gap-2">
+                                            <Progress 
+                                              value={parseInt(student.feedbackEngagement)} 
+                                              className="h-2 flex-1" 
+                                            />
+                                            <span className="font-medium text-sm">{student.feedbackEngagement}</span>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h4 className="text-sm font-medium mb-2">Benchmark Percentile</h4>
+                                          <div className="flex items-center gap-2">
+                                            <Progress 
+                                              value={parseInt(student.benchmarkPercentile)} 
+                                              className="h-2 flex-1" 
+                                            />
+                                            <span className="font-medium text-sm">{student.benchmarkPercentile}</span>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h4 className="text-sm font-medium mb-2">Drop-off Rate</h4>
+                                          <div className="flex items-center gap-2">
+                                            <Progress 
+                                              value={parseInt(student.dropOffRate)} 
+                                              className="h-2 flex-1" 
+                                            />
+                                            <span className="font-medium text-sm">{student.dropOffRate}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="flex justify-end">
+                                        <Button variant="outline" size="sm">View Full Report</Button>
+                                      </div>
+                                    </div>
+                                  </CollapsibleContent>
+                                </CardContent>
+                              </Card>
+                            </Collapsible>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="platform">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Platform Engagement & Institutional Intelligence</CardTitle>
+                    <CardDescription>
+                      Overall platform usage and performance metrics
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Card>
+                          <CardContent className="p-6">
+                            <div className="flex flex-col items-center text-center">
+                              <div className="text-4xl font-bold text-primary mb-2">{platformEngagement.resumeInterviewCorrelation}</div>
+                              <div className="text-sm text-muted-foreground">Resume vs Interview Performance Correlation</div>
+                              <div className="text-xs text-muted-foreground mt-2">
+                                Shows how writing skills align with verbal performance
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card>
+                          <CardContent className="p-6">
+                            <div className="flex flex-col items-center text-center">
+                              <div className="text-4xl font-bold text-primary mb-2">{platformEngagement.licenseActivationRate}</div>
+                              <div className="text-sm text-muted-foreground">License Activation Rate</div>
+                              <div className="text-xs text-muted-foreground mt-2">
+                                Percentage of available licenses being actively used
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card>
+                          <CardContent className="p-6">
+                            <div className="flex flex-col items-center text-center">
+                              <div className="text-4xl font-bold text-destructive mb-2">{platformEngagement.studentsAtRisk}</div>
+                              <div className="text-sm text-muted-foreground">Students at Risk</div>
+                              <div className="text-xs text-muted-foreground mt-2">
+                                Students likely to struggle in real-world interviews
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base">Most Used Features</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              {platformEngagement.mostUsedFeatures.map((feature, index) => (
+                                <div key={index}>
+                                  <div className="flex justify-between mb-1">
+                                    <span className="text-sm">{feature}</span>
+                                    <span className="text-sm font-medium">{100 - index * 15}%</span>
+                                  </div>
+                                  <Progress value={100 - index * 15} className="h-2" />
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base">Department Performance</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              {platformEngagement.departmentPerformance.map((dept, index) => (
+                                <div key={index}>
+                                  <div className="flex justify-between mb-1">
+                                    <span className="text-sm">{dept.name}</span>
+                                    <span className="text-sm font-medium">{dept.avgScore}/100</span>
+                                  </div>
+                                  <Progress value={dept.avgScore} className="h-2" />
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                      
+                      <div>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base">Aggregate Cohort Performance</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="bg-muted/50 h-64 rounded-lg flex items-center justify-center">
+                              <BarChart3 className="h-12 w-12 text-muted-foreground opacity-30" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
         </TabsContent>
         
         <TabsContent value="reports">
