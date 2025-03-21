@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useParams } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ArrowLeft, Building, Clock, MapPin, Calendar, Briefcase, Share2, BookmarkPlus, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Building, Clock, MapPin, Calendar, Briefcase, Share2, BookmarkPlus, ExternalLink, Check } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
