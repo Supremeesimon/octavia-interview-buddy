@@ -4,6 +4,11 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdminDashboard from '@/components/AdminDashboard';
+import InstitutionManagement from '@/components/InstitutionManagement';
+import StudentManagement from '@/components/StudentManagement';
+import ResourceManagement from '@/components/ResourceManagement';
+import BroadcastSystem from '@/components/BroadcastSystem';
+import AIAnalytics from '@/components/AIAnalytics';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminControlPanel = () => {
