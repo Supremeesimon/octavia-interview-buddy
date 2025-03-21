@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { File, FileText, Upload, Calendar, Clock, Download, Pencil, Trash2, Plus } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const ResumesList = () => {
   const isMobile = useIsMobile();
@@ -73,7 +74,7 @@ const ResumesList = () => {
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-2xl md:text-3xl font-bold">Resumes</h1>
         
-        <Button className="gap-2">
+        <Button className="gap-2" tooltip="Upload or create a new resume">
           <Plus className="h-4 w-4" />
           Add New Resume
         </Button>
@@ -106,22 +107,32 @@ const ResumesList = () => {
                 </div>
               </CardContent>
               <CardFooter className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="gap-1">
+                <Button variant="outline" size="sm" className="gap-1" tooltip="Download this resume">
                   <Download className="h-4 w-4" />
                   {!isMobile && "Download"}
                 </Button>
-                <Button variant="outline" size="sm" className="gap-1">
+                <Button variant="outline" size="sm" className="gap-1" tooltip="Edit this resume">
                   <Pencil className="h-4 w-4" />
                   {!isMobile && "Edit"}
                 </Button>
                 {!resume.isDefault && (
-                  <Button variant="outline" size="sm" className="gap-1 text-destructive hover:text-destructive">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-1 text-destructive hover:text-destructive"
+                    tooltip="Delete this resume"
+                  >
                     <Trash2 className="h-4 w-4" />
                     {!isMobile && "Delete"}
                   </Button>
                 )}
                 {!resume.isDefault && (
-                  <Button variant="ghost" size="sm" className="ml-auto">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="ml-auto"
+                    tooltip="Make this your default resume"
+                  >
                     Set as Default
                   </Button>
                 )}
@@ -136,7 +147,7 @@ const ResumesList = () => {
           <p className="text-muted-foreground mb-4">
             Upload your resume to apply for jobs and prepare for interviews
           </p>
-          <Button className="gap-2">
+          <Button className="gap-2" tooltip="Upload your first resume">
             <Upload className="h-4 w-4" />
             Upload Resume
           </Button>
