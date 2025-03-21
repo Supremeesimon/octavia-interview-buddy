@@ -1,8 +1,10 @@
+
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
 
 const AlertDialog = AlertDialogPrimitive.Root
 
@@ -96,32 +98,71 @@ const AlertDialogDescription = React.forwardRef<
 AlertDialogDescription.displayName =
   AlertDialogPrimitive.Description.displayName
 
+interface AlertDialogActionProps extends 
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action> {
+  tooltip?: string;
+}
+
 const AlertDialogAction = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Action>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Action
-    ref={ref}
-    className={cn(buttonVariants(), className)}
-    {...props}
-  />
-))
+  AlertDialogActionProps
+>(({ className, tooltip, ...props }, ref) => {
+  const actionButton = (
+    <AlertDialogPrimitive.Action
+      ref={ref}
+      className={cn(buttonVariants(), className)}
+      {...props}
+    />
+  );
+
+  if (tooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {actionButton}
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return actionButton;
+})
 AlertDialogAction.displayName = AlertDialogPrimitive.Action.displayName
 
 const AlertDialogCancel = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Cancel>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Cancel>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Cancel
-    ref={ref}
-    className={cn(
-      buttonVariants({ variant: "outline" }),
-      "mt-2 sm:mt-0",
-      className
-    )}
-    {...props}
-  />
-))
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Cancel> & { tooltip?: string }
+>(({ className, tooltip, ...props }, ref) => {
+  const cancelButton = (
+    <AlertDialogPrimitive.Cancel
+      ref={ref}
+      className={cn(
+        buttonVariants({ variant: "outline" }),
+        "mt-2 sm:mt-0",
+        className
+      )}
+      {...props}
+    />
+  );
+
+  if (tooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {cancelButton}
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return cancelButton;
+})
 AlertDialogCancel.displayName = AlertDialogPrimitive.Cancel.displayName
 
 export {

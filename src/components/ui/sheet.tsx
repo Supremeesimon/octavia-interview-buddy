@@ -1,15 +1,59 @@
+
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
 
 const Sheet = SheetPrimitive.Root
 
-const SheetTrigger = SheetPrimitive.Trigger
+const SheetTrigger = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Trigger> & { tooltip?: string }
+>(({ tooltip, ...props }, ref) => {
+  const triggerElement = <SheetPrimitive.Trigger ref={ref} {...props} />;
+  
+  if (tooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {triggerElement}
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+  
+  return triggerElement;
+});
+SheetTrigger.displayName = SheetPrimitive.Trigger.displayName
 
-const SheetClose = SheetPrimitive.Close
+const SheetClose = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Close>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Close> & { tooltip?: string }
+>(({ tooltip, ...props }, ref) => {
+  const closeElement = <SheetPrimitive.Close ref={ref} {...props} />;
+  
+  if (tooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {closeElement}
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+  
+  return closeElement;
+});
+SheetClose.displayName = SheetPrimitive.Close.displayName
 
 const SheetPortal = SheetPrimitive.Portal
 
@@ -128,4 +172,3 @@ export {
   Sheet, SheetClose,
   SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetOverlay, SheetPortal, SheetTitle, SheetTrigger
 }
-
