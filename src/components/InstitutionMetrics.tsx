@@ -178,7 +178,7 @@ const InstitutionMetrics = () => {
         },
         {
           name: 'Cohort Performance Dashboard',
-          description: 'Institution gains bird's-eye view of employability metrics and program impact.',
+          description: "Institution gains bird\'s-eye view of employability metrics and program impact.",
           icon: <BarChart3 className="h-4 w-4 text-primary" />
         }
       ]
