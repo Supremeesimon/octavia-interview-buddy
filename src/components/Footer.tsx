@@ -27,15 +27,16 @@ const Footer = () => {
               <li><Link to="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link></li>
               <li><Link to="/#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">How It Works</Link></li>
               <li><Link to="/interview" className="text-muted-foreground hover:text-foreground transition-colors">Try It Now</Link></li>
+              <li><Link to="/#institution-contact" className="text-muted-foreground hover:text-foreground transition-colors">For Institutions</Link></li>
             </ul>
           </div>
           
           <div>
             <h3 className="font-medium mb-4">Company</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">About Us</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Terms of Service</a></li>
+              <li><Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">About Us</Link></li>
+              <li><Link to="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
         </div>

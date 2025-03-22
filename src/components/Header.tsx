@@ -38,7 +38,12 @@ const Header = () => {
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
-    scrollToSection(id);
+    // Navigate to home first if not on home page
+    if (location.pathname !== '/') {
+      window.location.href = `/#${id}`;
+    } else {
+      scrollToSection(id);
+    }
   };
 
   const navLinks = [
@@ -122,7 +127,6 @@ const Header = () => {
           ))}
           <Button 
             className="rounded-full px-6 shadow-md transition-all hover:shadow-lg hover:scale-105"
-            tooltip="Start your interview practice"
             asChild
           >
             <Link to="/interview">
@@ -135,7 +139,7 @@ const Header = () => {
         <div className="md:hidden">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" tooltip="Navigation menu">
+              <Button variant="ghost" size="icon">
                 <Menu className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>

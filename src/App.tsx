@@ -17,6 +17,9 @@ import AdminControlPanel from "./pages/AdminControlPanel";
 import AddInstitutionPage from "./pages/AddInstitutionPage";
 import InstitutionAnalyticsPage from "./pages/InstitutionAnalyticsPage";
 import ExportDataPage from "./pages/ExportDataPage";
+import AboutPage from "./pages/AboutPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
 
 const queryClient = new QueryClient();
 
@@ -39,7 +42,10 @@ const App = () => (
           <Route path="/admin/add-institution" element={<AddInstitutionPage />} />
           <Route path="/admin/institution/:id/analytics" element={<InstitutionAnalyticsPage />} />
           <Route path="/admin/export" element={<ExportDataPage />} />
-          {/* Jobs pages are temporarily disabled */}
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
+          {/* Jobs pages are temporarily hidden */}
           {/* <Route path="/jobs" element={<JobsPage />} /> */}
           {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}
           {/* <Route path="/jobs/apply/:id" element={<JobApplicationPage />} /> */}

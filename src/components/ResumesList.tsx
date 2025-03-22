@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,9 +46,6 @@ const ResumesList = () => {
       case 'interviews':
         navigate('/interview');
         break;
-      case 'jobs':
-        navigate('/jobs');
-        break;
     }
   };
   
@@ -63,9 +59,6 @@ const ResumesList = () => {
             </TabsTrigger>
             <TabsTrigger value="resumes" className="flex-1">
               Resumes
-            </TabsTrigger>
-            <TabsTrigger value="jobs" className="flex-1">
-              Jobs
             </TabsTrigger>
           </TabsList>
         </Tabs>
