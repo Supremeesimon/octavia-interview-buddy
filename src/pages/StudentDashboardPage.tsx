@@ -35,13 +35,13 @@ const StudentDashboardPage = () => {
           <div className="container mx-auto px-4 max-w-7xl">
             <Tabs defaultValue="dashboard" className="w-full mb-6" onValueChange={handleTabChange}>
               <TabsList className="w-full max-w-md">
-                <TabsTrigger value="dashboard" tooltip="View your personal dashboard and progress">
+                <TabsTrigger value="dashboard">
                   Dashboard
                 </TabsTrigger>
-                <TabsTrigger value="interviews" tooltip="Schedule and manage your interview sessions">
+                <TabsTrigger value="interviews">
                   Interviews
                 </TabsTrigger>
-                <TabsTrigger value="resumes" tooltip="Upload and manage your resumes">
+                <TabsTrigger value="resumes">
                   Resumes
                 </TabsTrigger>
               </TabsList>
