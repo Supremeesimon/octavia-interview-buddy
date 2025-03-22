@@ -45,6 +45,7 @@ const Header = () => {
     { name: 'Home', path: '/', tooltip: 'Go to homepage' },
     { name: 'How It Works', path: '/#how-it-works', id: 'how-it-works', tooltip: 'Learn how Octavia works' },
     { name: 'Features', path: '/#features', id: 'features', tooltip: 'Explore Octavia features' },
+    { name: 'For Institutions', path: '/#institution-contact', id: 'institution-contact', tooltip: 'Learn about our institutional offerings' },
   ];
 
   const authLinks = [
@@ -64,7 +65,7 @@ const Header = () => {
               <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-white text-lg font-bold">O</span>
               </span>
-              <span className="font-medium text-xl">Octavia Artificial intelligence</span>
+              <span className="font-medium text-xl">Octavia AI</span>
             </Link>
           </TooltipTrigger>
           <TooltipContent>

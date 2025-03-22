@@ -2,11 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mic, MicOff, PauseCircle, PlayCircle, Loader2, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Mic, MicOff, PauseCircle, PlayCircle, Loader2, Clock, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
-import { Room } from 'livekit-client';
-import '@livekit/components-styles';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
@@ -31,11 +29,8 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const timerRef = useRef<number | null>(null);
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
   
-  // LiveKit setup
-  const [liveKitUrl, setLiveKitUrl] = useState<string>('');
-  const [liveKitToken, setLiveKitToken] = useState<string>('');
-  const [isLiveKitConnected, setIsLiveKitConnected] = useState(false);
-  const [room, setRoom] = useState<Room | null>(null);
+  // VAPI integration setup (instead of LiveKit)
+  const [isAudioConnected, setIsAudioConnected] = useState(false);
   const [isMicEnabled, setIsMicEnabled] = useState(false);
   
   // Sample job data
@@ -52,40 +47,18 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       case 'resumes':
         navigate('/resumes');
         break;
-      case 'jobs':
-        navigate('/jobs');
-        break;
     }
   };
   
-  // For demo purposes, generate fake LiveKit credentials
-  useEffect(() => {
-    // In a real app, these would come from your backend
-    setLiveKitUrl('wss://your-livekit-server.livekit.cloud');
-    setLiveKitToken('your-token-here');
-  }, []);
-  
-  // Connect to LiveKit room when starting recording
-  const connectToLiveKit = async () => {
+  // For demo purposes, simulate VAPI connection
+  const connectToVapi = async () => {
     try {
-      if (liveKitUrl && liveKitToken) {
-        // In a real implementation, this would connect to an actual LiveKit room
-        // const newRoom = new Room();
-        // await newRoom.connect(liveKitUrl, liveKitToken);
-        // setRoom(newRoom);
-        // await newRoom.localParticipant.enableMicrophone();
-        // setIsMicEnabled(true);
-        
-        // For demo purposes, we'll just simulate a successful connection
-        setIsLiveKitConnected(true);
-        toast.success("Audio connected successfully");
-        return true;
-      } else {
-        toast.error("Audio connection failed - missing credentials");
-        return false;
-      }
+      // For demo purposes, we'll just simulate a successful connection
+      setIsAudioConnected(true);
+      toast.success("Audio connected successfully");
+      return true;
     } catch (error) {
-      console.error("LiveKit connection error:", error);
+      console.error("VAPI connection error:", error);
       toast.error("Audio connection failed - please try again");
       return false;
     }
@@ -93,8 +66,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   
   const enableMicrophone = async () => {
     try {
-      // In a real implementation, this would enable the microphone
-      // await room?.localParticipant.enableMicrophone();
+      // In a real implementation, this would enable the microphone via VAPI
       setIsMicEnabled(true);
     } catch (error) {
       console.error("Error enabling microphone:", error);
@@ -104,8 +76,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   
   const disableMicrophone = async () => {
     try {
-      // In a real implementation, this would disable the microphone
-      // await room?.localParticipant.disableMicrophone();
+      // In a real implementation, this would disable the microphone via VAPI
       setIsMicEnabled(false);
     } catch (error) {
       console.error("Error disabling microphone:", error);
@@ -170,8 +141,8 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   }, [timeRemaining, isRecording]);
   
   const handleStartRecording = async () => {
-    // Connect to LiveKit (or simulate in demo mode)
-    const connected = await connectToLiveKit();
+    // Connect to VAPI (or simulate in demo mode)
+    const connected = await connectToVapi();
     
     if (connected) {
       setIsRecording(true);
@@ -185,7 +156,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
           return;
         }
         
-        // Simulate partial transcription (in real app, this would come from LiveKit)
+        // Simulate partial transcription (in real app, this would come from VAPI)
         const demoResponses = [
           "I have over five years of experience in software development...",
           "My background includes working with cross-functional teams to deliver high-quality products...",
@@ -203,11 +174,10 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     setIsRecording(false);
     setIsLoading(true);
     
-    // Disconnect from LiveKit
-    if (isLiveKitConnected) {
+    // Disconnect from VAPI
+    if (isAudioConnected) {
       disableMicrophone();
-      // In a real implementation: room?.disconnect();
-      setIsLiveKitConnected(false);
+      setIsAudioConnected(false);
     }
     
     // Simulate AI processing time
@@ -239,6 +209,11 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       toast.info("Interview ended: 15 minute time limit reached");
     }
   }, [timer, isRecording]);
+
+  const handleScheduleMore = () => {
+    navigate('/resumes');
+    toast.success("Redirecting to scheduling page");
+  };
   
   return (
     <div className="container mx-auto px-4 max-w-7xl">
@@ -249,9 +224,6 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
           </TabsTrigger>
           <TabsTrigger value="resumes" tooltip="Manage your resumes">
             Resumes
-          </TabsTrigger>
-          <TabsTrigger value="jobs" tooltip="Browse available job opportunities">
-            Jobs
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -291,91 +263,148 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
         </div>
       )}
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="flex flex-col">
-          <div className="bg-slate-200 aspect-square rounded-lg flex items-center justify-center mb-4">
-            <div className="text-center">
-              <p className="text-2xl font-mono">{formatTime(timer)}</p>
+      {interviewEnded ? (
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle className="text-center">Interview Complete!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 text-center">
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
-          </div>
-          
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center">
-                <Mic className="h-10 w-10 text-white" />
-              </div>
-              
-              {isRecording && !isPaused ? (
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
-                  onClick={handlePauseRecording}
-                  tooltip="Pause interview"
-                >
-                  <PauseCircle className="h-5 w-5" />
-                </Button>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
-                  onClick={isRecording ? handleResumeRecording : handleStartRecording}
-                  tooltip={isRecording ? "Resume interview" : "Start recording"}
-                >
-                  <PlayCircle className="h-5 w-5" />
-                </Button>
-              )}
+            
+            <p>Thank you for completing your interview. Your responses have been recorded.</p>
+            
+            <div className="bg-primary/10 p-4 rounded-lg">
+              <p className="text-sm">
+                A calendar invite and interview summary will be sent to your email shortly.
+              </p>
             </div>
-          </div>
-          
-          <Button 
-            size="lg"
-            className="mx-auto bg-primary text-white w-28"
-            onClick={isRecording ? handleStopRecording : handleStartRecording}
-            tooltip={isRecording ? "Stop recording" : "Start your interview"}
-          >
-            {isRecording ? "Stop" : "Start"}
-          </Button>
-        </div>
-        
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Interview details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Job</h3>
-                  <p className="text-primary">{jobData.title}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Resume</h3>
-                  <p>{jobData.resumeName}</p>
-                </div>
+            
+            <Button 
+              onClick={handleScheduleMore} 
+              className="gap-2"
+              tooltip="Schedule additional practice interviews"
+            >
+              Schedule More Interviews
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="flex flex-col">
+            <div className="bg-slate-200 aspect-square rounded-lg flex items-center justify-center mb-4">
+              <div className="text-center">
+                <p className="text-2xl font-mono">{formatTime(timer)}</p>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Transcript</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="min-h-[250px]">
-                {transcript ? (
-                  <p>{transcript}</p>
+            </div>
+            
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center">
+                  <Mic className="h-10 w-10 text-white" />
+                </div>
+                
+                {isRecording && !isPaused ? (
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
+                    onClick={handlePauseRecording}
+                    tooltip="Pause interview"
+                  >
+                    <PauseCircle className="h-5 w-5" />
+                  </Button>
                 ) : (
-                  <p className="text-muted-foreground text-center py-12">
-                    Start the conversation to see the transcript
-                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
+                    onClick={isRecording ? handleResumeRecording : handleStartRecording}
+                    tooltip={isRecording ? "Resume interview" : "Start recording"}
+                  >
+                    <PlayCircle className="h-5 w-5" />
+                  </Button>
                 )}
               </div>
+            </div>
+            
+            <Button 
+              size="lg"
+              className="mx-auto bg-primary text-white w-28"
+              onClick={isRecording ? handleStopRecording : handleStartRecording}
+              tooltip={isRecording ? "Stop recording" : "Start your interview"}
+            >
+              {isRecording ? "Stop" : "Start"}
+            </Button>
+          </div>
+          
+          <div className="flex flex-col gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Interview details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Job</h3>
+                    <p className="text-primary">{jobData.title}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Resume</h3>
+                    <p>{jobData.resumeName}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Transcript</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="min-h-[250px]">
+                  {transcript ? (
+                    <p>{transcript}</p>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-12">
+                      Start the conversation to see the transcript
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+      
+      {!isRecording && !interviewEnded && (
+        <div className="mt-8 max-w-2xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>About Your AI Interview</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>This interview uses voice AI powered by VAPI to simulate a real interview experience.</p>
+              <ul className="space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✔</span>
+                  <span>Your responses are automatically transcribed</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✔</span>
+                  <span>Google Calendar integration for scheduling</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✔</span>
+                  <span>Automated email reminders via Make.com</span>
+                </li>
+              </ul>
             </CardContent>
           </Card>
         </div>
-      </div>
+      )}
     </div>
   );
 };
