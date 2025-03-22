@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -50,7 +49,7 @@ const Header = () => {
     { name: 'Home', path: '/', tooltip: 'Go to homepage' },
     { name: 'How It Works', path: '/#how-it-works', id: 'how-it-works', tooltip: 'Learn how Octavia works' },
     { name: 'Features', path: '/#features', id: 'features', tooltip: 'Explore Octavia features' },
-    { name: 'For Institutions', path: '/#institution-contact', id: 'institution-contact', tooltip: 'Learn about our institutional offerings' },
+    { name: 'For Institutions', path: '/#institution-metrics', id: 'institution-metrics', tooltip: 'Learn about our institutional offerings' },
   ];
 
   const authLinks = [
