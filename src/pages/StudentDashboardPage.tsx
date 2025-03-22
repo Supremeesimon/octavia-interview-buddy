@@ -21,9 +21,6 @@ const StudentDashboardPage = () => {
       case 'interviews':
         navigate('/interview');
         break;
-      case 'jobs':
-        navigate('/jobs');
-        break;
       case 'resumes':
         navigate('/resumes');
         break;
@@ -38,16 +35,13 @@ const StudentDashboardPage = () => {
           <div className="container mx-auto px-4 max-w-7xl">
             <Tabs defaultValue="dashboard" className="w-full mb-6" onValueChange={handleTabChange}>
               <TabsList className="w-full max-w-md">
-                <TabsTrigger value="dashboard" title="View your personal dashboard and progress">
+                <TabsTrigger value="dashboard" tooltip="View your personal dashboard and progress">
                   Dashboard
                 </TabsTrigger>
-                <TabsTrigger value="interviews" title="Schedule and manage your interview sessions">
+                <TabsTrigger value="interviews" tooltip="Schedule and manage your interview sessions">
                   Interviews
                 </TabsTrigger>
-                <TabsTrigger value="jobs" title="Browse available job opportunities">
-                  Jobs
-                </TabsTrigger>
-                <TabsTrigger value="resumes" title="Upload and manage your resumes">
+                <TabsTrigger value="resumes" tooltip="Upload and manage your resumes">
                   Resumes
                 </TabsTrigger>
               </TabsList>
