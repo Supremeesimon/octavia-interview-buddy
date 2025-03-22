@@ -8,7 +8,7 @@ import ResumeUploadDialog from '@/components/ResumeUploadDialog';
 import PreInterviewDialog from '@/components/PreInterviewDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText, Mic, Clock, Info } from 'lucide-react';
+import { ArrowLeft, FileText, Mic, Clock, Info, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 const Interview = () => {
