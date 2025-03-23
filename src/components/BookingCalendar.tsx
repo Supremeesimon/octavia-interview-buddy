@@ -3,18 +3,17 @@ import React, { useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle, Clock, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
+import { CheckCircle, Clock, Calendar as CalendarIcon, ArrowRight, AlertTriangle } from 'lucide-react';
 import { format, addDays, isBefore, isToday, startOfDay, addHours, isSameDay } from 'date-fns';
 import { toast } from "sonner";
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BookingCalendarProps {
   onBookingComplete: (date: Date, time: string) => void;
-  allowedBookingsPerMonth: number;
-  usedBookings: number;
+  availableSessions: number;
 }
 
-const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBookings }: BookingCalendarProps) => {
+const BookingCalendar = ({ onBookingComplete, availableSessions = 0 }: BookingCalendarProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
@@ -80,8 +79,8 @@ const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBooki
            date.getDay() === 0; // Disable Sundays for demo
   };
   
-  // Check if user has reached booking limit
-  const reachedBookingLimit = usedBookings >= allowedBookingsPerMonth;
+  // Check if there are available sessions
+  const noAvailableSessions = availableSessions <= 0;
   
   return (
     <Card className="w-full">
@@ -91,23 +90,25 @@ const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBooki
           Select a date and time for your interview with Octavia AI
         </CardDescription>
         
-        {allowedBookingsPerMonth > 0 && (
-          <div className="mt-2 flex items-center text-sm">
-            <div className="text-muted-foreground">
-              You've used <span className="font-medium">{usedBookings}/{allowedBookingsPerMonth}</span> sessions this month
-            </div>
+        <div className="mt-2 flex items-center text-sm">
+          <div className="text-muted-foreground">
+            Available sessions: <span className="font-medium">{availableSessions}</span>
           </div>
-        )}
+        </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {reachedBookingLimit ? (
+        {noAvailableSessions ? (
           <div className="rounded-md bg-destructive/10 p-4 text-center">
+            <div className="flex justify-center mb-2">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
             <p className="text-destructive font-medium">
-              You've used all your interview sessions this month
+              No interview slots available
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Come back next month or contact your institution admin for more access
+              Your institution has used all available interview sessions.
+              Contact your institution administrator to request more sessions.
             </p>
           </div>
         ) : (
@@ -185,7 +186,7 @@ const BookingCalendar = ({ onBookingComplete, allowedBookingsPerMonth, usedBooki
       <CardFooter>
         <Button 
           onClick={handleBookInterview} 
-          disabled={!selectedDate || !selectedTime || isBooking || reachedBookingLimit}
+          disabled={!selectedDate || !selectedTime || isBooking || noAvailableSessions}
           className="w-full flex gap-2"
           tooltip="Confirm and schedule your interview"
         >

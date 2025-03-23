@@ -27,7 +27,7 @@ const Dashboard = () => {
             >
               <TabsList className="w-full grid grid-cols-3">
                 <TabsTrigger value="overview" data-tooltip="View institution overview">Overview</TabsTrigger>
-                <TabsTrigger value="session" data-tooltip="Manage interview sessions">Session Management</TabsTrigger>
+                <TabsTrigger value="session" data-tooltip="Manage interview sessions">Session Pool</TabsTrigger>
                 <TabsTrigger value="billing" data-tooltip="Manage billing and payments">Billing & Payments</TabsTrigger>
               </TabsList>
               
