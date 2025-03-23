@@ -4,21 +4,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LinkIcon, FileUp, PenLine } from 'lucide-react';
+import { LinkIcon, FileUp, Briefcase } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ResumeUploadDialogProps {
   open: boolean;
   onClose: () => void;
-  onContinue: (resumeData: { type: 'linkedin' | 'file' | 'text', content: string | File }) => void;
+  onContinue: (resumeData: { type: 'linkedin' | 'file' | 'job', content: string | File }) => void;
   studentName?: string;
 }
 
 const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUploadDialogProps) => {
-  const [selectedOption, setSelectedOption] = useState<'linkedin' | 'file' | 'text' | null>(null);
+  const [selectedOption, setSelectedOption] = useState<'linkedin' | 'file' | 'job' | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [resumeText, setResumeText] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
 
   const handleContinue = () => {
     if (!selectedOption) return;
@@ -27,15 +27,15 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
       onContinue({ type: 'linkedin', content: linkedinUrl });
     } else if (selectedOption === 'file' && resumeFile) {
       onContinue({ type: 'file', content: resumeFile });
-    } else if (selectedOption === 'text' && resumeText) {
-      onContinue({ type: 'text', content: resumeText });
+    } else if (selectedOption === 'job' && jobDescription) {
+      onContinue({ type: 'job', content: jobDescription });
     }
   };
 
   const isOptionComplete = () => {
     if (selectedOption === 'linkedin') return !!linkedinUrl;
     if (selectedOption === 'file') return !!resumeFile;
-    if (selectedOption === 'text') return !!resumeText;
+    if (selectedOption === 'job') return !!jobDescription;
     return false;
   };
 
@@ -127,22 +127,22 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
             <Tooltip>
               <TooltipTrigger asChild>
                 <div 
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedOption === 'text' ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
-                  onClick={() => setSelectedOption('text')}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedOption === 'job' ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+                  onClick={() => setSelectedOption('job')}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <PenLine className="h-5 w-5 text-primary" />
-                    <span className="font-medium">Paste Resume Text Manually</span>
+                    <Briefcase className="h-5 w-5 text-primary" />
+                    <span className="font-medium">Enter Job You're Interviewing For</span>
                   </div>
                   
-                  {selectedOption === 'text' && (
+                  {selectedOption === 'job' && (
                     <div className="mt-3">
-                      <Label htmlFor="resume-text">The job you are interviewing for</Label>
+                      <Label htmlFor="job-description">The job you are interviewing for</Label>
                       <textarea 
-                        id="resume-text"
-                        placeholder="Paste your resume text here..."
-                        value={resumeText}
-                        onChange={(e) => setResumeText(e.target.value)}
+                        id="job-description"
+                        placeholder="Describe the job position you're preparing for..."
+                        value={jobDescription}
+                        onChange={(e) => setJobDescription(e.target.value)}
                         className="w-full min-h-[150px] mt-2 p-3 rounded-md border border-input bg-background"
                       />
                     </div>
@@ -150,7 +150,7 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Manually enter your resume information</p>
+                <p>Tell us about the job you're preparing to interview for</p>
               </TooltipContent>
             </Tooltip>
           </div>
