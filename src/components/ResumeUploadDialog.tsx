@@ -137,7 +137,7 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
                   
                   {selectedOption === 'text' && (
                     <div className="mt-3">
-                      <Label htmlFor="resume-text">Your resume</Label>
+                      <Label htmlFor="resume-text">The job you are interviewing for</Label>
                       <textarea 
                         id="resume-text"
                         placeholder="Paste your resume text here..."
