@@ -9,6 +9,7 @@ import StudentManagement from '@/components/StudentManagement';
 import ResourceManagement from '@/components/ResourceManagement';
 import BroadcastSystem from '@/components/BroadcastSystem';
 import AIAnalytics from '@/components/AIAnalytics';
+import FinancialManagement from '@/components/FinancialManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -30,13 +31,14 @@ const AdminControlPanel = () => {
               onValueChange={setActiveTab}
               value={activeTab}
             >
-              <TabsList className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'w-full grid-cols-6'}`}>
+              <TabsList className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'w-full grid-cols-7'}`}>
                 <TabsTrigger value="dashboard" data-tooltip="Platform overview, metrics, and performance">Dashboard</TabsTrigger>
                 <TabsTrigger value="institutions" data-tooltip="Manage institution accounts and settings">Institutions</TabsTrigger>
                 <TabsTrigger value="students" data-tooltip="Manage student accounts and activities">Students</TabsTrigger>
                 <TabsTrigger value="resources" data-tooltip="Upload and manage platform resources">Resources</TabsTrigger>
                 <TabsTrigger value="broadcasting" data-tooltip="Send announcements to users">Broadcast</TabsTrigger>
                 <TabsTrigger value="analytics" data-tooltip="Advanced metrics and data analysis">Analytics</TabsTrigger>
+                <TabsTrigger value="financial" data-tooltip="Platform pricing and financial management">Financial</TabsTrigger>
               </TabsList>
               
               <TabsContent value="dashboard">
@@ -56,6 +58,9 @@ const AdminControlPanel = () => {
               </TabsContent>
               <TabsContent value="analytics">
                 <AIAnalytics />
+              </TabsContent>
+              <TabsContent value="financial">
+                <FinancialManagement />
               </TabsContent>
             </Tabs>
           </div>
