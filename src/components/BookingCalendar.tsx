@@ -10,10 +10,18 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BookingCalendarProps {
   onBookingComplete: (date: Date, time: string) => void;
-  availableSessions: number;
+  availableSessions?: number;
+  // New props based on the error message
+  allowedBookingsPerMonth?: number;
+  usedBookings?: number;
 }
 
-const BookingCalendar = ({ onBookingComplete, availableSessions = 0 }: BookingCalendarProps) => {
+const BookingCalendar = ({ 
+  onBookingComplete, 
+  availableSessions = 0,
+  allowedBookingsPerMonth = 0,
+  usedBookings = 0
+}: BookingCalendarProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
@@ -79,8 +87,33 @@ const BookingCalendar = ({ onBookingComplete, availableSessions = 0 }: BookingCa
            date.getDay() === 0; // Disable Sundays for demo
   };
   
-  // Check if there are available sessions
+  // Check if there are available sessions from the institution's pool
   const noAvailableSessions = availableSessions <= 0;
+  
+  // Check if the student has reached their booking limit (if applicable)
+  const reachedBookingLimit = allowedBookingsPerMonth > 0 && usedBookings >= allowedBookingsPerMonth;
+  
+  // Determine the correct message to show when booking is not possible
+  const getBookingLimitationMessage = () => {
+    if (noAvailableSessions) {
+      return {
+        title: "No interview slots available",
+        description: "Your institution has used all available interview sessions. Contact your institution administrator to request more sessions."
+      };
+    }
+    
+    if (reachedBookingLimit) {
+      return {
+        title: "Booking limit reached",
+        description: `You've used all ${allowedBookingsPerMonth} of your allowed bookings this month. Please wait until next month or contact your institution administrator.`
+      };
+    }
+    
+    return null;
+  };
+  
+  const bookingLimitationMessage = getBookingLimitationMessage();
+  const canBook = !noAvailableSessions && !reachedBookingLimit;
   
   return (
     <Card className="w-full">
@@ -94,21 +127,26 @@ const BookingCalendar = ({ onBookingComplete, availableSessions = 0 }: BookingCa
           <div className="text-muted-foreground">
             Available sessions: <span className="font-medium">{availableSessions}</span>
           </div>
+          
+          {allowedBookingsPerMonth > 0 && (
+            <div className="ml-4 text-muted-foreground">
+              Your bookings: <span className="font-medium">{usedBookings}/{allowedBookingsPerMonth}</span> this month
+            </div>
+          )}
         </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {noAvailableSessions ? (
+        {bookingLimitationMessage ? (
           <div className="rounded-md bg-destructive/10 p-4 text-center">
             <div className="flex justify-center mb-2">
               <AlertTriangle className="h-6 w-6 text-destructive" />
             </div>
             <p className="text-destructive font-medium">
-              No interview slots available
+              {bookingLimitationMessage.title}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Your institution has used all available interview sessions.
-              Contact your institution administrator to request more sessions.
+              {bookingLimitationMessage.description}
             </p>
           </div>
         ) : (
@@ -138,7 +176,6 @@ const BookingCalendar = ({ onBookingComplete, availableSessions = 0 }: BookingCa
                           variant={selectedTime === time ? "default" : "outline"}
                           className="justify-start text-sm w-full truncate"
                           onClick={() => handleTimeSelect(time)}
-                          tooltip={`Select ${time} time slot`}
                         >
                           <Clock className="mr-2 h-4 w-4 flex-shrink-0" />
                           <span className="truncate">{time}</span>
@@ -186,9 +223,8 @@ const BookingCalendar = ({ onBookingComplete, availableSessions = 0 }: BookingCa
       <CardFooter>
         <Button 
           onClick={handleBookInterview} 
-          disabled={!selectedDate || !selectedTime || isBooking || noAvailableSessions}
+          disabled={!selectedDate || !selectedTime || isBooking || !canBook}
           className="w-full flex gap-2"
-          tooltip="Confirm and schedule your interview"
         >
           {isBooking ? (
             <>Processing...</>
