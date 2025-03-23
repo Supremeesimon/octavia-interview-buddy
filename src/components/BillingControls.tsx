@@ -5,53 +5,35 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { 
-  CreditCard, 
-  Plus, 
-  DollarSign, 
-  Clock, 
-  Users, 
-  Save, 
-  Wallet,
-  Calendar,
-  RefreshCw
-} from 'lucide-react';
+import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const BillingControls = () => {
   const { toast } = useToast();
-  const [studentLicenses, setStudentLicenses] = useState(100);
-  const [sessionMinutes, setSessionMinutes] = useState(15);
-  const [licensePrice, setLicensePrice] = useState(4.99);
-  const [minutePrice, setMinutePrice] = useState(0.15);
+  const [pricePerHundredSessions, setPricePerHundredSessions] = useState(4.99);
+  const [sessionsToPurchase, setSessionsToPurchase] = useState(100);
+  const [sessionCost, setSessionCost] = useState(calculateCost(100));
   const [cards, setCards] = useState([
     { id: 1, type: 'Visa', last4: '4242', expiry: '05/25', default: true }
   ]);
   
-  const addLicenses = (amount: number) => {
-    setStudentLicenses(prev => prev + amount);
+  function calculateCost(sessions) {
+    return (sessions / 100) * pricePerHundredSessions;
+  }
+  
+  const handleSessionChange = (amount) => {
+    setSessionsToPurchase(amount);
+    setSessionCost(calculateCost(amount));
   };
   
-  const calculateMonthlyTotal = () => {
-    const licenseCost = studentLicenses * licensePrice;
-    const extraMinutesCost = sessionMinutes > 15 ? 
-      studentLicenses * (sessionMinutes - 15) * minutePrice : 0;
-    return licenseCost + extraMinutesCost;
-  };
-  
-  const calculateYearlyTotal = () => {
-    return calculateMonthlyTotal() * 12;
-  };
-  
-  const handleSavePricing = () => {
+  const handlePurchase = () => {
     toast({
-      title: "Pricing settings saved",
-      description: "Your billing settings have been updated successfully",
+      title: "Purchase successful",
+      description: `Added ${sessionsToPurchase} sessions to your pool`,
     });
   };
   
   const handleAddCard = () => {
-    // In a real implementation, this would open a payment form
     setCards([
       ...cards,
       { id: Date.now(), type: 'Mastercard', last4: '8888', expiry: '09/26', default: false }
@@ -63,7 +45,7 @@ const BillingControls = () => {
     });
   };
   
-  const handleMakeDefault = (id: number) => {
+  const handleMakeDefault = (id) => {
     setCards(cards.map(card => ({
       ...card,
       default: card.id === id
@@ -77,121 +59,73 @@ const BillingControls = () => {
   
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
-              Billing Summary
-            </CardTitle>
-            <CardDescription>
-              Current pricing based on your settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-sm">Active student licenses:</span>
-                  <span className="font-medium">{studentLicenses}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Price per license:</span>
-                  <span className="font-medium">${licensePrice.toFixed(2)}/month</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Minutes per student:</span>
-                  <span className="font-medium">{sessionMinutes} minutes</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Extra minutes rate:</span>
-                  <span className="font-medium">${minutePrice.toFixed(2)}/minute</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Extra minutes charge:</span>
-                  <span className="font-medium">
-                    {sessionMinutes > 15 ? 
-                      `$${(studentLicenses * (sessionMinutes - 15) * minutePrice).toFixed(2)}/month` : 
-                      'No extra charge'
-                    }
-                  </span>
-                </div>
-              </div>
-              
-              <Card className="bg-primary/5 border-none">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Billing Totals</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>Monthly total:</span>
-                    <span className="font-bold">${calculateMonthlyTotal().toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Yearly total:</span>
-                    <span className="font-bold">${calculateYearlyTotal().toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Next billing date:</span>
-                    <span>April 15, 2025</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </CardContent>
-        </Card>
-        
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Manage Licenses
+              <Plus className="h-5 w-5 text-primary" />
+              Purchase Sessions
             </CardTitle>
             <CardDescription>
-              Add or remove student licenses
+              Add more interview sessions to your institution's pool
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <div className="font-medium">Current licenses: {studentLicenses}</div>
-              <p className="text-sm text-muted-foreground">
-                Each license allows one student to access the platform
-              </p>
+              <Label htmlFor="session-purchase">Number of sessions to purchase</Label>
+              <div className="flex space-x-2">
+                <Input
+                  id="session-purchase"
+                  type="number"
+                  min="100"
+                  step="100"
+                  value={sessionsToPurchase}
+                  onChange={(e) => handleSessionChange(parseInt(e.target.value) || 100)}
+                  className="text-right"
+                />
+                <span className="flex items-center text-muted-foreground px-2">sessions</span>
+              </div>
             </div>
             
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => addLicenses(10)}
-                  tooltip="Add 10 student licenses"
-                >
-                  +10 Licenses
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => addLicenses(50)}
-                  tooltip="Add 50 student licenses"
-                >
-                  +50 Licenses
-                </Button>
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" onClick={() => handleSessionChange(100)}>
+                100 Sessions
+              </Button>
+              <Button variant="outline" onClick={() => handleSessionChange(500)}>
+                500 Sessions
+              </Button>
+              <Button variant="outline" onClick={() => handleSessionChange(1000)}>
+                1000 Sessions
+              </Button>
+            </div>
+            
+            <div className="bg-primary/5 p-3 rounded-md space-y-2">
+              <div className="flex justify-between">
+                <span>Sessions</span>
+                <span>{sessionsToPurchase}</span>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                <Input 
-                  type="number" 
-                  placeholder="Custom amount" 
-                  className="flex-1"
-                  min={1}
-                />
-                <Button>Add</Button>
+              <div className="flex justify-between">
+                <span>Cost per 100 sessions</span>
+                <span>${pricePerHundredSessions.toFixed(2)}</span>
+              </div>
+              <div className="h-px bg-primary/10 my-1"></div>
+              <div className="flex justify-between font-bold">
+                <span>Total</span>
+                <span>${sessionCost.toFixed(2)}</span>
               </div>
             </div>
           </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full"
+              onClick={handlePurchase}
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Purchase Sessions
+            </Button>
+          </CardFooter>
         </Card>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -256,81 +190,6 @@ const BillingControls = () => {
             </Button>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-primary" />
-              Pricing Settings
-            </CardTitle>
-            <CardDescription>
-              Configure pricing for licenses and session minutes
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="license-price">Price per license ($/month)</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="license-price"
-                    type="number" 
-                    value={licensePrice}
-                    onChange={(e) => setLicensePrice(parseFloat(e.target.value))}
-                    className="pl-8"
-                    step="0.01"
-                    min="0"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="minute-price">Price per extra minute ($)</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="minute-price"
-                    type="number" 
-                    value={minutePrice}
-                    onChange={(e) => setMinutePrice(parseFloat(e.target.value))}
-                    className="pl-8"
-                    step="0.01"
-                    min="0"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="session-minutes">Default session minutes</Label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="session-minutes"
-                    type="number" 
-                    value={sessionMinutes}
-                    onChange={(e) => setSessionMinutes(parseInt(e.target.value))}
-                    className="pl-8"
-                    min="5"
-                    max="30"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  First 15 minutes are included in the base license price
-                </p>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button 
-              className="w-full"
-              onClick={handleSavePricing}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save Pricing Settings
-            </Button>
-          </CardFooter>
-        </Card>
       </div>
       
       <Card>
@@ -357,8 +216,8 @@ const BillingControls = () => {
             <TableBody>
               <TableRow>
                 <TableCell>March 15, 2025</TableCell>
-                <TableCell>Monthly subscription (100 licenses)</TableCell>
-                <TableCell>${(100 * 4.99).toFixed(2)}</TableCell>
+                <TableCell>Purchase of 500 interview sessions</TableCell>
+                <TableCell>${(500/100 * 4.99).toFixed(2)}</TableCell>
                 <TableCell>
                   <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                     Paid
@@ -372,23 +231,8 @@ const BillingControls = () => {
               </TableRow>
               <TableRow>
                 <TableCell>February 15, 2025</TableCell>
-                <TableCell>Monthly subscription (100 licenses)</TableCell>
-                <TableCell>${(100 * 4.99).toFixed(2)}</TableCell>
-                <TableCell>
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                    Paid
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    View Invoice
-                  </Button>
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>January 15, 2025</TableCell>
-                <TableCell>Monthly subscription (80 licenses)</TableCell>
-                <TableCell>${(80 * 4.99).toFixed(2)}</TableCell>
+                <TableCell>Purchase of 1000 interview sessions</TableCell>
+                <TableCell>${(1000/100 * 4.99).toFixed(2)}</TableCell>
                 <TableCell>
                   <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                     Paid

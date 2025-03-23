@@ -1,50 +1,40 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Clock, Users, Save, RefreshCw } from 'lucide-react';
+import { Clock, Users, Save, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Progress } from '@/components/ui/progress';
 
 const SessionManagement = () => {
   const { toast } = useToast();
   const [sessionMinutes, setSessionMinutes] = useState(15);
-  const [globalSettings, setGlobalSettings] = useState(true);
-  const [studentOverrides, setStudentOverrides] = useState([
-    { id: 1, name: 'John Doe', email: 'john.doe@example.com', sessionMinutes: 15 },
-    { id: 2, name: 'Jane Smith', email: 'jane.smith@example.com', sessionMinutes: 15 },
-    { id: 3, name: 'Alex Johnson', email: 'alex.johnson@example.com', sessionMinutes: 15 }
-  ]);
+  const [totalSessions, setTotalSessions] = useState(1000);
+  const [usedSessions, setUsedSessions] = useState(362);
+  const [additionalSessions, setAdditionalSessions] = useState('');
   
-  const handleSliderChange = (value: number[]) => {
-    setSessionMinutes(value[0]);
-  };
+  const availableSessions = totalSessions - usedSessions;
+  const percentUsed = (usedSessions / totalSessions) * 100;
   
-  const handleSaveSettings = () => {
+  const handleAddSessions = () => {
+    const sessionsToAdd = parseInt(additionalSessions);
+    if (isNaN(sessionsToAdd) || sessionsToAdd <= 0) {
+      toast({
+        title: "Invalid session count",
+        description: "Please enter a valid number of sessions to add",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setTotalSessions(prev => prev + sessionsToAdd);
+    setAdditionalSessions('');
+    
     toast({
-      title: "Session settings saved",
-      description: `Default session time set to ${sessionMinutes} minutes per student`,
-    });
-  };
-  
-  const handleStudentOverride = (id: number, minutes: number) => {
-    setStudentOverrides(
-      studentOverrides.map(student => 
-        student.id === id ? { ...student, sessionMinutes: minutes } : student
-      )
-    );
-  };
-  
-  const handleResetOverrides = () => {
-    setStudentOverrides(
-      studentOverrides.map(student => ({ ...student, sessionMinutes: sessionMinutes }))
-    );
-    toast({
-      title: "Student overrides reset",
-      description: "All students now use the default session duration",
+      title: "Sessions added",
+      description: `${sessionsToAdd} sessions added to your pool`,
     });
   };
   
@@ -55,99 +45,113 @@ const SessionManagement = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
-              Default Session Duration
+              Session Pool Status
             </CardTitle>
             <CardDescription>
-              Set the default interview session duration for all students
+              Manage your institution's interview session availability
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">{sessionMinutes} minutes</span>
-                <span className="text-sm text-muted-foreground">
-                  {sessionMinutes > 15 ? `+$${((sessionMinutes - 15) * 0.15).toFixed(2)} per student` : 'Default pricing'}
-                </span>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="font-medium">Session utilization</span>
+                <span className="text-sm">{usedSessions} of {totalSessions} used ({percentUsed.toFixed(1)}%)</span>
               </div>
               
-              <Slider 
-                defaultValue={[15]} 
-                max={30} 
-                min={5} 
-                step={1} 
-                value={[sessionMinutes]}
-                onValueChange={handleSliderChange}
-              />
+              <Progress value={percentUsed} className="h-2" />
               
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>5 min</span>
-                <span>15 min (standard)</span>
-                <span>30 min</span>
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                  <div className="font-medium text-amber-800">Available</div>
+                  <div className="text-2xl font-bold text-amber-900">{availableSessions}</div>
+                  <div className="text-xs text-amber-700 mt-1">Interview slots</div>
+                </div>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="font-medium text-blue-800">Used</div>
+                  <div className="text-2xl font-bold text-blue-900">{usedSessions}</div>
+                  <div className="text-xs text-blue-700 mt-1">Interview slots</div>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center space-x-2 pt-4">
-              <Switch 
-                id="global-settings" 
-                checked={globalSettings}
-                onCheckedChange={setGlobalSettings}
-              />
-              <Label htmlFor="global-settings">Apply to all students</Label>
-            </div>
+            {availableSessions < totalSessions * 0.15 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-medium text-amber-800">Low on sessions</div>
+                  <div className="text-sm text-amber-700">
+                    Your session pool is running low. Consider adding more sessions to ensure your students can continue booking interviews.
+                  </div>
+                </div>
+              </div>
+            )}
             
-            <Button 
-              onClick={handleSaveSettings} 
-              className="w-full mt-2"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save Session Settings
-            </Button>
+            {availableSessions >= totalSessions * 0.75 && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-medium text-green-800">Plenty of sessions available</div>
+                  <div className="text-sm text-green-700">
+                    Your session pool has sufficient capacity for student bookings.
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Session Usage Summary
+              <Plus className="h-5 w-5 text-primary" />
+              Add Sessions
             </CardTitle>
             <CardDescription>
-              Overview of your current session allocation and usage
+              Increase your interview session capacity
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm">Total students:</span>
-                <span className="font-medium">120</span>
+              <Label htmlFor="add-sessions">Number of sessions to add</Label>
+              <div className="flex space-x-2">
+                <Input
+                  id="add-sessions"
+                  type="number"
+                  min="1"
+                  placeholder="Enter quantity"
+                  value={additionalSessions}
+                  onChange={(e) => setAdditionalSessions(e.target.value)}
+                />
+                <Button onClick={handleAddSessions}>Add Sessions</Button>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Default minutes per student:</span>
-                <span className="font-medium">{sessionMinutes} minutes</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Total allocated minutes:</span>
-                <span className="font-medium">{120 * sessionMinutes} minutes</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Minutes used this month:</span>
-                <span className="font-medium">876 minutes</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Minutes remaining:</span>
-                <span className="font-medium">{(120 * sessionMinutes) - 876} minutes</span>
+              <p className="text-sm text-muted-foreground">
+                Each session allows one student to have a 15-minute interview with Octavia AI.
+              </p>
+            </div>
+            
+            <div className="space-y-2 mt-4">
+              <div className="font-medium">Quick Add Options</div>
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="outline" onClick={() => setAdditionalSessions('100')}>
+                  +100 Sessions
+                </Button>
+                <Button variant="outline" onClick={() => setAdditionalSessions('500')}>
+                  +500 Sessions
+                </Button>
+                <Button variant="outline" onClick={() => setAdditionalSessions('1000')}>
+                  +1000 Sessions
+                </Button>
               </div>
             </div>
             
-            <div className="h-px bg-border my-2"></div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between font-medium">
-                <span>Projected monthly usage:</span>
-                <span>{120 * sessionMinutes * 2} minutes</span>
-              </div>
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Based on current student activity</span>
+            <div className="bg-muted p-3 rounded-md mt-4">
+              <div className="font-medium">Pricing Information</div>
+              <div className="text-sm text-muted-foreground mt-1">
+                <p>Sessions are charged at $4.99 per 100 sessions.</p>
+                <p className="mt-1">
+                  All students have access to the session pool. Each student can book multiple sessions, as long as there are available slots in your pool.
+                </p>
               </div>
             </div>
           </CardContent>
@@ -156,69 +160,50 @@ const SessionManagement = () => {
       
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Student-Specific Session Settings</CardTitle>
-              <CardDescription>
-                Customize session duration for individual students
-              </CardDescription>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleResetOverrides}
-              tooltip="Reset all students to default session duration"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Reset to Default
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Student Access
+          </CardTitle>
+          <CardDescription>
+            All students have access to the session pool
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <div className="grid grid-cols-12 bg-muted p-3 rounded-t-md">
-              <div className="col-span-5 font-medium">Student</div>
-              <div className="col-span-4 font-medium">Session Duration</div>
-              <div className="col-span-3 font-medium">Price Adjustment</div>
+          <div className="space-y-4">
+            <div className="bg-muted p-4 rounded-md">
+              <h3 className="font-medium mb-2">How the Session Pool Works</h3>
+              <ul className="space-y-2 text-sm">
+                <li className="flex gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>All students have access to book interview sessions</span>
+                </li>
+                <li className="flex gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>Sessions are drawn from the institution's shared pool</span>
+                </li>
+                <li className="flex gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>Each student can book multiple sessions if available</span>
+                </li>
+                <li className="flex gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>When the pool is depleted, add more sessions to continue</span>
+                </li>
+              </ul>
             </div>
-            <div className="divide-y">
-              {studentOverrides.map(student => (
-                <div key={student.id} className="grid grid-cols-12 p-3 items-center">
-                  <div className="col-span-5">
-                    <div className="font-medium">{student.name}</div>
-                    <div className="text-sm text-muted-foreground">{student.email}</div>
-                  </div>
-                  <div className="col-span-4">
-                    <div className="flex items-center space-x-2 w-full max-w-[200px]">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        disabled={student.sessionMinutes <= 5}
-                        onClick={() => handleStudentOverride(student.id, Math.max(5, student.sessionMinutes - 1))}
-                      >
-                        -
-                      </Button>
-                      <div className="flex-1 text-center">
-                        {student.sessionMinutes} min
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        disabled={student.sessionMinutes >= 30}
-                        onClick={() => handleStudentOverride(student.id, Math.min(30, student.sessionMinutes + 1))}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="col-span-3 text-sm">
-                    {student.sessionMinutes > 15 ? 
-                      <span className="text-amber-600">+${((student.sessionMinutes - 15) * 0.15).toFixed(2)}</span> : 
-                      <span className="text-green-600">Standard</span>
-                    }
-                  </div>
+            
+            <div className="bg-primary/5 p-4 rounded-md">
+              <h3 className="font-medium mb-2">Your Institution</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">Total students</div>
+                  <div className="text-xl font-bold">1,000</div>
                 </div>
-              ))}
+                <div>
+                  <div className="text-sm text-muted-foreground">Active this month</div>
+                  <div className="text-xl font-bold">825</div>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
