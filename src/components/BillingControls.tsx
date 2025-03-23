@@ -7,6 +7,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import ResetSettingsDialog from './ResetSettingsDialog';
 
 interface SessionPurchase {
   sessions: number;
@@ -51,18 +52,14 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     }
   ]);
   
-  // Pricing constants
   const PRICE_PER_LICENSE_ANNUAL = 19.96; // $19.96 per student annually
   const PRICE_PER_LICENSE_QUARTERLY = 4.99; // $4.99 per student quarterly
   
-  // Update billing history when new session purchases are made
   useEffect(() => {
     if (sessionPurchases.length > 0) {
       const newHistory = [...billingHistory];
       
-      // Add each session purchase to the billing history
       sessionPurchases.forEach(purchase => {
-        // Check if this purchase is already in the history
         const existingEntryIndex = newHistory.findIndex(
           entry => 
             entry.description.includes(`Session purchase (${purchase.sessions} sessions)`) && 
@@ -98,7 +95,6 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   const handlePurchaseLicenses = () => {
     setLicenseCount(prev => prev + licensesToPurchase);
     
-    // Add license purchase to billing history
     const newPurchase = {
       date: new Date(),
       description: `License purchase (${licensesToPurchase} students)`,
@@ -138,13 +134,12 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     });
   };
   
-  // Calculate total spent on sessions
   const totalSessionCost = sessionPurchases.reduce((total, purchase) => total + purchase.cost, 0);
   
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        <Card tooltip="Purchase access licenses for your students to use the platform">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
@@ -223,7 +218,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
           </CardFooter>
         </Card>
         
-        <Card>
+        <Card tooltip="Manage your payment methods and billing preferences">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
@@ -289,7 +284,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         </Card>
       </div>
       
-      <Card>
+      <Card tooltip="Overview of your institution's subscription and financial details">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building className="h-5 w-5 text-primary" />
@@ -353,10 +348,19 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         <CardFooter className="flex justify-between">
           <Button variant="outline">View Invoice History</Button>
           <Button variant="outline">Download Current Invoice</Button>
+          <ResetSettingsDialog 
+            settingsType="Billing"
+            onConfirm={() => {
+              toast({
+                title: "Billing settings reset",
+                description: "All billing settings have been reset to defaults",
+              });
+            }}
+          />
         </CardFooter>
       </Card>
       
-      <Card>
+      <Card tooltip="View your previous invoices and billing transactions">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />

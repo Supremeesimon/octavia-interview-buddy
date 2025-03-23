@@ -116,7 +116,7 @@ const BookingCalendar = ({
   const canBook = !noAvailableSessions && !reachedBookingLimit;
   
   return (
-    <Card className="w-full">
+    <Card tooltip="Schedule your interview with Octavia AI" className="w-full">
       <CardHeader>
         <CardTitle>Book Your Interview</CardTitle>
         <CardDescription>
