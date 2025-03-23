@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import ResetSettingsDialog from './ResetSettingsDialog';
 
 const InstitutionDashboard = () => {
   const [copiedLink, setCopiedLink] = useState(false);
@@ -203,6 +205,10 @@ const InstitutionDashboard = () => {
     toast.success("Exporting analytics data...");
   };
   
+  const resetSettings = () => {
+    toast.success("Settings reset to default values");
+  };
+  
   const toggleStudentDetails = (studentId) => {
     if (expandedStudent === studentId) {
       setExpandedStudent(null);
@@ -226,20 +232,15 @@ const InstitutionDashboard = () => {
   });
   
   return (
-    <div className="container mx-auto px-4 max-w-6xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Institution Dashboard</h1>
-        <p className="text-muted-foreground">Manage your students and track progress</p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium">Licenses</h3>
             <Users className="text-primary h-5 w-5" />
           </div>
           <div className="text-3xl font-bold mb-2">{usedLicenses} / {totalLicenses}</div>
-          <Progress value={(usedLicenses / totalLicenses) * 100} className="h-2 mb-2" />
+          <Progress value={(usedLicenses / totalLicenses) * 100} className="h-2 mb-2" tooltip="Progress bar showing license usage" />
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>{totalLicenses - usedLicenses} licenses available</span>
             <span>{Math.round((usedLicenses / totalLicenses) * 100)}% used</span>
@@ -279,13 +280,20 @@ const InstitutionDashboard = () => {
               size="icon" 
               className="shrink-0" 
               onClick={copySignupLink}
+              tooltip="Copy signup link to clipboard"
             >
               {copiedLink ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </Button>
           </div>
           <div className="flex justify-between">
             <p className="text-xs text-muted-foreground">Share this link with your students</p>
-            <Button variant="ghost" size="sm" className="h-auto p-0 text-xs" onClick={regenerateLink}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-auto p-0 text-xs" 
+              onClick={regenerateLink}
+              tooltip="Generate a new signup link (invalidates the current link)"
+            >
               Regenerate
             </Button>
           </div>
@@ -294,12 +302,42 @@ const InstitutionDashboard = () => {
       
       <Tabs defaultValue="students">
         <TabsList className="mb-6">
-          <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
-          <TabsTrigger value="interviews">Scheduled Interviews</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger 
+            value="students"
+            tooltip="View and manage all students in your institution"
+          >
+            Students
+          </TabsTrigger>
+          <TabsTrigger 
+            value="approvals"
+            tooltip="Review and approve pending student registrations"
+          >
+            Pending Approvals
+          </TabsTrigger>
+          <TabsTrigger 
+            value="interviews"
+            tooltip="View upcoming interview sessions"
+          >
+            Scheduled Interviews
+          </TabsTrigger>
+          <TabsTrigger 
+            value="analytics"
+            tooltip="Access detailed performance metrics and analytics"
+          >
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger 
+            value="reports"
+            tooltip="Generate and export institution reports"
+          >
+            Reports
+          </TabsTrigger>
+          <TabsTrigger 
+            value="settings"
+            tooltip="Configure institution preferences and settings"
+          >
+            Settings
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="students">
@@ -329,7 +367,13 @@ const InstitutionDashboard = () => {
                     <option value="rejected">Rejected</option>
                   </select>
                   
-                  <Button variant="outline" size="sm" onClick={exportData} className="gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={exportData} 
+                    className="gap-2"
+                    tooltip="Export student data to CSV"
+                  >
                     <Download className="h-4 w-4" />
                     Export
                   </Button>
@@ -384,6 +428,7 @@ const InstitutionDashboard = () => {
                                   variant="outline" 
                                   className="h-8"
                                   onClick={() => approveStudent(student.id)}
+                                  tooltip="Approve this student's registration"
                                 >
                                   <CheckCheck className="h-4 w-4 mr-1" /> Approve
                                 </Button>
@@ -392,12 +437,18 @@ const InstitutionDashboard = () => {
                                   variant="outline" 
                                   className="h-8 border-red-200 text-red-700 hover:bg-red-50"
                                   onClick={() => rejectStudent(student.id)}
+                                  tooltip="Reject this student's registration"
                                 >
                                   <X className="h-4 w-4 mr-1" /> Reject
                                 </Button>
                               </div>
                             ) : (
-                              <Button size="sm" variant="ghost" className="h-8">
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8"
+                                tooltip="View detailed student profile"
+                              >
                                 View Profile
                               </Button>
                             )}
@@ -442,6 +493,7 @@ const InstitutionDashboard = () => {
                               size="sm" 
                               onClick={() => approveStudent(student.id)}
                               className="gap-1"
+                              tooltip="Approve this student's registration"
                             >
                               <CheckCheck className="h-4 w-4" /> Approve
                             </Button>
@@ -450,6 +502,7 @@ const InstitutionDashboard = () => {
                               variant="outline" 
                               onClick={() => rejectStudent(student.id)}
                               className="gap-1"
+                              tooltip="Reject this student's registration"
                             >
                               <X className="h-4 w-4" /> Reject
                             </Button>
@@ -494,7 +547,13 @@ const InstitutionDashboard = () => {
                         <TableCell>{interview.time}</TableCell>
                         <TableCell>{interview.type} Interview</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">View Details</Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            tooltip="View interview details and settings"
+                          >
+                            View Details
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -514,7 +573,11 @@ const InstitutionDashboard = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Student Analytics</h2>
-              <Button onClick={exportAnalyticsData} className="gap-2">
+              <Button 
+                onClick={exportAnalyticsData} 
+                className="gap-2"
+                tooltip="Export analytics data to CSV format"
+              >
                 <Download className="h-4 w-4" />
                 Export Analytics
               </Button>
@@ -522,9 +585,24 @@ const InstitutionDashboard = () => {
             
             <Tabs defaultValue="resume">
               <TabsList className="mb-6">
-                <TabsTrigger value="resume">Resume Analytics</TabsTrigger>
-                <TabsTrigger value="interview">Interview Analytics</TabsTrigger>
-                <TabsTrigger value="platform">Platform Engagement</TabsTrigger>
+                <TabsTrigger 
+                  value="resume"
+                  tooltip="View metrics about student resumes and their performance"
+                >
+                  Resume Analytics
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="interview"
+                  tooltip="View metrics about student interview performance"
+                >
+                  Interview Analytics
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="platform"
+                  tooltip="View overall platform usage statistics"
+                >
+                  Platform Engagement
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="resume">
@@ -993,7 +1071,10 @@ const InstitutionDashboard = () => {
                 </div>
                 
                 <div className="flex justify-end">
-                  <Button className="gap-2">
+                  <Button 
+                    className="gap-2"
+                    tooltip="Export this report as PDF, CSV, or Excel"
+                  >
                     <Download className="h-4 w-4" />
                     Export Report
                   </Button>
@@ -1087,8 +1168,16 @@ const InstitutionDashboard = () => {
                   </div>
                 </div>
                 
-                <div className="flex justify-end">
-                  <Button>Save Settings</Button>
+                <div className="flex justify-between">
+                  <ResetSettingsDialog
+                    settingsType="institution"
+                    onConfirm={resetSettings}
+                  />
+                  <Button 
+                    tooltip="Save all changes to institution settings"
+                  >
+                    Save Settings
+                  </Button>
                 </div>
               </div>
             </CardContent>
