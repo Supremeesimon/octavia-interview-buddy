@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Clock, Users, Database, Building, User, Save, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import ResetSettingsDialog from './ResetSettingsDialog';
 
 interface SessionManagementProps {
   onSessionPurchase?: (sessions: number, cost: number) => void;
@@ -67,7 +67,7 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        <Card tooltip="Monitor your institution's current session usage and availability">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Database className="h-5 w-5 text-primary" />
@@ -127,7 +127,7 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card tooltip="Configure the length of each interview session">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
@@ -179,7 +179,7 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
         </Card>
       </div>
       
-      <Card>
+      <Card tooltip="Purchase additional interview sessions for your institution's pool">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5 text-primary" />
@@ -228,7 +228,7 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card tooltip="Control how interview sessions are distributed to your students">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -342,11 +342,18 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
             </ul>
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex justify-between">
           <Button className="w-full">
             <Save className="h-4 w-4 mr-2" />
             Save Allocation Settings
           </Button>
+          <ResetSettingsDialog 
+            settingsType="Session Allocation"
+            onConfirm={() => {
+              setOpenToAll(true);
+              setAllocationMethod('institution');
+            }}
+          />
         </CardFooter>
       </Card>
     </div>
