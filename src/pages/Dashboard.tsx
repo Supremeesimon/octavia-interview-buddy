@@ -7,6 +7,7 @@ import SessionManagement from '@/components/SessionManagement';
 import BillingControls from '@/components/BillingControls';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Toaster } from '@/components/ui/toaster';
 
 interface SessionPurchase {
   sessions: number;
@@ -43,9 +44,24 @@ const Dashboard = () => {
               value={activeTab}
             >
               <TabsList className="w-full grid grid-cols-3">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="session">Session Pool</TabsTrigger>
-                <TabsTrigger value="billing">Billing & Payments</TabsTrigger>
+                <TabsTrigger 
+                  value="overview"
+                  tooltip="Overview of your institution's performance metrics and key statistics"
+                >
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="session"
+                  tooltip="Manage your institution's interview session pool and allocation settings"
+                >
+                  Session Pool
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="billing"
+                  tooltip="Manage billing, payments, and subscription details"
+                >
+                  Billing & Payments
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="overview">
@@ -62,6 +78,7 @@ const Dashboard = () => {
         </TooltipProvider>
       </main>
       <Footer />
+      <Toaster />
     </div>
   );
 };
