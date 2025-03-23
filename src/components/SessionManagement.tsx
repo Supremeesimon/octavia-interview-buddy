@@ -4,19 +4,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Clock, Users, Save, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Clock, Users, Database, Building, User, UserPlus, Save, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 
 const SessionManagement = () => {
   const { toast } = useToast();
-  const [sessionMinutes, setSessionMinutes] = useState(15);
+  const [sessionLength, setSessionLength] = useState(15); // Default 15 minutes
   const [totalSessions, setTotalSessions] = useState(1000);
   const [usedSessions, setUsedSessions] = useState(362);
   const [additionalSessions, setAdditionalSessions] = useState('');
+  const [openToAll, setOpenToAll] = useState(true);
+  const [allocationMethod, setAllocationMethod] = useState('institution');
   
   const availableSessions = totalSessions - usedSessions;
   const percentUsed = (usedSessions / totalSessions) * 100;
+  const pricePerMinute = 0.15; // $0.15 per minute
+  const sessionCost = (sessionLength * pricePerMinute).toFixed(2);
   
   const handleAddSessions = () => {
     const sessionsToAdd = parseInt(additionalSessions);
@@ -32,10 +39,20 @@ const SessionManagement = () => {
     setTotalSessions(prev => prev + sessionsToAdd);
     setAdditionalSessions('');
     
+    const totalCost = (sessionsToAdd * sessionLength * pricePerMinute).toFixed(2);
+    
     toast({
       title: "Sessions added",
-      description: `${sessionsToAdd} sessions added to your pool`,
+      description: `${sessionsToAdd} sessions added to your pool for $${totalCost}`,
     });
+  };
+  
+  const handleSessionLengthChange = (value: number[]) => {
+    setSessionLength(value[0]);
+  };
+  
+  const calculateBundleCost = (sessions: number) => {
+    return (sessions * sessionLength * pricePerMinute).toFixed(2);
   };
   
   return (
@@ -44,7 +61,7 @@ const SessionManagement = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
+              <Database className="h-5 w-5 text-primary" />
               Session Pool Status
             </CardTitle>
             <CardDescription>
@@ -104,54 +121,49 @@ const SessionManagement = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-primary" />
-              Add Sessions
+              <Clock className="h-5 w-5 text-primary" />
+              Session Duration
             </CardTitle>
             <CardDescription>
-              Increase your interview session capacity
+              Set the duration for each interview session
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="add-sessions">Number of sessions to add</Label>
-              <div className="flex space-x-2">
-                <Input
-                  id="add-sessions"
-                  type="number"
-                  min="1"
-                  placeholder="Enter quantity"
-                  value={additionalSessions}
-                  onChange={(e) => setAdditionalSessions(e.target.value)}
-                />
-                <Button onClick={handleAddSessions}>Add Sessions</Button>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <Label htmlFor="session-length">Minutes per session</Label>
+                <span className="font-medium">{sessionLength} minutes</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Each session allows one student to have a 15-minute interview with Octavia AI.
-              </p>
-            </div>
-            
-            <div className="space-y-2 mt-4">
-              <div className="font-medium">Quick Add Options</div>
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" onClick={() => setAdditionalSessions('100')}>
-                  +100 Sessions
-                </Button>
-                <Button variant="outline" onClick={() => setAdditionalSessions('500')}>
-                  +500 Sessions
-                </Button>
-                <Button variant="outline" onClick={() => setAdditionalSessions('1000')}>
-                  +1000 Sessions
-                </Button>
+              
+              <Slider 
+                id="session-length"
+                min={5} 
+                max={30} 
+                step={1} 
+                value={[sessionLength]} 
+                onValueChange={handleSessionLengthChange}
+              />
+              
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>5 min</span>
+                <span>15 min</span>
+                <span>30 min</span>
               </div>
-            </div>
-            
-            <div className="bg-muted p-3 rounded-md mt-4">
-              <div className="font-medium">Pricing Information</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                <p>Sessions are charged at $4.99 per 100 sessions.</p>
-                <p className="mt-1">
-                  All students have access to the session pool. Each student can book multiple sessions, as long as there are available slots in your pool.
-                </p>
+              
+              <div className="bg-muted p-3 rounded-md text-sm">
+                <div className="flex justify-between mb-1">
+                  <span>Session duration:</span>
+                  <span className="font-medium">{sessionLength} minutes</span>
+                </div>
+                <div className="flex justify-between mb-1">
+                  <span>Price per minute:</span>
+                  <span>${pricePerMinute.toFixed(2)}</span>
+                </div>
+                <div className="h-px bg-border my-2"></div>
+                <div className="flex justify-between font-medium">
+                  <span>Cost per session:</span>
+                  <span>${sessionCost}</span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -161,52 +173,172 @@ const SessionManagement = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            Student Access
+            <Plus className="h-5 w-5 text-primary" />
+            Add Sessions
           </CardTitle>
           <CardDescription>
-            All students have access to the session pool
+            Increase your interview session capacity
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="bg-muted p-4 rounded-md">
-              <h3 className="font-medium mb-2">How the Session Pool Works</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span>All students have access to book interview sessions</span>
-                </li>
-                <li className="flex gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span>Sessions are drawn from the institution's shared pool</span>
-                </li>
-                <li className="flex gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span>Each student can book multiple sessions if available</span>
-                </li>
-                <li className="flex gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span>When the pool is depleted, add more sessions to continue</span>
-                </li>
-              </ul>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="add-sessions">Number of sessions to add</Label>
+            <div className="flex space-x-2">
+              <Input
+                id="add-sessions"
+                type="number"
+                min="1"
+                placeholder="Enter quantity"
+                value={additionalSessions}
+                onChange={(e) => setAdditionalSessions(e.target.value)}
+              />
+              <Button onClick={handleAddSessions}>Add Sessions</Button>
             </div>
-            
-            <div className="bg-primary/5 p-4 rounded-md">
-              <h3 className="font-medium mb-2">Your Institution</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-muted-foreground">Total students</div>
-                  <div className="text-xl font-bold">1,000</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Active this month</div>
-                  <div className="text-xl font-bold">825</div>
-                </div>
-              </div>
+            <p className="text-sm text-muted-foreground">
+              Each session allows one student to have a {sessionLength}-minute interview with Octavia AI.
+            </p>
+          </div>
+          
+          <div className="space-y-2 mt-4">
+            <div className="font-medium">Quick Add Options</div>
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" onClick={() => setAdditionalSessions('100')}>
+                +100 Sessions
+                <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(100)}</span>
+              </Button>
+              <Button variant="outline" onClick={() => setAdditionalSessions('500')}>
+                +500 Sessions
+                <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(500)}</span>
+              </Button>
+              <Button variant="outline" onClick={() => setAdditionalSessions('1000')}>
+                +1000 Sessions
+                <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(1000)}</span>
+              </Button>
             </div>
           </div>
         </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Session Allocation
+          </CardTitle>
+          <CardDescription>
+            Control how interview sessions are distributed
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium">Open to All Students</h3>
+              <p className="text-sm text-muted-foreground">
+                Allow all students to book from the shared session pool
+              </p>
+            </div>
+            <Switch 
+              checked={openToAll} 
+              onCheckedChange={setOpenToAll}
+            />
+          </div>
+          
+          {!openToAll && (
+            <>
+              <div className="space-y-2">
+                <Label>Allocation Method</Label>
+                <ToggleGroup type="single" value={allocationMethod} onValueChange={(value) => value && setAllocationMethod(value)}>
+                  <ToggleGroupItem value="institution" className="flex items-center gap-2 flex-1">
+                    <Building className="h-4 w-4" />
+                    <span>Institution-Wide</span>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="department" className="flex items-center gap-2 flex-1">
+                    <Building className="h-4 w-4" />
+                    <span>Per Department</span>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="student" className="flex items-center gap-2 flex-1">
+                    <User className="h-4 w-4" />
+                    <span>Per Student</span>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="group" className="flex items-center gap-2 flex-1">
+                    <Users className="h-4 w-4" />
+                    <span>Student Groups</span>
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              
+              {allocationMethod === 'student' && (
+                <div className="bg-muted p-4 rounded-md">
+                  <h3 className="font-medium mb-2">Sessions Per Student</h3>
+                  <div className="flex items-center space-x-2">
+                    <Input 
+                      type="number" 
+                      min="1" 
+                      defaultValue="3"
+                      className="w-24" 
+                    />
+                    <span>sessions per student</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Each student will be allowed to book this many sessions per month.
+                  </p>
+                </div>
+              )}
+              
+              {allocationMethod === 'department' && (
+                <div className="bg-muted p-4 rounded-md">
+                  <h3 className="font-medium mb-2">Department Allocation</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure how sessions are allocated to different departments.
+                  </p>
+                  <Button variant="outline" size="sm" className="mt-2">
+                    <Plus className="h-4 w-4 mr-1" /> Add Department
+                  </Button>
+                </div>
+              )}
+              
+              {allocationMethod === 'group' && (
+                <div className="bg-muted p-4 rounded-md">
+                  <h3 className="font-medium mb-2">Student Group Allocation</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure how sessions are allocated to different student groups.
+                  </p>
+                  <Button variant="outline" size="sm" className="mt-2">
+                    <Plus className="h-4 w-4 mr-1" /> Add Student Group
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+          
+          <div className="bg-primary/5 p-4 rounded-md">
+            <h3 className="font-medium mb-2">How Session Allocation Works</h3>
+            <ul className="space-y-2 text-sm">
+              <li className="flex gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                <span>All students have access to book interview sessions</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                <span>Sessions are drawn from the institution's shared pool</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                <span>Each student can book multiple sessions if available</span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                <span>When the pool is depleted, add more sessions to continue</span>
+              </li>
+            </ul>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button className="w-full">
+            <Save className="h-4 w-4 mr-2" />
+            Save Allocation Settings
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );
