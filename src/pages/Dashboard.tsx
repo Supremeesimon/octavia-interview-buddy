@@ -8,8 +8,25 @@ import BillingControls from '@/components/BillingControls';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
+interface SessionPurchase {
+  sessions: number;
+  cost: number;
+  date: Date;
+}
+
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [sessionPurchases, setSessionPurchases] = useState<SessionPurchase[]>([]);
+  
+  const handleSessionPurchase = (sessions: number, cost: number) => {
+    const newPurchase = {
+      sessions,
+      cost,
+      date: new Date()
+    };
+    
+    setSessionPurchases(prev => [...prev, newPurchase]);
+  };
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -35,10 +52,10 @@ const Dashboard = () => {
                 <InstitutionDashboard />
               </TabsContent>
               <TabsContent value="session">
-                <SessionManagement />
+                <SessionManagement onSessionPurchase={handleSessionPurchase} />
               </TabsContent>
               <TabsContent value="billing">
-                <BillingControls />
+                <BillingControls sessionPurchases={sessionPurchases} />
               </TabsContent>
             </Tabs>
           </div>

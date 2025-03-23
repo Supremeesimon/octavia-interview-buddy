@@ -7,11 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Clock, Users, Database, Building, User, UserPlus, Save, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Clock, Users, Database, Building, User, Save, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 
-const SessionManagement = () => {
+interface SessionManagementProps {
+  onSessionPurchase?: (sessions: number, cost: number) => void;
+}
+
+const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
   const { toast } = useToast();
   const [sessionLength, setSessionLength] = useState(15); // Default 15 minutes
   const [totalSessions, setTotalSessions] = useState(1000);
@@ -39,12 +43,17 @@ const SessionManagement = () => {
     setTotalSessions(prev => prev + sessionsToAdd);
     setAdditionalSessions('');
     
-    const totalCost = (sessionsToAdd * sessionLength * pricePerMinute).toFixed(2);
+    const totalCost = parseFloat((sessionsToAdd * sessionLength * pricePerMinute).toFixed(2));
     
     toast({
       title: "Sessions added",
       description: `${sessionsToAdd} sessions added to your pool for $${totalCost}`,
     });
+    
+    // Notify parent component about session purchase for billing update
+    if (onSessionPurchase) {
+      onSessionPurchase(sessionsToAdd, totalCost);
+    }
   };
   
   const handleSessionLengthChange = (value: number[]) => {

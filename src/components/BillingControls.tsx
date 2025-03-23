@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,18 +6,82 @@ import { Label } from '@/components/ui/label';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
-const BillingControls = () => {
+interface SessionPurchase {
+  sessions: number;
+  cost: number;
+  date: Date;
+}
+
+interface BillingControlsProps {
+  sessionPurchases?: SessionPurchase[];
+}
+
+const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   const { toast } = useToast();
   const [licenseCount, setLicenseCount] = useState(1000);
   const [licensesToPurchase, setLicensesToPurchase] = useState(100);
   const [cards, setCards] = useState([
     { id: 1, type: 'Visa', last4: '4242', expiry: '05/25', default: true }
   ]);
+  const [billingHistory, setBillingHistory] = useState<Array<{
+    date: Date;
+    description: string;
+    amount: number;
+    status: 'paid' | 'pending' | 'failed';
+  }>>([
+    {
+      date: new Date(2025, 2, 15), // March 15, 2025
+      description: "Quarterly license payment (1000 students)",
+      amount: 4990,
+      status: 'paid'
+    },
+    {
+      date: new Date(2025, 2, 10), // March 10, 2025
+      description: "Session purchase (500 sessions)",
+      amount: 1125.00,
+      status: 'paid'
+    },
+    {
+      date: new Date(2024, 11, 15), // December 15, 2024
+      description: "Quarterly license payment (1000 students)",
+      amount: 4990,
+      status: 'paid'
+    }
+  ]);
   
   // Pricing constants
   const PRICE_PER_LICENSE_ANNUAL = 19.96; // $19.96 per student annually
   const PRICE_PER_LICENSE_QUARTERLY = 4.99; // $4.99 per student quarterly
+  
+  // Update billing history when new session purchases are made
+  useEffect(() => {
+    if (sessionPurchases.length > 0) {
+      const newHistory = [...billingHistory];
+      
+      // Add each session purchase to the billing history
+      sessionPurchases.forEach(purchase => {
+        // Check if this purchase is already in the history
+        const existingEntryIndex = newHistory.findIndex(
+          entry => 
+            entry.description.includes(`Session purchase (${purchase.sessions} sessions)`) && 
+            entry.date.getTime() === purchase.date.getTime()
+        );
+        
+        if (existingEntryIndex === -1) {
+          newHistory.unshift({
+            date: purchase.date,
+            description: `Session purchase (${purchase.sessions} sessions)`,
+            amount: purchase.cost,
+            status: 'paid'
+          });
+        }
+      });
+      
+      setBillingHistory(newHistory);
+    }
+  }, [sessionPurchases]);
   
   const calculateAnnualLicenseCost = (count) => {
     return (count * PRICE_PER_LICENSE_ANNUAL).toFixed(2);
@@ -34,6 +97,16 @@ const BillingControls = () => {
   
   const handlePurchaseLicenses = () => {
     setLicenseCount(prev => prev + licensesToPurchase);
+    
+    // Add license purchase to billing history
+    const newPurchase = {
+      date: new Date(),
+      description: `License purchase (${licensesToPurchase} students)`,
+      amount: Number(calculateQuarterlyLicenseCost(licensesToPurchase)),
+      status: 'paid' as const
+    };
+    
+    setBillingHistory([newPurchase, ...billingHistory]);
     
     toast({
       title: "Purchase successful",
@@ -64,6 +137,9 @@ const BillingControls = () => {
       description: "Your default payment method has been changed",
     });
   };
+  
+  // Calculate total spent on sessions
+  const totalSessionCost = sessionPurchases.reduce((total, purchase) => total + purchase.cost, 0);
   
   return (
     <div className="space-y-6">
@@ -220,11 +296,11 @@ const BillingControls = () => {
             Account Summary
           </CardTitle>
           <CardDescription>
-            Overview of your institution's subscription
+            Overview of your institution's subscription and session purchases
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-muted rounded-md p-3">
               <div className="text-muted-foreground text-sm">Active Licenses</div>
               <div className="text-2xl font-bold">{licenseCount}</div>
@@ -232,15 +308,23 @@ const BillingControls = () => {
             </div>
             
             <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Quarterly Cost</div>
+              <div className="text-muted-foreground text-sm">Quarterly License Cost</div>
               <div className="text-2xl font-bold">${calculateQuarterlyLicenseCost(licenseCount)}</div>
               <div className="text-xs text-muted-foreground mt-1">Next payment: June 1, 2025</div>
             </div>
             
             <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Annual Cost</div>
-              <div className="text-2xl font-bold">${calculateAnnualLicenseCost(licenseCount)}</div>
-              <div className="text-xs text-muted-foreground mt-1">Per year</div>
+              <div className="text-muted-foreground text-sm">Session Purchases</div>
+              <div className="text-2xl font-bold">${totalSessionCost.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground mt-1">Current quarter</div>
+            </div>
+            
+            <div className="bg-muted rounded-md p-3">
+              <div className="text-muted-foreground text-sm">Total Quarterly Cost</div>
+              <div className="text-2xl font-bold">
+                ${(parseFloat(calculateQuarterlyLicenseCost(licenseCount)) + totalSessionCost).toFixed(2)}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Licenses + Sessions</div>
             </div>
           </div>
           
@@ -294,51 +378,27 @@ const BillingControls = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
-                <TableCell>March 15, 2025</TableCell>
-                <TableCell>Quarterly license payment (1000 students)</TableCell>
-                <TableCell>${calculateQuarterlyLicenseCost(1000)}</TableCell>
-                <TableCell>
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                    Paid
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    View Invoice
-                  </Button>
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>March 10, 2025</TableCell>
-                <TableCell>Session purchase (500 sessions)</TableCell>
-                <TableCell>$1,125.00</TableCell>
-                <TableCell>
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                    Paid
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    View Invoice
-                  </Button>
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>December 15, 2024</TableCell>
-                <TableCell>Quarterly license payment (1000 students)</TableCell>
-                <TableCell>${calculateQuarterlyLicenseCost(1000)}</TableCell>
-                <TableCell>
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                    Paid
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    View Invoice
-                  </Button>
-                </TableCell>
-              </TableRow>
+              {billingHistory.map((item, index) => (
+                <TableRow key={index}>
+                  <TableCell>{format(item.date, 'MMMM d, yyyy')}</TableCell>
+                  <TableCell>{item.description}</TableCell>
+                  <TableCell>${typeof item.amount === 'number' ? item.amount.toFixed(2) : item.amount}</TableCell>
+                  <TableCell>
+                    <span className={`text-xs ${
+                      item.status === 'paid' ? 'bg-green-100 text-green-800' : 
+                      item.status === 'pending' ? 'bg-amber-100 text-amber-800' : 
+                      'bg-red-100 text-red-800'
+                    } px-2 py-1 rounded-full`}>
+                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm">
+                      View Invoice
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>
