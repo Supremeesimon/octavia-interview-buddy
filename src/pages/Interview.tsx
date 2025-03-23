@@ -21,7 +21,12 @@ const Interview = () => {
   const handleResumeUpload = (data: any) => {
     setResumeData(data);
     setShowResumeDialog(false);
-    setShowPreInterviewDialog(true);
+    
+    if (data.type === 'voice') {
+      setShowInterviewInterface(true);
+    } else {
+      setShowPreInterviewDialog(true);
+    }
   };
 
   const handleStartInterview = () => {
