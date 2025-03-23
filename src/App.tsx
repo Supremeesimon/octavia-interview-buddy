@@ -20,6 +20,8 @@ import ExportDataPage from "./pages/ExportDataPage";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
+import DepartmentAllocationPage from "./pages/DepartmentAllocationPage";
+import StudentGroupAllocationPage from "./pages/StudentGroupAllocationPage";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +47,8 @@ const App = () => (
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />
+          <Route path="/departments" element={<DepartmentAllocationPage />} />
+          <Route path="/student-groups" element={<StudentGroupAllocationPage />} />
           {/* Jobs pages are temporarily hidden */}
           {/* <Route path="/jobs" element={<JobsPage />} /> */}
           {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}

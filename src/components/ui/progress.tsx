@@ -43,7 +43,8 @@ const Progress = React.forwardRef<
   }
 
   return progressElement;
-})
-Progress.displayName = ProgressPrimitive.Root.displayName
+});
 
-export { Progress }
+Progress.displayName = ProgressPrimitive.Root.displayName;
+
+export { Progress };

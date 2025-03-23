@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,8 @@ import { Clock, Users, Database, Building, User, Save, Plus, AlertTriangle, Chec
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import ResetSettingsDialog from './ResetSettingsDialog';
+import ConfirmationDialog from './ConfirmationDialog';
+import { Link } from 'react-router-dom';
 
 interface SessionManagementProps {
   onSessionPurchase?: (sessions: number, cost: number) => void;
@@ -201,7 +204,21 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
                 value={additionalSessions}
                 onChange={(e) => setAdditionalSessions(e.target.value)}
               />
-              <Button onClick={handleAddSessions}>Add Sessions</Button>
+              <ConfirmationDialog
+                details={{
+                  title: "Confirm Session Purchase",
+                  description: "Are you sure you want to purchase additional interview sessions?",
+                  items: [
+                    { label: 'Number of Sessions', value: additionalSessions || '0' },
+                    { label: 'Session Duration', value: `${sessionLength} minutes` },
+                    { label: 'Cost per Session', value: `$${sessionCost}` },
+                    { label: 'Total Cost', value: `$${parseFloat(additionalSessions || '0') * parseFloat(sessionCost)}` },
+                  ],
+                  confirmText: "Purchase",
+                }}
+                trigger={<Button disabled={!additionalSessions || parseFloat(additionalSessions) <= 0}>Add Sessions</Button>}
+                onConfirm={handleAddSessions}
+              />
             </div>
             <p className="text-sm text-muted-foreground">
               Each session allows one student to have a {sessionLength}-minute interview with Octavia AI.
@@ -211,18 +228,75 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
           <div className="space-y-2 mt-4">
             <div className="font-medium">Quick Add Options</div>
             <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" onClick={() => setAdditionalSessions('100')}>
-                +100 Sessions
-                <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(100)}</span>
-              </Button>
-              <Button variant="outline" onClick={() => setAdditionalSessions('500')}>
-                +500 Sessions
-                <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(500)}</span>
-              </Button>
-              <Button variant="outline" onClick={() => setAdditionalSessions('1000')}>
-                +1000 Sessions
-                <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(1000)}</span>
-              </Button>
+              <ConfirmationDialog
+                details={{
+                  title: "Confirm Bundle Purchase",
+                  description: "Are you sure you want to purchase 100 interview sessions?",
+                  items: [
+                    { label: 'Number of Sessions', value: '100' },
+                    { label: 'Session Duration', value: `${sessionLength} minutes` },
+                    { label: 'Cost per Session', value: `$${sessionCost}` },
+                    { label: 'Total Cost', value: `$${calculateBundleCost(100)}` },
+                  ],
+                  confirmText: "Purchase",
+                }}
+                trigger={
+                  <Button variant="outline">
+                    +100 Sessions
+                    <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(100)}</span>
+                  </Button>
+                }
+                onConfirm={() => {
+                  setAdditionalSessions('100');
+                  handleAddSessions();
+                }}
+              />
+              <ConfirmationDialog
+                details={{
+                  title: "Confirm Bundle Purchase",
+                  description: "Are you sure you want to purchase 500 interview sessions?",
+                  items: [
+                    { label: 'Number of Sessions', value: '500' },
+                    { label: 'Session Duration', value: `${sessionLength} minutes` },
+                    { label: 'Cost per Session', value: `$${sessionCost}` },
+                    { label: 'Total Cost', value: `$${calculateBundleCost(500)}` },
+                  ],
+                  confirmText: "Purchase",
+                }}
+                trigger={
+                  <Button variant="outline">
+                    +500 Sessions
+                    <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(500)}</span>
+                  </Button>
+                }
+                onConfirm={() => {
+                  setAdditionalSessions('500');
+                  handleAddSessions();
+                }}
+              />
+              <ConfirmationDialog
+                details={{
+                  title: "Confirm Bundle Purchase",
+                  description: "Are you sure you want to purchase 1000 interview sessions?",
+                  items: [
+                    { label: 'Number of Sessions', value: '1000' },
+                    { label: 'Session Duration', value: `${sessionLength} minutes` },
+                    { label: 'Cost per Session', value: `$${sessionCost}` },
+                    { label: 'Total Cost', value: `$${calculateBundleCost(1000)}` },
+                  ],
+                  confirmText: "Purchase",
+                }}
+                trigger={
+                  <Button variant="outline">
+                    +1000 Sessions
+                    <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(1000)}</span>
+                  </Button>
+                }
+                onConfirm={() => {
+                  setAdditionalSessions('1000');
+                  handleAddSessions();
+                }}
+              />
             </div>
           </div>
         </CardContent>
@@ -300,9 +374,11 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
                   <p className="text-sm text-muted-foreground">
                     Configure how sessions are allocated to different departments.
                   </p>
-                  <Button variant="outline" size="sm" className="mt-2">
-                    <Plus className="h-4 w-4 mr-1" /> Add Department
-                  </Button>
+                  <Link to="/departments">
+                    <Button variant="outline" size="sm" className="mt-2">
+                      <Plus className="h-4 w-4 mr-1" /> Manage Department Allocation
+                    </Button>
+                  </Link>
                 </div>
               )}
               
@@ -312,9 +388,11 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
                   <p className="text-sm text-muted-foreground">
                     Configure how sessions are allocated to different student groups.
                   </p>
-                  <Button variant="outline" size="sm" className="mt-2">
-                    <Plus className="h-4 w-4 mr-1" /> Add Student Group
-                  </Button>
+                  <Link to="/student-groups">
+                    <Button variant="outline" size="sm" className="mt-2">
+                      <Plus className="h-4 w-4 mr-1" /> Manage Student Groups
+                    </Button>
+                  </Link>
                 </div>
               )}
             </>
@@ -343,10 +421,25 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button className="w-full">
-            <Save className="h-4 w-4 mr-2" />
-            Save Allocation Settings
-          </Button>
+          <ConfirmationDialog
+            details={{
+              title: "Save Allocation Settings",
+              description: "Are you sure you want to save these allocation settings? This will affect how students can book interviews.",
+              confirmText: "Save Changes",
+            }}
+            trigger={
+              <Button className="w-full">
+                <Save className="h-4 w-4 mr-2" />
+                Save Allocation Settings
+              </Button>
+            }
+            onConfirm={() => {
+              toast({
+                title: "Settings saved",
+                description: "Your session allocation settings have been updated.",
+              });
+            }}
+          />
           <ResetSettingsDialog 
             settingsType="Session Allocation"
             onConfirm={() => {
