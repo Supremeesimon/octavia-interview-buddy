@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,7 @@ const Header = () => {
               <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-white text-lg font-bold">O</span>
               </span>
-              <span className="font-medium text-xl">Octavia AI</span>
+              <span className="font-medium text-xl">Octavia</span>
             </Link>
           </TooltipTrigger>
           <TooltipContent>

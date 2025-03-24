@@ -28,7 +28,7 @@ const StudentDashboardPage = () => {
   };
   
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden w-full">
+    <div className="min-h-screen flex flex-col overflow-hidden w-full">
       <Header />
       <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'} w-full`}>
         <TooltipProvider>
@@ -56,7 +56,7 @@ const StudentDashboardPage = () => {
               </TabsList>
             </Tabs>
             
-            <div className="overflow-x-hidden">
+            <div className="overflow-hidden">
               <StudentDashboard />
             </div>
           </div>

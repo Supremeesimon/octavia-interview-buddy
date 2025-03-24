@@ -30,7 +30,7 @@ const AdminControlPanel = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden w-full">
+    <div className="min-h-screen flex flex-col overflow-hidden w-full">
       <Header />
       <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'} w-full`}>
         <TooltipProvider>
@@ -95,7 +95,7 @@ const AdminControlPanel = () => {
                 </TabsTrigger>
               </TabsList>
               
-              <div className="overflow-x-hidden">
+              <div className="overflow-hidden">
                 <TabsContent value="dashboard">
                   <AdminDashboard />
                 </TabsContent>
