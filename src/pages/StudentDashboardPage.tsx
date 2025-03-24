@@ -35,22 +35,13 @@ const StudentDashboardPage = () => {
           <div className="container mx-auto px-4 max-w-7xl">
             <Tabs defaultValue="dashboard" className="w-full mb-6" onValueChange={handleTabChange}>
               <TabsList className="w-full max-w-md">
-                <TabsTrigger 
-                  value="dashboard"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                >
+                <TabsTrigger value="dashboard">
                   Dashboard
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="interviews"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                >
+                <TabsTrigger value="interviews">
                   Interviews
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="resumes"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                >
+                <TabsTrigger value="resumes">
                   Resumes
                 </TabsTrigger>
               </TabsList>
