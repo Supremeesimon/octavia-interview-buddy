@@ -32,7 +32,7 @@ const Dashboard = () => {
   };
   
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden w-full">
+    <div className="min-h-screen flex flex-col overflow-hidden w-full">
       <Header />
       <main className="flex-grow py-20 md:py-28 w-full">
         <TooltipProvider>
@@ -69,13 +69,13 @@ const Dashboard = () => {
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="overview" className="overflow-x-hidden">
+              <TabsContent value="overview" className="overflow-hidden">
                 <InstitutionDashboard />
               </TabsContent>
-              <TabsContent value="session" className="overflow-x-hidden">
+              <TabsContent value="session" className="overflow-hidden">
                 <SessionManagement onSessionPurchase={handleSessionPurchase} />
               </TabsContent>
-              <TabsContent value="billing" className="overflow-x-hidden">
+              <TabsContent value="billing" className="overflow-hidden">
                 <BillingControls sessionPurchases={sessionPurchases} />
               </TabsContent>
             </Tabs>
