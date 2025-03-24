@@ -40,6 +40,8 @@ const InstitutionDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedStudent, setExpandedStudent] = useState(null);
+  const [activeMainTab, setActiveMainTab] = useState('students');
+  const [activeAnalyticsTab, setActiveAnalyticsTab] = useState('resume');
   
   const totalLicenses = 1000;
   const usedLicenses = 368;
@@ -300,41 +302,51 @@ const InstitutionDashboard = () => {
         </Card>
       </div>
       
-      <Tabs defaultValue="students">
+      <Tabs 
+        defaultValue="students" 
+        value={activeMainTab}
+        onValueChange={setActiveMainTab}
+      >
         <TabsList className="mb-6">
           <TabsTrigger 
             value="students"
             tooltip="View and manage all students in your institution"
+            className={activeMainTab === "students" ? "border-b-2 border-primary" : ""}
           >
             Students
           </TabsTrigger>
           <TabsTrigger 
             value="approvals"
             tooltip="Review and approve pending student registrations"
+            className={activeMainTab === "approvals" ? "border-b-2 border-primary" : ""}
           >
             Pending Approvals
           </TabsTrigger>
           <TabsTrigger 
             value="interviews"
             tooltip="View upcoming interview sessions"
+            className={activeMainTab === "interviews" ? "border-b-2 border-primary" : ""}
           >
             Scheduled Interviews
           </TabsTrigger>
           <TabsTrigger 
             value="analytics"
             tooltip="Access detailed performance metrics and analytics"
+            className={activeMainTab === "analytics" ? "border-b-2 border-primary" : ""}
           >
             Analytics
           </TabsTrigger>
           <TabsTrigger 
             value="reports"
             tooltip="Generate and export institution reports"
+            className={activeMainTab === "reports" ? "border-b-2 border-primary" : ""}
           >
             Reports
           </TabsTrigger>
           <TabsTrigger 
             value="settings"
             tooltip="Configure institution preferences and settings"
+            className={activeMainTab === "settings" ? "border-b-2 border-primary" : ""}
           >
             Settings
           </TabsTrigger>
@@ -583,23 +595,30 @@ const InstitutionDashboard = () => {
               </Button>
             </div>
             
-            <Tabs defaultValue="resume">
+            <Tabs 
+              defaultValue="resume" 
+              value={activeAnalyticsTab}
+              onValueChange={setActiveAnalyticsTab}
+            >
               <TabsList className="mb-6">
                 <TabsTrigger 
                   value="resume"
                   tooltip="View metrics about student resumes and their performance"
+                  className={activeAnalyticsTab === "resume" ? "border-b-2 border-primary" : ""}
                 >
                   Resume Analytics
                 </TabsTrigger>
                 <TabsTrigger 
                   value="interview"
                   tooltip="View metrics about student interview performance"
+                  className={activeAnalyticsTab === "interview" ? "border-b-2 border-primary" : ""}
                 >
                   Interview Analytics
                 </TabsTrigger>
                 <TabsTrigger 
                   value="platform"
                   tooltip="View overall platform usage statistics"
+                  className={activeAnalyticsTab === "platform" ? "border-b-2 border-primary" : ""}
                 >
                   Platform Engagement
                 </TabsTrigger>
