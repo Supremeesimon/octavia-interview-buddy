@@ -89,10 +89,10 @@ const TableHead = React.forwardRef<HTMLTableCellElement, TableHeadProps>(
     if (tooltip) {
       return (
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild className="block">
             {headContent}
           </TooltipTrigger>
-          <TooltipContent>
+          <TooltipContent side="top" className="z-50">
             <p>{tooltip}</p>
           </TooltipContent>
         </Tooltip>
