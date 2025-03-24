@@ -14,7 +14,8 @@ import {
   Filter,
   ChevronDown,
   Search,
-  Download
+  Download,
+  Info
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -358,14 +359,32 @@ const AdminDashboard = () => {
                 <Table>
                   <TableHeader className="bg-muted/50">
                     <TableRow>
-                      <TableHead className="w-[250px]">Institution</TableHead>
-                      <TableHead>Students</TableHead>
-                      <TableHead>Interviews</TableHead>
-                      <TableHead>Avg Score</TableHead>
-                      <TableHead>Resume Uploads</TableHead>
-                      <TableHead>Licenses Used</TableHead>
-                      <TableHead>Engagement</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead 
+                        className="w-[250px]"
+                        tooltip="Name of the educational institution"
+                      >Institution</TableHead>
+                      <TableHead
+                        tooltip="Total active students vs. total enrolled students"
+                      >Students</TableHead>
+                      <TableHead
+                        tooltip="Total number of interviews completed by students"
+                      >Interviews</TableHead>
+                      <TableHead
+                        tooltip="Average interview score across all students"
+                      >Avg Score</TableHead>
+                      <TableHead
+                        tooltip="Number of resumes uploaded by students"
+                      >Resume Uploads</TableHead>
+                      <TableHead
+                        tooltip="Percentage of available licenses currently in use"
+                      >Licenses Used</TableHead>
+                      <TableHead
+                        tooltip="Student engagement level with the platform"
+                      >Engagement</TableHead>
+                      <TableHead
+                        className="text-right"
+                        tooltip="Available actions for this institution"
+                      >Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

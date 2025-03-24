@@ -1,6 +1,7 @@
-import * as React from "react"
 
+import * as React from "react"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
 
 const Table = React.forwardRef<
   HTMLTableElement,
@@ -66,19 +67,41 @@ const TableRow = React.forwardRef<
 ))
 TableRow.displayName = "TableRow"
 
-const TableHead = React.forwardRef<
-  HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={cn(
-      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-      className
-    )}
-    {...props}
-  />
-))
+interface TableHeadProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
+  tooltip?: string;
+}
+
+const TableHead = React.forwardRef<HTMLTableCellElement, TableHeadProps>(
+  ({ className, tooltip, children, ...props }, ref) => {
+    const headContent = (
+      <th
+        ref={ref}
+        className={cn(
+          "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </th>
+    );
+
+    if (tooltip) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {headContent}
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return headContent;
+  }
+)
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef<
