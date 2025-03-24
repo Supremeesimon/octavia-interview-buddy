@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Building, 
@@ -7,9 +6,8 @@ import {
   Trash2, 
   Search, 
   UserPlus, 
-  ChevronDown,
-  Filter, 
-  Settings
+  ChevronDown, 
+  Filter 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -128,15 +126,12 @@ const InstitutionManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead tooltip="Name of the institution">Institution</TableHead>
-                  <TableHead tooltip="Primary administrator of the institution">Admin</TableHead>
-                  <TableHead tooltip="Total number of students">Students</TableHead>
-                  <TableHead tooltip="Current subscription plan">Plan</TableHead>
-                  <TableHead tooltip="Current status of the institution account">Status</TableHead>
-                  <TableHead className="text-right w-32" tooltip="Management options">
-                    <span className="sr-only">Settings</span>
-                    <Settings className="h-4 w-4 mx-auto" />
-                  </TableHead>
+                  <TableHead>Institution</TableHead>
+                  <TableHead>Admin</TableHead>
+                  <TableHead>Students</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

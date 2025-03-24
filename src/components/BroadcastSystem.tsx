@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Send, 
@@ -9,8 +10,7 @@ import {
   Plus, 
   Trash2, 
   Edit, 
-  CheckCircle2,
-  Settings 
+  CheckCircle2 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,7 +103,7 @@ const BroadcastSystem = () => {
           <h2 className="text-2xl font-bold">Broadcast & Messaging</h2>
         </div>
         
-        <Button onClick={() => setShowComposeDialog(true)} tooltip="Create a new message to broadcast">
+        <Button onClick={() => setShowComposeDialog(true)}>
           <MessageSquare className="mr-2 h-4 w-4" />
           Compose Message
         </Button>
@@ -116,15 +116,15 @@ const BroadcastSystem = () => {
         className="w-full"
       >
         <TabsList className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} w-full max-w-md`}>
-          <TabsTrigger value="messages" tooltip="View and manage all messages">
+          <TabsTrigger value="messages">
             <MessageSquare className="mr-2 h-4 w-4" />
             Messages
           </TabsTrigger>
-          <TabsTrigger value="templates" tooltip="Create and edit message templates">
+          <TabsTrigger value="templates">
             <Bell className="mr-2 h-4 w-4" />
             Templates
           </TabsTrigger>
-          <TabsTrigger value="scheduled" tooltip="View upcoming scheduled messages">
+          <TabsTrigger value="scheduled">
             <Calendar className="mr-2 h-4 w-4" />
             Scheduled
           </TabsTrigger>
@@ -137,15 +137,12 @@ const BroadcastSystem = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead tooltip="Message title and content">Message</TableHead>
-                      <TableHead tooltip="Category of the message">Type</TableHead>
-                      <TableHead tooltip="Recipients of the message">Target</TableHead>
-                      <TableHead tooltip="Current status of the message">Status</TableHead>
-                      <TableHead tooltip="Send date of the message">Date</TableHead>
-                      <TableHead className="text-right w-32" tooltip="Management options">
-                        <span className="sr-only">Settings</span>
-                        <Settings className="h-4 w-4 mx-auto" />
-                      </TableHead>
+                      <TableHead>Message</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -184,16 +181,11 @@ const BroadcastSystem = () => {
                             <Button 
                               size="sm" 
                               variant="outline"
-                              tooltip={`Edit ${message.title}`}
                               onClick={() => handleEditMessage(message)}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              tooltip={`Delete ${message.title}`}
-                            >
+                            <Button size="sm" variant="outline">
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building, Plus, Save, Trash2, ArrowLeft, Settings } from 'lucide-react';
+import { Building, Plus, Save, Trash2, ArrowLeft } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
@@ -215,13 +215,10 @@ const DepartmentAllocationPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead tooltip="Name of the academic department">Department</TableHead>
-                        <TableHead tooltip="Number of students in this department">Students</TableHead>
-                        <TableHead tooltip="Number of interview sessions allocated to this department">Session Allocation</TableHead>
-                        <TableHead className="w-12" tooltip="Management options">
-                          <span className="sr-only">Settings</span>
-                          <Settings className="h-4 w-4 mx-auto" />
-                        </TableHead>
+                        <TableHead>Department</TableHead>
+                        <TableHead>Students</TableHead>
+                        <TableHead>Session Allocation</TableHead>
+                        <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -252,7 +249,7 @@ const DepartmentAllocationPage = () => {
                                 destructive: true
                               }}
                               trigger={
-                                <Button variant="ghost" size="icon" tooltip={`Delete ${dept.name}`}>
+                                <Button variant="ghost" size="icon">
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               }
