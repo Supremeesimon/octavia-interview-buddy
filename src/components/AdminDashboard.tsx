@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Users, 
@@ -131,14 +132,35 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedInstitution, setSelectedInstitution] = useState("all");
   
+  // Explicit function to navigate to institution analytics
+  const handleViewInstitutionAnalytics = (institutionId: string) => {
+    navigate(`/admin/institution/${institutionId}/analytics`);
+  };
+  
   return (
     <div className="space-y-6">
       <Tabs defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
         <TabsList>
-          <TabsTrigger value="overview" tooltip="View platform overview and key metrics">Platform Overview</TabsTrigger>
-          <TabsTrigger value="institutions" tooltip="Manage all institutions in the platform">Institutions</TabsTrigger>
-          <TabsTrigger value="analytics" tooltip="View detailed platform analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="system" tooltip="Check system status and health">System Status</TabsTrigger>
+          <TabsTrigger 
+            value="overview" 
+            tooltip="View platform overview and key metrics"
+            className={activeTab === "overview" ? "border-b-2 border-primary" : ""}
+          >Platform Overview</TabsTrigger>
+          <TabsTrigger 
+            value="institutions" 
+            tooltip="Manage all institutions in the platform"
+            className={activeTab === "institutions" ? "border-b-2 border-primary" : ""}
+          >Institutions</TabsTrigger>
+          <TabsTrigger 
+            value="analytics" 
+            tooltip="View detailed platform analytics"
+            className={activeTab === "analytics" ? "border-b-2 border-primary" : ""}
+          >Analytics</TabsTrigger>
+          <TabsTrigger 
+            value="system" 
+            tooltip="Check system status and health"
+            className={activeTab === "system" ? "border-b-2 border-primary" : ""}
+          >System Status</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
@@ -400,7 +422,8 @@ const AdminDashboard = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem 
-                                onClick={() => navigate(`/admin/institution/${institution.id}/analytics`)}
+                                onClick={() => handleViewInstitutionAnalytics(institution.id)}
+                                className="cursor-pointer"
                               >
                                 View Analytics
                               </DropdownMenuItem>
