@@ -28,26 +28,37 @@ const StudentDashboardPage = () => {
   };
   
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden w-full">
       <Header />
-      <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'}`}>
+      <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'} w-full`}>
         <TooltipProvider>
           <div className="container mx-auto px-4 max-w-7xl">
             <Tabs defaultValue="dashboard" className="w-full mb-6" onValueChange={handleTabChange}>
               <TabsList className="w-full max-w-md">
-                <TabsTrigger value="dashboard">
+                <TabsTrigger 
+                  value="dashboard"
+                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                >
                   Dashboard
                 </TabsTrigger>
-                <TabsTrigger value="interviews">
+                <TabsTrigger 
+                  value="interviews"
+                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                >
                   Interviews
                 </TabsTrigger>
-                <TabsTrigger value="resumes">
+                <TabsTrigger 
+                  value="resumes"
+                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                >
                   Resumes
                 </TabsTrigger>
               </TabsList>
             </Tabs>
             
-            <StudentDashboard />
+            <div className="overflow-x-hidden">
+              <StudentDashboard />
+            </div>
           </div>
         </TooltipProvider>
       </main>
