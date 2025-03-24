@@ -32,9 +32,9 @@ const Dashboard = () => {
   };
   
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden w-full">
       <Header />
-      <main className="flex-grow py-20 md:py-28">
+      <main className="flex-grow py-20 md:py-28 w-full">
         <TooltipProvider>
           <div className="container mx-auto px-4 max-w-7xl">
             <h1 className="text-2xl md:text-3xl font-bold mb-6">Institution Dashboard</h1>
@@ -49,33 +49,33 @@ const Dashboard = () => {
                 <TabsTrigger 
                   value="overview"
                   tooltip="Overview of your institution's performance metrics and key statistics"
-                  className="relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-0.5 data-[state=active]:after:w-full data-[state=active]:after:bg-primary"
+                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
                   value="session"
                   tooltip="Manage your institution's interview session pool and allocation settings"
-                  className="relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-0.5 data-[state=active]:after:w-full data-[state=active]:after:bg-primary"
+                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Session Pool
                 </TabsTrigger>
                 <TabsTrigger 
                   value="billing"
                   tooltip="Manage billing, payments, and subscription details"
-                  className="relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-0.5 data-[state=active]:after:w-full data-[state=active]:after:bg-primary"
+                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Billing & Payments
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="overview">
+              <TabsContent value="overview" className="overflow-x-hidden">
                 <InstitutionDashboard />
               </TabsContent>
-              <TabsContent value="session">
+              <TabsContent value="session" className="overflow-x-hidden">
                 <SessionManagement onSessionPurchase={handleSessionPurchase} />
               </TabsContent>
-              <TabsContent value="billing">
+              <TabsContent value="billing" className="overflow-x-hidden">
                 <BillingControls sessionPurchases={sessionPurchases} />
               </TabsContent>
             </Tabs>
