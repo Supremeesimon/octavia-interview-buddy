@@ -8,6 +8,7 @@ import BillingControls from '@/components/BillingControls';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SessionPurchase {
   sessions: number;
@@ -18,6 +19,7 @@ interface SessionPurchase {
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [sessionPurchases, setSessionPurchases] = useState<SessionPurchase[]>([]);
+  const isMobile = useIsMobile();
   
   const handleSessionPurchase = (sessions: number, cost: number) => {
     const newPurchase = {
@@ -32,10 +34,10 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-grow py-28">
+      <main className="flex-grow py-20 md:py-28">
         <TooltipProvider>
           <div className="container mx-auto px-4 max-w-7xl">
-            <h1 className="text-3xl font-bold mb-6">Institution Dashboard</h1>
+            <h1 className="text-2xl md:text-3xl font-bold mb-6">Institution Dashboard</h1>
             
             <Tabs 
               defaultValue="overview" 
@@ -43,22 +45,25 @@ const Dashboard = () => {
               onValueChange={setActiveTab}
               value={activeTab}
             >
-              <TabsList className="w-full grid grid-cols-3">
+              <TabsList className="w-full grid grid-cols-3 mb-4">
                 <TabsTrigger 
                   value="overview"
                   tooltip="Overview of your institution's performance metrics and key statistics"
+                  className="relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-0.5 data-[state=active]:after:w-full data-[state=active]:after:bg-primary"
                 >
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
                   value="session"
                   tooltip="Manage your institution's interview session pool and allocation settings"
+                  className="relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-0.5 data-[state=active]:after:w-full data-[state=active]:after:bg-primary"
                 >
                   Session Pool
                 </TabsTrigger>
                 <TabsTrigger 
                   value="billing"
                   tooltip="Manage billing, payments, and subscription details"
+                  className="relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-0.5 data-[state=active]:after:w-full data-[state=active]:after:bg-primary"
                 >
                   Billing & Payments
                 </TabsTrigger>

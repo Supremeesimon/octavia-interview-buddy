@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { ShoppingCart, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ConfirmationDialog from '../ConfirmationDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SessionPurchaseProps {
   sessionLength: number;
@@ -17,6 +18,7 @@ interface SessionPurchaseProps {
 const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: SessionPurchaseProps) => {
   const [additionalSessions, setAdditionalSessions] = useState('');
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   const handleAddSessions = () => {
     const sessionsToAdd = parseInt(additionalSessions);
@@ -86,7 +88,7 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
             
             <div className="space-y-2 mt-4">
               <div className="font-medium">Quick Purchase Options</div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2">
                 <ConfirmationDialog
                   details={{
                     title: "Confirm Purchase",
@@ -100,9 +102,9 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     confirmText: "Complete Purchase",
                   }}
                   trigger={
-                    <Button variant="outline">
-                      100 Sessions
-                      <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(100)}</span>
+                    <Button variant="outline" className="w-full text-xs md:text-sm">
+                      <span className="truncate">100 Sessions</span>
+                      <span className="ml-1 text-muted-foreground whitespace-nowrap">${calculateBundleCost(100)}</span>
                     </Button>
                   }
                   onConfirm={() => {
@@ -123,9 +125,9 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     confirmText: "Complete Purchase",
                   }}
                   trigger={
-                    <Button variant="outline">
-                      500 Sessions
-                      <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(500)}</span>
+                    <Button variant="outline" className="w-full text-xs md:text-sm">
+                      <span className="truncate">500 Sessions</span>
+                      <span className="ml-1 text-muted-foreground whitespace-nowrap">${calculateBundleCost(500)}</span>
                     </Button>
                   }
                   onConfirm={() => {
@@ -146,9 +148,9 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     confirmText: "Complete Purchase",
                   }}
                   trigger={
-                    <Button variant="outline">
-                      1000 Sessions
-                      <span className="text-xs ml-1 text-muted-foreground">${calculateBundleCost(1000)}</span>
+                    <Button variant="outline" className="w-full text-xs md:text-sm">
+                      <span className="truncate">1000 Sessions</span>
+                      <span className="ml-1 text-muted-foreground whitespace-nowrap">${calculateBundleCost(1000)}</span>
                     </Button>
                   }
                   onConfirm={() => {

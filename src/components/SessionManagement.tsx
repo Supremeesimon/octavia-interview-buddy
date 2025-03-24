@@ -4,6 +4,7 @@ import SessionPoolStatus from './session/SessionPoolStatus';
 import SessionDuration from './session/SessionDuration';
 import SessionPurchase from './session/SessionPurchase';
 import SessionAllocation from './session/SessionAllocation';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SessionManagementProps {
   onSessionPurchase?: (sessions: number, cost: number) => void;
@@ -13,6 +14,7 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
   const [sessionLength, setSessionLength] = useState(20); // Default 20 minutes
   const [totalSessions, setTotalSessions] = useState(1000);
   const [usedSessions, setUsedSessions] = useState(362);
+  const isMobile = useIsMobile();
   
   const pricePerMinute = 0.15; // $0.15 per minute
   const sessionCost = (sessionLength * pricePerMinute).toFixed(2);

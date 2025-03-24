@@ -26,7 +26,7 @@ const SessionPoolStatus = ({ totalSessions, usedSessions }: SessionPoolStatusPro
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <div className="flex justify-between">
+          <div className="flex flex-wrap justify-between">
             <span className="font-medium">Session utilization</span>
             <span className="text-sm">{usedSessions} of {totalSessions} used ({percentUsed.toFixed(1)}%)</span>
           </div>
@@ -36,13 +36,13 @@ const SessionPoolStatus = ({ totalSessions, usedSessions }: SessionPoolStatusPro
           <div className="mt-4 grid grid-cols-2 gap-4">
             <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
               <div className="font-medium text-amber-800">Available</div>
-              <div className="text-2xl font-bold text-amber-900">{availableSessions}</div>
+              <div className="text-xl md:text-2xl font-bold text-amber-900">{availableSessions}</div>
               <div className="text-xs text-amber-700 mt-1">Interview slots</div>
             </div>
             
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
               <div className="font-medium text-blue-800">Used</div>
-              <div className="text-2xl font-bold text-blue-900">{usedSessions}</div>
+              <div className="text-xl md:text-2xl font-bold text-blue-900">{usedSessions}</div>
               <div className="text-xs text-blue-700 mt-1">Interview slots</div>
             </div>
           </div>
