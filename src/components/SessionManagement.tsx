@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -153,7 +154,7 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
               
               <Slider 
                 id="session-length"
-                min={5} 
+                min={10} 
                 max={30} 
                 step={1} 
                 value={[sessionLength]} 
@@ -161,7 +162,7 @@ const SessionManagement = ({ onSessionPurchase }: SessionManagementProps) => {
               />
               
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>5 min</span>
+                <span>10 min</span>
                 <span>15 min</span>
                 <span>30 min</span>
               </div>
