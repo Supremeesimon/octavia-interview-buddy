@@ -49,21 +49,18 @@ const Dashboard = () => {
                 <TabsTrigger 
                   value="overview"
                   tooltip="Overview of your institution's performance metrics and key statistics"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
                   value="session"
                   tooltip="Manage your institution's interview session pool and allocation settings"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Session Pool
                 </TabsTrigger>
                 <TabsTrigger 
                   value="billing"
                   tooltip="Manage billing, payments, and subscription details"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Billing & Payments
                 </TabsTrigger>

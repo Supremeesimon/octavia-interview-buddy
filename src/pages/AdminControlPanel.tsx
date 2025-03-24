@@ -47,49 +47,42 @@ const AdminControlPanel = () => {
                 <TabsTrigger 
                   value="dashboard" 
                   tooltip="Platform overview, metrics, and performance statistics"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Dashboard
                 </TabsTrigger>
                 <TabsTrigger 
                   value="institutions" 
                   tooltip="Manage institution accounts, settings, and subscription status"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Institutions
                 </TabsTrigger>
                 <TabsTrigger 
                   value="students" 
                   tooltip="Manage student accounts, access, and activity metrics"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Students
                 </TabsTrigger>
                 <TabsTrigger 
                   value="resources" 
                   tooltip="Upload and manage platform resources, templates, and content"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Resources
                 </TabsTrigger>
                 <TabsTrigger 
                   value="broadcasting" 
                   tooltip="Send announcements and notifications to platform users"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Broadcast
                 </TabsTrigger>
                 <TabsTrigger 
                   value="analytics" 
                   tooltip="Advanced data analysis and performance insights"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Analytics
                 </TabsTrigger>
                 <TabsTrigger 
                   value="financial" 
                   tooltip="Platform pricing management, margins, and revenue tracking"
-                  className="relative data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   Financial
                 </TabsTrigger>
