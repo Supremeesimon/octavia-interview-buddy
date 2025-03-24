@@ -47,42 +47,49 @@ const AdminControlPanel = () => {
                 <TabsTrigger 
                   value="dashboard" 
                   tooltip="Platform overview, metrics, and performance statistics"
+                  className={activeTab === "dashboard" ? "border-b-2 border-primary" : ""}
                 >
                   Dashboard
                 </TabsTrigger>
                 <TabsTrigger 
                   value="institutions" 
                   tooltip="Manage institution accounts, settings, and subscription status"
+                  className={activeTab === "institutions" ? "border-b-2 border-primary" : ""}
                 >
                   Institutions
                 </TabsTrigger>
                 <TabsTrigger 
                   value="students" 
                   tooltip="Manage student accounts, access, and activity metrics"
+                  className={activeTab === "students" ? "border-b-2 border-primary" : ""}
                 >
                   Students
                 </TabsTrigger>
                 <TabsTrigger 
                   value="resources" 
                   tooltip="Upload and manage platform resources, templates, and content"
+                  className={activeTab === "resources" ? "border-b-2 border-primary" : ""}
                 >
                   Resources
                 </TabsTrigger>
                 <TabsTrigger 
                   value="broadcasting" 
                   tooltip="Send announcements and notifications to platform users"
+                  className={activeTab === "broadcasting" ? "border-b-2 border-primary" : ""}
                 >
                   Broadcast
                 </TabsTrigger>
                 <TabsTrigger 
                   value="analytics" 
                   tooltip="Advanced data analysis and performance insights"
+                  className={activeTab === "analytics" ? "border-b-2 border-primary" : ""}
                 >
                   Analytics
                 </TabsTrigger>
                 <TabsTrigger 
                   value="financial" 
                   tooltip="Platform pricing management, margins, and revenue tracking"
+                  className={activeTab === "financial" ? "border-b-2 border-primary" : ""}
                 >
                   Financial
                 </TabsTrigger>
