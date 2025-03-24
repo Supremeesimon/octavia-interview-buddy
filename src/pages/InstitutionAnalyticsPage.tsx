@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,18 +11,55 @@ import { ArrowLeft, BarChart3, Download, Calendar, Users, FileText, MessageSquar
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, Tooltip as RechartsTooltip } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { useToast } from '@/hooks/use-toast';
 
-const mockInstitution = {
-  id: "3",
-  name: "Engineering Institute",
-  totalStudents: 650,
-  activeStudents: 590,
-  interviewsCompleted: 1850,
-  avgScore: 85,
-  resumeUploads: 540,
-  licensesUsed: "90%",
-  engagement: "Very High"
-};
+// Mocked institution data - in a real app, this would come from an API
+const mockInstitutionsData = [
+  { 
+    id: "1", 
+    name: "University of Technology", 
+    totalStudents: 1250, 
+    activeStudents: 980, 
+    interviewsCompleted: 3450, 
+    avgScore: 82, 
+    resumeUploads: 920,
+    licensesUsed: "78%",
+    engagement: "High"
+  },
+  { 
+    id: "2", 
+    name: "Business College", 
+    totalStudents: 850, 
+    activeStudents: 720, 
+    interviewsCompleted: 2100, 
+    avgScore: 79, 
+    resumeUploads: 680,
+    licensesUsed: "85%",
+    engagement: "Medium"
+  },
+  { 
+    id: "3", 
+    name: "Engineering Institute", 
+    totalStudents: 650, 
+    activeStudents: 590, 
+    interviewsCompleted: 1850, 
+    avgScore: 85, 
+    resumeUploads: 540,
+    licensesUsed: "90%",
+    engagement: "Very High"
+  },
+  { 
+    id: "4", 
+    name: "Liberal Arts College", 
+    totalStudents: 780, 
+    activeStudents: 520, 
+    interviewsCompleted: 1200, 
+    avgScore: 77, 
+    resumeUploads: 480,
+    licensesUsed: "67%",
+    engagement: "Medium"
+  },
+];
 
 const mockUserActivityData = [
   { name: 'Jan', value: 320 },
@@ -43,9 +80,43 @@ const mockDepartmentData = [
 const InstitutionAnalyticsPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [institution, setInstitution] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
-  // In a real app, we would fetch the institution data based on the ID
-  const institution = mockInstitution;
+  // Simulate fetching institution data based on ID
+  useEffect(() => {
+    // In a real app, this would be an API call
+    const foundInstitution = mockInstitutionsData.find(inst => inst.id === id);
+    
+    if (foundInstitution) {
+      setInstitution(foundInstitution);
+    } else {
+      toast({
+        title: "Institution not found",
+        description: "We couldn't find the institution you're looking for.",
+        variant: "destructive"
+      });
+      // Redirect to admin page if institution not found
+      navigate('/admin');
+    }
+    
+    setLoading(false);
+  }, [id, navigate, toast]);
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="mt-4 text-muted-foreground">Loading institution data...</p>
+      </div>
+    );
+  }
+  
+  if (!institution) {
+    return null; // Will redirect from useEffect
+  }
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -146,29 +217,38 @@ const InstitutionAnalyticsPage = () => {
               </Card>
             </div>
             
-            <Tabs defaultValue="overview" className="space-y-6">
+            <Tabs 
+              defaultValue="overview" 
+              className="space-y-6"
+              value={activeTab}
+              onValueChange={setActiveTab}
+            >
               <TabsList>
                 <TabsTrigger 
                   value="overview" 
                   tooltip="View overall analytics for the institution"
+                  className={activeTab === "overview" ? "border-b-2 border-primary" : ""}
                 >
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
                   value="interviews" 
                   tooltip="View detailed interview performance metrics"
+                  className={activeTab === "interviews" ? "border-b-2 border-primary" : ""}
                 >
                   Interview Analytics
                 </TabsTrigger>
                 <TabsTrigger 
                   value="resumes" 
                   tooltip="View detailed resume analytics and metrics"
+                  className={activeTab === "resumes" ? "border-b-2 border-primary" : ""}
                 >
                   Resume Analytics
                 </TabsTrigger>
                 <TabsTrigger 
                   value="departments" 
                   tooltip="Compare performance across different departments"
+                  className={activeTab === "departments" ? "border-b-2 border-primary" : ""}
                 >
                   Department Comparison
                 </TabsTrigger>
