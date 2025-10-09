@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import StudentDashboard from '@/components/StudentDashboard';
+import ResumesList from '@/components/ResumesList';
+import InterviewInterface from '@/components/InterviewInterface';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -16,17 +18,7 @@ const StudentDashboardPage = () => {
   
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    switch (value) {
-      case 'dashboard':
-        // Stay on this page
-        break;
-      case 'interviews':
-        navigate('/interview');
-        break;
-      case 'resumes':
-        navigate('/resumes');
-        break;
-    }
+    // Keep everything within this page - no navigation
   };
   
   return (
@@ -47,11 +39,27 @@ const StudentDashboardPage = () => {
                   Resumes
                 </TabsTrigger>
               </TabsList>
+              
+              <TabsContent value="dashboard" className="mt-6">
+                <div className="overflow-hidden">
+                  <StudentDashboard />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="interviews" className="mt-6">
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Interview Practice</h2>
+                    <p className="text-muted-foreground">Start your AI-powered interview practice session</p>
+                  </div>
+                  <InterviewInterface />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="resumes" className="mt-6">
+                <ResumesList />
+              </TabsContent>
             </Tabs>
-            
-            <div className="overflow-hidden">
-              <StudentDashboard />
-            </div>
           </div>
         </TooltipProvider>
       </main>
