@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mic, MicOff, PauseCircle, PlayCircle, Loader2, Clock, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
@@ -29,7 +29,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const timerRef = useRef<number | null>(null);
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
   
-  // VAPI integration setup (instead of LiveKit)
+  // VAPI integration setup
   const [isAudioConnected, setIsAudioConnected] = useState(false);
   const [isMicEnabled, setIsMicEnabled] = useState(false);
   
@@ -50,10 +50,10 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
   };
   
-  // For demo purposes, simulate VAPI connection
+  // Connect to VAPI for voice interaction
   const connectToVapi = async () => {
     try {
-      // For demo purposes, we'll just simulate a successful connection
+      // In production, this would initialize VAPI connection
       setIsAudioConnected(true);
       toast.success("Audio connected successfully");
       return true;
@@ -66,7 +66,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   
   const enableMicrophone = async () => {
     try {
-      // In a real implementation, this would enable the microphone via VAPI
+      // In production, this would enable the microphone via VAPI
       setIsMicEnabled(true);
     } catch (error) {
       console.error("Error enabling microphone:", error);
@@ -74,14 +74,14 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
   };
   
-  const disableMicrophone = async () => {
+  const disableMicrophone = useCallback(async () => {
     try {
-      // In a real implementation, this would disable the microphone via VAPI
+      // In production, this would disable the microphone via VAPI
       setIsMicEnabled(false);
     } catch (error) {
       console.error("Error disabling microphone:", error);
     }
-  };
+  }, []);
   
   // Simulate microphone levels for visualization
   useEffect(() => {
@@ -141,7 +141,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   }, [timeRemaining, isRecording]);
   
   const handleStartRecording = async () => {
-    // Connect to VAPI (or simulate in demo mode)
+    // Connect to VAPI for voice interaction
     const connected = await connectToVapi();
     
     if (connected) {
@@ -149,14 +149,15 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       setIsPaused(false);
       setTranscript('');
       
-      // Simulate transcription updating as user speaks
+      // In production, VAPI would handle real-time transcription
+      // For demo purposes, simulate transcription updating
       const transcriptionInterval = setInterval(() => {
         if (!isRecording || isPaused) {
           clearInterval(transcriptionInterval);
           return;
         }
         
-        // Simulate partial transcription (in real app, this would come from VAPI)
+        // Simulate AI responses (in production, this comes from VAPI)
         const demoResponses = [
           "I have over five years of experience in software development...",
           "My background includes working with cross-functional teams to deliver high-quality products...",
@@ -170,7 +171,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
   };
   
-  const handleStopRecording = () => {
+  const handleStopRecording = useCallback(() => {
     setIsRecording(false);
     setIsLoading(true);
     
@@ -184,7 +185,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     setTimeout(() => {
       setIsLoading(false);
     }, 2000);
-  };
+  }, [isAudioConnected, disableMicrophone]);
   
   const handlePauseRecording = () => {
     setIsPaused(true);
@@ -196,11 +197,11 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     enableMicrophone();
   };
   
-  const handleEndInterview = () => {
+  const handleEndInterview = useCallback(() => {
     handleStopRecording();
     setInterviewEnded(true);
     toast.success("Interview completed! Results will be sent to your email shortly.");
-  };
+  }, [handleStopRecording]);
   
   // Auto-end interview after 15 minutes (900 seconds)
   useEffect(() => {
@@ -208,7 +209,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       handleEndInterview();
       toast.info("Interview ended: 15 minute time limit reached");
     }
-  }, [timer, isRecording]);
+  }, [timer, isRecording, handleEndInterview]);
 
   const handleScheduleMore = () => {
     navigate('/resumes');
