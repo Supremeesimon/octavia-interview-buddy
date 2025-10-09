@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function hasRole(role) {
+      return resource.data.role == role;
+    }
+    
+    function isStudent() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    }
+    
+    function isTeacher() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+    
+    function isInstitutionAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'institution_admin';
+    }
+    
+    function isPlatformAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'platform_admin';
+    }
+    
+    function sameInstitution(institutionDomain) {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.institutionDomain == institutionDomain;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Users can read and write their own data
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      
+      // Institution admins can read users from their institution
+      allow read: if isAuthenticated() && isInstitutionAdmin() && 
+                  sameInstitution(resource.data.institutionDomain);
+      
+      // Platform admins can read all users
+      allow read: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // Institutions collection
+    match /institutions/{institutionId} {
+      // Institution admins can read/write their own institution
+      allow read, write: if isAuthenticated() && isInstitutionAdmin() && 
+                         sameInstitution(resource.data.domain);
+      
+      // Platform admins can read/write all institutions
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+      
+      // Students and teachers can read their institution
+      allow read: if isAuthenticated() && sameInstitution(resource.data.domain);
+    }
+
+    // Interview sessions collection
+    match /interview_sessions/{sessionId} {
+      // Students can read/write their own sessions
+      allow read, write: if isAuthenticated() && isOwner(resource.data.studentId);
+      
+      // Teachers can read sessions from students in their institution
+      allow read: if isAuthenticated() && isTeacher() && 
+                  sameInstitution(resource.data.institutionDomain);
+      
+      // Institution admins can read all sessions from their institution
+      allow read: if isAuthenticated() && isInstitutionAdmin() && 
+                  sameInstitution(resource.data.institutionDomain);
+      
+      // Platform admins can read all sessions
+      allow read: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // Resumes collection
+    match /resumes/{resumeId} {
+      // Users can read/write their own resumes
+      allow read, write: if isAuthenticated() && isOwner(resource.data.userId);
+      
+      // Teachers can read resumes from students in their institution
+      allow read: if isAuthenticated() && isTeacher() && 
+                  sameInstitution(resource.data.institutionDomain);
+      
+      // Institution admins can read resumes from their institution
+      allow read: if isAuthenticated() && isInstitutionAdmin() && 
+                  sameInstitution(resource.data.institutionDomain);
+    }
+
+    // Interview feedback collection
+    match /interview_feedback/{feedbackId} {
+      // Students can read their own feedback
+      allow read: if isAuthenticated() && isOwner(resource.data.studentId);
+      
+      // AI service can write feedback
+      allow write: if isAuthenticated() && isPlatformAdmin();
+      
+      // Teachers can read feedback from students in their institution
+      allow read: if isAuthenticated() && isTeacher() && 
+                  sameInstitution(resource.data.institutionDomain);
+      
+      // Institution admins can read feedback from their institution
+      allow read: if isAuthenticated() && isInstitutionAdmin() && 
+                  sameInstitution(resource.data.institutionDomain);
+    }
+
+    // Session purchases collection
+    match /session_purchases/{purchaseId} {
+      // Users can read/write their own purchases
+      allow read, write: if isAuthenticated() && isOwner(resource.data.userId);
+      
+      // Institution admins can read purchases from their institution
+      allow read: if isAuthenticated() && isInstitutionAdmin() && 
+                  sameInstitution(resource.data.institutionDomain);
+      
+      // Platform admins can read all purchases
+      allow read: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // Analytics collection (read-only for most users)
+    match /analytics/{doc=**} {
+      // Students can read their own analytics
+      allow read: if isAuthenticated() && isStudent() && 
+                  isOwner(resource.data.userId);
+      
+      // Teachers can read analytics from their institution
+      allow read: if isAuthenticated() && isTeacher() && 
+                  sameInstitution(resource.data.institutionDomain);
+      
+      // Institution admins can read analytics from their institution
+      allow read: if isAuthenticated() && isInstitutionAdmin() && 
+                  sameInstitution(resource.data.institutionDomain);
+      
+      // Platform admins can read/write all analytics
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // System configuration (platform admins only)
+    match /system_config/{doc=**} {
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // Default deny all other documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

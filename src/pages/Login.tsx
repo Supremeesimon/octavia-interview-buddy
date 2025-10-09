@@ -8,30 +8,39 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const { login, isLoading } = useFirebaseAuth();
   const navigate = useNavigate();
   
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      // For demo purposes, direct student vs institution users
-      if (email.includes('admin') || email.includes('institution')) {
-        navigate('/dashboard');
-        toast.success("Welcome back, administrator!");
-      } else {
-        navigate('/student');
-        toast.success("Welcome back!");
+    try {
+      const result = await login(email, password);
+      
+      // Navigate based on user role
+      switch (result.user.role) {
+        case 'student':
+          navigate('/student');
+          break;
+        case 'institution_admin':
+          navigate('/dashboard');
+          break;
+        case 'platform_admin':
+          navigate('/admin');
+          break;
+        default:
+          navigate('/');
       }
-      setIsSubmitting(false);
-    }, 1500);
+      
+      toast.success(`Welcome back, ${result.user.name}!`);
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed');
+    }
   };
   
   return (
@@ -78,8 +87,8 @@ const Login = () => {
                   </div>
                 </div>
                 
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Signing in..." : "Sign In"}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
               </div>
             </form>

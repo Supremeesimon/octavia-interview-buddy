@@ -4,13 +4,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LinkIcon, FileUp, Mic } from 'lucide-react';
+import { LinkIcon, FileUp, Mic, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Progress } from '@/components/ui/progress';
+import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { toast } from 'sonner';
 
 interface ResumeUploadDialogProps {
   open: boolean;
   onClose: () => void;
-  onContinue: (resumeData: { type: 'linkedin' | 'file' | 'voice', content: string | File }) => void;
+  onContinue: (resumeData: { type: 'linkedin' | 'file' | 'voice', content: string | File, downloadURL?: string, fileName?: string }) => void;
   studentName?: string;
 }
 
@@ -19,16 +23,44 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [voiceSelected, setVoiceSelected] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const { user } = useFirebaseAuth();
+  const { uploadResume, isUploading, uploadProgress } = useFirebaseStorage();
 
-  const handleContinue = () => {
-    if (!selectedOption) return;
+  const handleContinue = async () => {
+    if (!selectedOption || isProcessing) return;
     
-    if (selectedOption === 'linkedin' && linkedinUrl) {
-      onContinue({ type: 'linkedin', content: linkedinUrl });
-    } else if (selectedOption === 'file' && resumeFile) {
-      onContinue({ type: 'file', content: resumeFile });
-    } else if (selectedOption === 'voice' && voiceSelected) {
-      onContinue({ type: 'voice', content: 'voice-interaction' });
+    setIsProcessing(true);
+    
+    try {
+      if (selectedOption === 'linkedin' && linkedinUrl) {
+        onContinue({ type: 'linkedin', content: linkedinUrl });
+      } else if (selectedOption === 'file' && resumeFile && user) {
+        // Generate a unique resume ID
+        const resumeId = `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Upload to Firebase Storage
+        const uploadResult = await uploadResume(user.id, resumeFile, resumeId);
+        
+        if (uploadResult) {
+          onContinue({ 
+            type: 'file', 
+            content: resumeFile,
+            downloadURL: uploadResult.downloadURL,
+            fileName: resumeFile.name
+          });
+        } else {
+          toast.error('Failed to upload resume. Please try again.');
+        }
+      } else if (selectedOption === 'voice' && voiceSelected) {
+        onContinue({ type: 'voice', content: 'voice-interaction' });
+      }
+    } catch (error) {
+      console.error('Error processing resume:', error);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -157,14 +189,31 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
           </div>
         </div>
         
+        {/* Upload Progress */}
+        {(isUploading || uploadProgress) && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Uploading resume...</span>
+              <span>{uploadProgress ? Math.round(uploadProgress.percentage) : 0}%</span>
+            </div>
+            <Progress value={uploadProgress?.percentage || 0} className="w-full" />
+          </div>
+        )}
+        
         <div className="flex justify-center">
           <Button 
             onClick={handleContinue}
-            disabled={!isOptionComplete()}
+            disabled={!isOptionComplete() || isProcessing || isUploading}
             className="px-8 rounded-full"
-            tooltip="Continue to your interview"
           >
-            Continue
+            {isProcessing || isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {isUploading ? 'Uploading...' : 'Processing...'}
+              </>
+            ) : (
+              'Continue'
+            )}
           </Button>
         </div>
       </DialogContent>

@@ -22,6 +22,13 @@ export interface User {
   lastLoginAt?: Date;
 }
 
+export interface UserProfile extends User {
+  institutionDomain?: string;
+  emailVerified: boolean;
+  sessionCount: number;
+  profileCompleted: boolean;
+}
+
 export interface Student extends User {
   role: 'student';
   institutionId: string;

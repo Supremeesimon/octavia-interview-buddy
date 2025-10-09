@@ -22,6 +22,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import DepartmentAllocationPage from "./pages/DepartmentAllocationPage";
 import StudentGroupAllocationPage from "./pages/StudentGroupAllocationPage";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -37,13 +38,13 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/interview" element={<Interview />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/student" element={<StudentDashboardPage />} />
-          <Route path="/resumes" element={<ResumesPage />} />
-          <Route path="/admin" element={<AdminControlPanel />} />
-          <Route path="/admin/add-institution" element={<AddInstitutionPage />} />
-          <Route path="/admin/institution/:id/analytics" element={<InstitutionAnalyticsPage />} />
-          <Route path="/admin/export" element={<ExportDataPage />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
+          <Route path="/resumes" element={<ProtectedRoute requiredRole="student"><ResumesPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute requiredRole="platform_admin"><AdminControlPanel /></ProtectedRoute>} />
+          <Route path="/admin/add-institution" element={<ProtectedRoute requiredRole="platform_admin"><AddInstitutionPage /></ProtectedRoute>} />
+          <Route path="/admin/institution/:id/analytics" element={<ProtectedRoute requiredRole="platform_admin"><InstitutionAnalyticsPage /></ProtectedRoute>} />
+          <Route path="/admin/export" element={<ProtectedRoute requiredRole="platform_admin"><ExportDataPage /></ProtectedRoute>} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />

@@ -1,0 +1,112 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isPlatformAdmin() {
+      return getUserData().role == 'platform_admin';
+    }
+    
+    function isInstitutionAdmin() {
+      return getUserData().role == 'institution_admin';
+    }
+    
+    function sameInstitution(institutionDomain) {
+      return getUserData().institutionDomain == institutionDomain;
+    }
+    
+    function isValidFileSize(maxSizeInMB) {
+      return request.resource.size <= maxSizeInMB * 1024 * 1024;
+    }
+    
+    function isValidFileType(allowedTypes) {
+      return request.resource.contentType in allowedTypes;
+    }
+
+    // Resume uploads
+    match /resumes/{userId}/{resumeId} {
+      // Users can upload/read/delete their own resumes
+      allow read, write, delete: if isAuthenticated() && 
+                                    isOwner(userId) &&
+                                    isValidFileSize(10) && // 10MB max
+                                    isValidFileType(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);
+      
+      // Institution admins can read resumes from their institution
+      allow read: if isAuthenticated() && isInstitutionAdmin();
+      
+      // Platform admins can read all resumes
+      allow read: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // Interview recordings
+    match /interview-recordings/{userId}/{sessionId}/{fileName} {
+      // Users can read their own recordings
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // System can write recordings (via server-side admin SDK)
+      allow write: if isAuthenticated() && isPlatformAdmin() &&
+                     isValidFileSize(100) && // 100MB max for recordings
+                     isValidFileType(['audio/webm', 'audio/wav', 'audio/mp3', 'audio/mpeg']);
+      
+      // Institution admins can read recordings from their institution
+      allow read: if isAuthenticated() && isInstitutionAdmin();
+    }
+
+    // Profile pictures
+    match /profile-pictures/{userId}/{fileName} {
+      // Users can upload/read/delete their own profile pictures
+      allow read, write, delete: if isAuthenticated() && 
+                                    isOwner(userId) &&
+                                    isValidFileSize(5) && // 5MB max
+                                    isValidFileType(['image/jpeg', 'image/png', 'image/webp']);
+    }
+
+    // Institution logos (institution admins only)
+    match /institution-logos/{institutionId}/{fileName} {
+      // Institution admins can upload/read/delete their institution logo
+      allow read, write, delete: if isAuthenticated() && 
+                                    isInstitutionAdmin() &&
+                                    isValidFileSize(2) && // 2MB max
+                                    isValidFileType(['image/jpeg', 'image/png', 'image/svg+xml']);
+      
+      // Platform admins can manage all logos
+      allow read, write, delete: if isAuthenticated() && isPlatformAdmin();
+      
+      // All authenticated users can read logos
+      allow read: if isAuthenticated();
+    }
+
+    // System assets (platform admins only)
+    match /system-assets/{allPaths=**} {
+      allow read, write, delete: if isAuthenticated() && isPlatformAdmin();
+      
+      // Public read access for certain system assets
+      allow read: if true;
+    }
+
+    // Analytics exports (read-only for institution admins and platform admins)
+    match /analytics-exports/{institutionId}/{fileName} {
+      // Institution admins can read their own exports
+      allow read: if isAuthenticated() && isInstitutionAdmin();
+      
+      // Platform admins can read/write all exports
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // Default deny all other files
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

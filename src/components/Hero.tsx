@@ -27,7 +27,7 @@ const Hero = () => {
       elements.forEach((el, index) => {
         if (el) {
           setTimeout(() => {
-            el.classList.add('animate-slide-up');
+            el.classList.remove('opacity-0');
             el.classList.add('opacity-100');
           }, 100 * index);
         }
@@ -48,7 +48,7 @@ const Hero = () => {
       <div className="container mx-auto px-4 md:px-6 py-20 text-center">
         <h1 
           ref={title1Ref} 
-          className="text-2xl md:text-3xl font-medium text-muted-foreground mb-3 opacity-0 transition-all duration-500"
+          className="text-2xl md:text-3xl font-medium text-muted-foreground mb-3 opacity-0 transition-all duration-500 animate-slide-up"
         >
           <span className="inline-block py-1 px-3 rounded-full bg-primary/10 text-primary text-sm md:text-base font-medium mb-4">
             Meet Octavia
@@ -57,7 +57,7 @@ const Hero = () => {
         
         <h2 
           ref={title2Ref}
-          className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl mx-auto opacity-0 transition-all duration-500"
+          className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl mx-auto opacity-0 transition-all duration-500 animate-slide-up"
         >
           Your AI Interview Coach for{' '}
           <span className="text-primary">Perfect Practice</span>
@@ -65,14 +65,14 @@ const Hero = () => {
         
         <p 
           ref={subtitleRef}
-          className="mt-6 text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto opacity-0 transition-all duration-500"
+          className="mt-6 text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto opacity-0 transition-all duration-500 animate-slide-up"
         >
           Get real-time feedback and guidance as you practice for your next interview with our AI-powered interview simulator.
         </p>
         
         <div 
           ref={ctaRef}
-          className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 transition-all duration-500"
+          className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 transition-all duration-500 animate-slide-up"
         >
           <Link to="/interview">
             <Button className="rounded-full px-8 py-6 text-lg shadow-lg transition-all hover:shadow-xl hover:scale-105">

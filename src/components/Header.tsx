@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { scrollToSection } from '@/lib/animations';
@@ -12,10 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Menu } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { toast } from 'sonner';
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useFirebaseAuth();
   
   useEffect(() => {
     const handleScroll = () => {
@@ -105,26 +109,63 @@ const Header = () => {
         </nav>
         
         <div className="hidden md:flex items-center space-x-4">
-          {authLinks.map((link) => (
-            <Tooltip key={link.name}>
-              <TooltipTrigger asChild>
-                <Link 
-                  to={link.path}
-                  className={cn(
-                    'text-sm transition-colors duration-200',
-                    link.name === 'Signup' 
-                      ? 'bg-primary text-white px-4 py-2 rounded-full hover:bg-primary/90' 
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {link.name}
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{link.tooltip}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
+          {isAuthenticated && user ? (
+            // Authenticated user navigation
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link 
+                    to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : '/dashboard'}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+                  >
+                    Dashboard
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Go to your dashboard</p>
+                </TooltipContent>
+              </Tooltip>
+              <Button 
+                variant="outline" 
+                onClick={async () => {
+                  try {
+                    await logout();
+                    navigate('/');
+                    toast.success('Logged out successfully');
+                  } catch (error) {
+                    toast.error('Logout failed');
+                  }
+                }}
+                className="text-sm"
+              >
+                Logout
+              </Button>
+            </>
+          ) : (
+            // Unauthenticated user navigation
+            <>
+              {authLinks.map((link) => (
+                <Tooltip key={link.name}>
+                  <TooltipTrigger asChild>
+                    <Link 
+                      to={link.path}
+                      className={cn(
+                        'text-sm transition-colors duration-200',
+                        link.name === 'Signup' 
+                          ? 'bg-primary text-white px-4 py-2 rounded-full hover:bg-primary/90' 
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {link.name}
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{link.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </>
+          )}
           <Button 
             className="rounded-full px-6 shadow-md transition-all hover:shadow-lg hover:scale-105"
             asChild
@@ -154,12 +195,40 @@ const Header = () => {
                   </Link>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuItem className="border-t mt-1 pt-1" asChild>
-                <Link to="/login">Login</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/signup">Signup</Link>
-              </DropdownMenuItem>
+              {isAuthenticated && user ? (
+                // Authenticated user mobile menu
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : '/dashboard'}>
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={async () => {
+                      try {
+                        await logout();
+                        navigate('/');
+                        toast.success('Logged out successfully');
+                      } catch (error) {
+                        toast.error('Logout failed');
+                      }
+                    }}
+                    className="text-red-500 hover:bg-red-50"
+                  >
+                    Logout
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                // Unauthenticated user mobile menu
+                <>
+                  <DropdownMenuItem className="border-t mt-1 pt-1" asChild>
+                    <Link to="/login">Login</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/signup">Signup</Link>
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuItem className="bg-primary text-white hover:bg-primary/90 mt-1" asChild>
                 <Link to="/interview">Start Interview</Link>
               </DropdownMenuItem>

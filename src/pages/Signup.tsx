@@ -10,13 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { Mail, GraduationCap, Users, Shield } from 'lucide-react';
-import useAuth from '@/hooks/use-auth';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import type { SignupRequest } from '@/types';
 
 const Signup = () => {
   const [activeTab, setActiveTab] = useState('student');
   const navigate = useNavigate();
-  const { register, isLoading } = useAuth();
+  const { register, isLoading } = useFirebaseAuth();
 
   // Student form state
   const [studentForm, setStudentForm] = useState({
@@ -67,17 +67,18 @@ const Signup = () => {
       return;
     }
 
-    const signupData: SignupRequest = {
-      name: studentForm.fullName,
-      email: studentForm.email,
-      password: studentForm.password,
-      institutionDomain: studentForm.email.split('@')[1]
-    };
-
     try {
-      await register(signupData);
-    } catch (error) {
-      console.error('Student signup failed:', error);
+      const result = await register({
+        name: studentForm.fullName,
+        email: studentForm.email,
+        password: studentForm.password,
+        institutionDomain: studentForm.email.split('@')[1]
+      });
+      
+      navigate('/student');
+      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Registration failed');
     }
   };
 
@@ -89,16 +90,17 @@ const Signup = () => {
       return;
     }
 
-    const signupData: SignupRequest = {
-      name: teacherForm.fullName,
-      email: teacherForm.email,
-      password: teacherForm.password
-    };
-
     try {
-      await register(signupData);
-    } catch (error) {
-      console.error('Teacher signup failed:', error);
+      const result = await register({
+        name: teacherForm.fullName,
+        email: teacherForm.email,
+        password: teacherForm.password
+      });
+      
+      navigate('/dashboard');
+      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Registration failed');
     }
   };
 
@@ -110,16 +112,28 @@ const Signup = () => {
       return;
     }
 
-    const signupData: SignupRequest = {
-      name: adminForm.fullName,
-      email: adminForm.email,
-      password: adminForm.password
-    };
-
     try {
-      await register(signupData);
-    } catch (error) {
-      console.error('Admin signup failed:', error);
+      const result = await register({
+        name: adminForm.fullName,
+        email: adminForm.email,
+        password: adminForm.password
+      });
+      
+      // Navigate based on the actual role assigned by Firebase
+      switch (result.user.role) {
+        case 'platform_admin':
+          navigate('/admin');
+          break;
+        case 'institution_admin':
+          navigate('/dashboard');
+          break;
+        default:
+          navigate('/');
+      }
+      
+      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Registration failed');
     }
   };
 
