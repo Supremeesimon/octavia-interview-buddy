@@ -12,6 +12,8 @@ import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, Tooltip as RechartsTooltip } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useToast } from '@/hooks/use-toast';
+import EndOfCallAnalysisDashboard from '@/components/EndOfCallAnalysisDashboard';
+import { useAuth } from '@/hooks/use-auth';
 
 // Mocked institution data - in a real app, this would come from an API
 const mockInstitutionsData = [
@@ -84,7 +86,8 @@ const InstitutionAnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [institution, setInstitution] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
+  const { user } = useAuth();
+
   // Simulate fetching institution data based on ID
   useEffect(() => {
     // In a real app, this would be an API call
@@ -217,44 +220,16 @@ const InstitutionAnalyticsPage = () => {
               </Card>
             </div>
             
-            <Tabs 
-              defaultValue="overview" 
-              className="space-y-6"
-              value={activeTab}
-              onValueChange={setActiveTab}
-            >
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
               <TabsList>
-                <TabsTrigger 
-                  value="overview" 
-                  tooltip="View overall analytics for the institution"
-                  className={activeTab === "overview" ? "border-b-2 border-primary" : ""}
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="interviews" 
-                  tooltip="View detailed interview performance metrics"
-                  className={activeTab === "interviews" ? "border-b-2 border-primary" : ""}
-                >
-                  Interview Analytics
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="resumes" 
-                  tooltip="View detailed resume analytics and metrics"
-                  className={activeTab === "resumes" ? "border-b-2 border-primary" : ""}
-                >
-                  Resume Analytics
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="departments" 
-                  tooltip="Compare performance across different departments"
-                  className={activeTab === "departments" ? "border-b-2 border-primary" : ""}
-                >
-                  Department Comparison
-                </TabsTrigger>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="students">Student Performance</TabsTrigger>
+                <TabsTrigger value="departments">Departments</TabsTrigger>
+                <TabsTrigger value="interviews">Interview Analysis</TabsTrigger>
+                <TabsTrigger value="reports">Reports</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="overview">
+              <TabsContent value="overview" className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card>
                     <CardHeader>
@@ -342,15 +317,15 @@ const InstitutionAnalyticsPage = () => {
                 </div>
               </TabsContent>
               
-              <TabsContent value="interviews">
+              <TabsContent value="students" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Interview Performance</CardTitle>
-                    <CardDescription>Detailed interview metrics and performance indicators</CardDescription>
+                    <CardTitle>Student Performance</CardTitle>
+                    <CardDescription>Detailed student metrics and performance indicators</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-6">
-                      Detailed interview analytics content would be displayed here.
+                      Detailed student performance content would be displayed here.
                     </p>
                     <div className="h-64 bg-muted/30 rounded-lg flex items-center justify-center">
                       <BarChart3 className="h-12 w-12 text-muted-foreground opacity-30" />
@@ -359,24 +334,7 @@ const InstitutionAnalyticsPage = () => {
                 </Card>
               </TabsContent>
               
-              <TabsContent value="resumes">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Resume Performance</CardTitle>
-                    <CardDescription>Resume quality and engagement metrics</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-6">
-                      Detailed resume analytics content would be displayed here.
-                    </p>
-                    <div className="h-64 bg-muted/30 rounded-lg flex items-center justify-center">
-                      <BarChart3 className="h-12 w-12 text-muted-foreground opacity-30" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="departments">
+              <TabsContent value="departments" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle>Department Comparison</CardTitle>
@@ -425,7 +383,32 @@ const InstitutionAnalyticsPage = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
+              
+              <TabsContent value="interviews" className="space-y-4">
+                <EndOfCallAnalysisDashboard 
+                  institutionId={id || ''} 
+                  userRole={user?.role === 'platform_admin' ? 'platform_admin' : 'institution_admin'} 
+                />
+              </TabsContent>
+              
+              <TabsContent value="reports" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Reports</CardTitle>
+                    <CardDescription>Customized analytics and reports</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground mb-6">
+                      Customized report content would be displayed here.
+                    </p>
+                    <div className="h-64 bg-muted/30 rounded-lg flex items-center justify-center">
+                      <BarChart3 className="h-12 w-12 text-muted-foreground opacity-30" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
             </Tabs>
+            
           </TooltipProvider>
         </div>
       </main>

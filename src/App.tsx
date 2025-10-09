@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,6 +21,8 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import DepartmentAllocationPage from "./pages/DepartmentAllocationPage";
 import StudentGroupAllocationPage from "./pages/StudentGroupAllocationPage";
+import ComprehensiveAnalyticsDashboard from "./pages/ComprehensiveAnalyticsDashboard";
+import VapiTestPage from "./pages/VapiTestPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
           <Route path="/resumes" element={<ProtectedRoute requiredRole="student"><ResumesPage /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><ComprehensiveAnalyticsDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute requiredRole="platform_admin"><AdminControlPanel /></ProtectedRoute>} />
           <Route path="/admin/add-institution" element={<ProtectedRoute requiredRole="platform_admin"><AddInstitutionPage /></ProtectedRoute>} />
           <Route path="/admin/institution/:id/analytics" element={<ProtectedRoute requiredRole="platform_admin"><InstitutionAnalyticsPage /></ProtectedRoute>} />
@@ -50,6 +52,7 @@ const App = () => (
           <Route path="/terms" element={<TermsOfServicePage />} />
           <Route path="/departments" element={<DepartmentAllocationPage />} />
           <Route path="/student-groups" element={<StudentGroupAllocationPage />} />
+          <Route path="/vapi-test" element={<VapiTestPage />} />
           {/* Jobs pages are temporarily hidden */}
           {/* <Route path="/jobs" element={<JobsPage />} /> */}
           {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}

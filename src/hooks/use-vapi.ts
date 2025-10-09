@@ -26,7 +26,13 @@ interface UseVapiReturn {
   feedbackHistory: InterviewFeedback[];
   
   // Actions
-  startInterview: (resumeData: any, interviewType?: string) => Promise<void>;
+  startInterview: (
+    resumeData: any, 
+    interviewType?: string,
+    studentId?: string,
+    departmentId?: string,
+    institutionId?: string
+  ) => Promise<void>;
   endInterview: () => Promise<void>;
   toggleMute: () => void;
   sendMessage: (message: string) => Promise<void>;
@@ -169,7 +175,10 @@ export const useVapi = (): UseVapiReturn => {
   // Start interview
   const startInterview = useCallback(async (
     resumeData: any,
-    interviewType: string = 'general'
+    interviewType: string = 'general',
+    studentId?: string,
+    departmentId?: string,
+    institutionId?: string
   ) => {
     setIsLoading(true);
     setError(null);
@@ -179,18 +188,30 @@ export const useVapi = (): UseVapiReturn => {
     setFeedbackHistory([]);
 
     try {
+      console.log('Starting interview with parameters:', {
+        resumeData: resumeData ? 'Provided' : 'Not provided',
+        interviewType,
+        studentId: studentId || 'Not provided',
+        departmentId: departmentId || 'Not provided',
+        institutionId: institutionId || 'Not provided'
+      });
+      
       const call = await vapiService.startInterview(
         resumeData,
         interviewType,
-        vapiCallbacks
+        vapiCallbacks,
+        studentId,
+        departmentId,
+        institutionId
       );
       
       setCurrentCall(call);
       toast.success('Connecting to Octavia...');
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to start interview';
+      console.error('Failed to start interview:', err);
+      const errorMessage = err.message || 'Failed to start interview. Please check your internet connection and try again.';
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(`Interview error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

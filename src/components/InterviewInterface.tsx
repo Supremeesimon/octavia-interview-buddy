@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import useVapi from '@/hooks/use-vapi';
+import { useAuth } from '@/hooks/use-auth';
 import type { InterviewFeedback } from '@/types';
+import VapiTest from '@/components/VapiTest';
 
 interface InterviewInterfaceProps {
   resumeData?: {
@@ -19,6 +21,7 @@ interface InterviewInterfaceProps {
 const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   // VAPI integration for voice interviews
   const {
@@ -87,9 +90,38 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   // Start interview with VAPI
   const handleStartInterview = async () => {
     try {
-      await startInterview(resumeData, 'general');
+      console.log('handleStartInterview called');
+      
+      // Extract hierarchical information from user context
+      const studentId = user?.id || '';
+      const institutionId = user?.institutionId || '';
+      // For department, we'll use a default mapping
+      // In a real implementation, this would come from user's department assignment
+      const departmentId = user?.institutionId ? `dept-${user.institutionId}-cs` : 'general-dept';
+      
+      console.log('Starting interview with user context:', {
+        studentId,
+        institutionId,
+        departmentId,
+        userId: user?.id,
+        userRole: user?.role
+      });
+      
+      // Validate that we have the required information
+      if (!studentId) {
+        console.warn('Student ID is missing - this may cause issues with data isolation');
+      }
+      
+      await startInterview(
+        resumeData, 
+        'general',
+        studentId,
+        departmentId,
+        institutionId
+      );
     } catch (error) {
       console.error('Failed to start interview:', error);
+      toast.error("Failed to start interview. Please check your connection and try again.");
     }
   };
   
@@ -127,6 +159,10 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   
   return (
     <div className="container mx-auto px-4 max-w-7xl">
+      
+      <div className="mb-4">
+        <VapiTest />
+      </div>
       
       {isCallActive && (
         <div className={cn(
