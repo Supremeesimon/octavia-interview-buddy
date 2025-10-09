@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -10,22 +9,27 @@ import { Link } from 'react-router-dom';
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft } from "lucide-react";
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const { requestPasswordReset } = useFirebaseAuth();
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API call for password reset
-    setTimeout(() => {
+    try {
+      await requestPasswordReset(email);
       setIsSubmitted(true);
       toast.success("Password reset link sent to your email");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send password reset link");
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
+    }
   };
   
   return (
