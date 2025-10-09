@@ -295,5 +295,5 @@ export const mockApiClient = {
   },
 };
 
-// Export the appropriate client based on configuration
-export default config.api.mockApi ? mockApiClient : apiClient;
+// Export the real API client
+export default apiClient;

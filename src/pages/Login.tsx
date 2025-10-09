@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -8,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
+import { Chrome } from "lucide-react";
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading } = useFirebaseAuth();
+  const { login, loginWithGoogle, isLoading } = useFirebaseAuth();
   const navigate = useNavigate();
   
   const handleLogin = async (e: React.FormEvent) => {
@@ -40,6 +40,31 @@ const Login = () => {
       toast.success(`Welcome back, ${result.user.name}!`);
     } catch (error: any) {
       toast.error(error.message || 'Login failed');
+    }
+  };
+  
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await loginWithGoogle();
+      
+      // Navigate based on user role
+      switch (result.user.role) {
+        case 'student':
+          navigate('/student');
+          break;
+        case 'institution_admin':
+          navigate('/dashboard');
+          break;
+        case 'platform_admin':
+          navigate('/admin');
+          break;
+        default:
+          navigate('/');
+      }
+      
+      toast.success(`Welcome back, ${result.user.name}!`);
+    } catch (error: any) {
+      toast.error(error.message || 'Google sign in failed');
     }
   };
   
@@ -92,6 +117,25 @@ const Login = () => {
                 </Button>
               </div>
             </form>
+            
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+            >
+              <Chrome className="h-4 w-4 mr-2" />
+              Sign in with Google
+            </Button>
             
             <div className="mt-8 text-center text-sm">
               <p className="text-muted-foreground">

@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import vapiService, { type VapiCallbacks } from '@/services/vapi.service';
-import type { VapiCall } from '@/types';
+import type { VapiCall, InterviewFeedback } from '@/types';
 
 interface UseVapiReturn {
   // Call state
@@ -20,6 +20,10 @@ interface UseVapiReturn {
   isMuted: boolean;
   volumeLevel: number;
   transcript: string;
+  
+  // Feedback state
+  currentFeedback: InterviewFeedback | null;
+  feedbackHistory: InterviewFeedback[];
   
   // Actions
   startInterview: (resumeData: any, interviewType?: string) => Promise<void>;
@@ -41,6 +45,8 @@ export const useVapi = (): UseVapiReturn => {
   const [volumeLevel, setVolumeLevel] = useState(0);
   const [transcript, setTranscript] = useState('');
   const [callDuration, setCallDuration] = useState(0);
+  const [currentFeedback, setCurrentFeedback] = useState<InterviewFeedback | null>(null);
+  const [feedbackHistory, setFeedbackHistory] = useState<InterviewFeedback[]>([]);
   
   const durationIntervalRef = useRef<number | null>(null);
   const callStartTimeRef = useRef<Date | null>(null);
@@ -114,6 +120,19 @@ export const useVapi = (): UseVapiReturn => {
       });
     },
 
+    onFeedbackUpdate: (feedback: InterviewFeedback) => {
+      console.log('Feedback update:', feedback);
+      setCurrentFeedback(feedback);
+      setFeedbackHistory(prev => [...prev, feedback]);
+      
+      // Show toast notification for significant feedback updates
+      if (feedback.overallScore) {
+        toast.info(`Feedback Update: ${feedback.overallScore}/100`, {
+          description: `Check the feedback tab for detailed analysis`
+        });
+      }
+    },
+
     onError: (error: Error) => {
       console.error('VAPI error:', error);
       setError(error.message);
@@ -156,6 +175,8 @@ export const useVapi = (): UseVapiReturn => {
     setError(null);
     setTranscript('');
     setCallDuration(0);
+    setCurrentFeedback(null);
+    setFeedbackHistory([]);
 
     try {
       const call = await vapiService.startInterview(
@@ -231,6 +252,10 @@ export const useVapi = (): UseVapiReturn => {
     isMuted,
     volumeLevel,
     transcript,
+    
+    // Feedback state
+    currentFeedback,
+    feedbackHistory,
     
     // Actions
     startInterview,

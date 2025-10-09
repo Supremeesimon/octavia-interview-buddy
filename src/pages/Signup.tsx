@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -9,14 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { Mail, GraduationCap, Users, Shield } from 'lucide-react';
+import { Mail, GraduationCap, Users, Shield, Chrome } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import type { SignupRequest } from '@/types';
 
 const Signup = () => {
   const [activeTab, setActiveTab] = useState('student');
   const navigate = useNavigate();
-  const { register, isLoading } = useFirebaseAuth();
+  const { register, loginWithGoogle, isLoading } = useFirebaseAuth();
 
   // Student form state
   const [studentForm, setStudentForm] = useState({
@@ -137,8 +136,29 @@ const Signup = () => {
     }
   };
 
-  const handleGoogleSignup = () => {
-    toast.info("Google OAuth integration coming soon!");
+  const handleGoogleSignup = async () => {
+    try {
+      const result = await loginWithGoogle();
+      
+      // Navigate based on user role
+      switch (result.user.role) {
+        case 'student':
+          navigate('/student');
+          break;
+        case 'institution_admin':
+          navigate('/dashboard');
+          break;
+        case 'platform_admin':
+          navigate('/admin');
+          break;
+        default:
+          navigate('/');
+      }
+      
+      toast.success(`Welcome ${result.user.name}!`);
+    } catch (error: any) {
+      toast.error(error.message || 'Google sign in failed');
+    }
   };
   
   return (
@@ -237,7 +257,7 @@ const Signup = () => {
                   onClick={handleGoogleSignup}
                   disabled={isLoading}
                 >
-                  <Mail className="h-4 w-4 mr-2" />
+                  <Chrome className="h-4 w-4 mr-2" />
                   Sign up with Google
                 </Button>
 
@@ -315,7 +335,7 @@ const Signup = () => {
                   onClick={handleGoogleSignup}
                   disabled={isLoading}
                 >
-                  <Mail className="h-4 w-4 mr-2" />
+                  <Chrome className="h-4 w-4 mr-2" />
                   Sign up with Google
                 </Button>
 
@@ -393,7 +413,7 @@ const Signup = () => {
                   onClick={handleGoogleSignup}
                   disabled={isLoading}
                 >
-                  <Mail className="h-4 w-4 mr-2" />
+                  <Chrome className="h-4 w-4 mr-2" />
                   Sign up with Google
                 </Button>
 

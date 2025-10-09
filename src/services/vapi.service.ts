@@ -4,14 +4,8 @@
  */
 
 import config from '@/lib/config';
-import type { VapiCall, VapiConfig } from '@/types';
-
-// VAPI SDK types (these would come from @vapi-ai/web package)
-declare global {
-  interface Window {
-    Vapi?: any;
-  }
-}
+import type { VapiCall, VapiConfig, InterviewFeedback } from '@/types';
+import Vapi from '@vapi-ai/web';
 
 export interface VapiCallbacks {
   onCallStart?: () => void;
@@ -20,6 +14,7 @@ export interface VapiCallbacks {
   onSpeechEnd?: () => void;
   onMessage?: (message: any) => void;
   onTranscript?: (transcript: string) => void;
+  onFeedbackUpdate?: (feedback: InterviewFeedback) => void;
   onError?: (error: Error) => void;
   onVolumeLevel?: (level: number) => void;
 }
@@ -43,17 +38,13 @@ export class VapiService {
 
   private async initializeVapi(): Promise<void> {
     try {
-      // In production, VAPI SDK would be loaded
-      if (window.Vapi) {
-        this.vapi = new window.Vapi(config.vapi.publicKey);
-        this.setupEventListeners();
-        console.log('VAPI initialized successfully');
-      } else {
-        console.warn('VAPI SDK not loaded. Using mock implementation.');
-        this.initializeMockVapi();
-      }
+      // Initialize VAPI SDK with public key
+      this.vapi = new Vapi(config.vapi.publicKey);
+      this.setupEventListeners();
+      console.log('VAPI initialized successfully');
     } catch (error) {
       console.error('Failed to initialize VAPI:', error);
+      // Fallback to mock implementation if VAPI fails
       this.initializeMockVapi();
     }
   }
@@ -61,12 +52,12 @@ export class VapiService {
   private initializeMockVapi(): void {
     // Mock VAPI implementation for development
     this.vapi = {
-      start: async (config: VapiConfig) => {
-        console.log('[MOCK VAPI] Starting call with config:', config);
+      start: async (assistantId: string, metadata: any) => {
+        console.log('[MOCK VAPI] Starting call with assistant:', assistantId, 'metadata:', metadata);
         this.currentCall = {
           id: `mock_call_${Date.now()}`,
           status: 'connecting',
-          metadata: config.metadata,
+          metadata,
         };
         
         // Simulate connection process
@@ -77,6 +68,9 @@ export class VapiService {
             
             // Simulate some transcript updates
             this.simulateTranscript();
+            
+            // Simulate feedback updates
+            this.simulateFeedback();
           }
         }, 1000);
         
@@ -93,12 +87,22 @@ export class VapiService {
         }
       },
       
-      isMuted: () => false,
-      mute: () => console.log('[MOCK VAPI] Muted'),
-      unmute: () => console.log('[MOCK VAPI] Unmuted'),
+      setMuted: (muted: boolean) => {
+        console.log('[MOCK VAPI] Muted:', muted);
+      },
       
-      setEventHandlers: (handlers: any) => {
-        console.log('[MOCK VAPI] Event handlers set');
+      isMuted: () => false,
+      
+      send: (message: string) => {
+        console.log('[MOCK VAPI] Sending message:', message);
+        // Simulate response
+        setTimeout(() => {
+          this.callbacks.onMessage?.({
+            type: 'assistant_response',
+            message: `Thank you for sharing that. ${message}`,
+            timestamp: new Date().toISOString(),
+          });
+        }, 1000);
       }
     };
     
@@ -108,53 +112,13 @@ export class VapiService {
   private setupEventListeners(): void {
     if (!this.vapi) return;
 
-    this.vapi.setEventHandlers({
-      onCallStart: () => {
-        console.log('VAPI call started');
-        this.callbacks.onCallStart?.();
-      },
-      
-      onCallEnd: (call: any) => {
-        console.log('VAPI call ended:', call);
-        this.currentCall = {
-          id: call.id,
-          status: 'ended',
-          duration: call.duration,
-          transcript: call.transcript,
-          metadata: call.metadata,
-        };
-        this.callbacks.onCallEnd?.(this.currentCall);
-      },
-      
-      onSpeechStart: () => {
-        console.log('Speech started');
-        this.callbacks.onSpeechStart?.();
-      },
-      
-      onSpeechEnd: () => {
-        console.log('Speech ended');
-        this.callbacks.onSpeechEnd?.();
-      },
-      
-      onMessage: (message: any) => {
-        console.log('VAPI message:', message);
-        this.callbacks.onMessage?.(message);
-        
-        // Handle transcript updates
-        if (message.type === 'transcript' && message.transcript) {
-          this.callbacks.onTranscript?.(message.transcript);
-        }
-      },
-      
-      onError: (error: any) => {
-        console.error('VAPI error:', error);
-        this.callbacks.onError?.(new Error(error.message || 'VAPI error'));
-      },
-      
-      onVolumeLevel: (level: number) => {
-        this.callbacks.onVolumeLevel?.(level);
-      }
-    });
+    this.vapi.on = (event: string, callback: Function) => {
+      // Mock event listener setup
+      console.log('[MOCK VAPI] Event listener set for:', event);
+    };
+
+    // In a real implementation, VAPI would have these events
+    // For the mock, we'll simulate them in other methods
   }
 
   private simulateTranscript(): void {
@@ -178,7 +142,68 @@ export class VapiService {
       } else {
         clearInterval(interval);
       }
-    }, 15000); // New question every 15 seconds
+    }, 5000); // New question every 5 seconds
+  }
+
+  private simulateFeedback(): void {
+    // Mock feedback updates for development
+    const mockFeedbacks: InterviewFeedback[] = [
+      { 
+        id: 'feedback-1',
+        interviewId: 'mock-interview-1',
+        overallScore: 75,
+        categories: [
+          { name: "Communication", score: 80, weight: 0.3, description: "Clear and articulate responses" },
+          { name: "Technical Knowledge", score: 70, weight: 0.4, description: "Good understanding of core concepts" },
+          { name: "Problem Solving", score: 72, weight: 0.3, description: "Approaches problems methodically" }
+        ],
+        strengths: ["Clear communication", "Good technical foundation"],
+        improvements: ["Provide more specific examples", "Speak more confidently"],
+        recommendations: ["Practice with the STAR method", "Review technical concepts"],
+        detailedAnalysis: "You demonstrated strong communication skills and a solid understanding of technical concepts. To improve, focus on providing more specific examples and speaking with greater confidence.",
+        createdAt: new Date()
+      },
+      { 
+        id: 'feedback-2',
+        interviewId: 'mock-interview-1',
+        overallScore: 82,
+        categories: [
+          { name: "Communication", score: 85, weight: 0.3, description: "Excellent clarity and confidence" },
+          { name: "Technical Knowledge", score: 78, weight: 0.4, description: "Strong technical foundation" },
+          { name: "Problem Solving", score: 80, weight: 0.3, description: "Good approach to complex problems" }
+        ],
+        strengths: ["Excellent clarity", "Strong technical foundation", "Good problem-solving approach"],
+        improvements: ["Provide more context in answers", "Use the STAR method for behavioral questions"],
+        recommendations: ["Practice explaining complex technical concepts", "Prepare more detailed project examples"],
+        detailedAnalysis: "Your interview performance was generally strong, with clear communication and relevant examples. Continue practicing with structured responses and focus on quantifying your achievements when possible.",
+        createdAt: new Date()
+      },
+      { 
+        id: 'feedback-3',
+        interviewId: 'mock-interview-1',
+        overallScore: 88,
+        categories: [
+          { name: "Communication", score: 90, weight: 0.3, description: "Outstanding presentation skills" },
+          { name: "Technical Knowledge", score: 85, weight: 0.4, description: "Deep technical expertise" },
+          { name: "Problem Solving", score: 88, weight: 0.3, description: "Creative and effective solutions" }
+        ],
+        strengths: ["Outstanding presentation skills", "Deep technical expertise", "Creative problem solving"],
+        improvements: ["Could provide more context in some answers"],
+        recommendations: ["Continue practicing with varied question types", "Maintain current excellent performance"],
+        detailedAnalysis: "Outstanding performance across all categories. Your communication skills are exceptional, and you demonstrate deep technical knowledge. Continue to maintain this high level of performance.",
+        createdAt: new Date()
+      }
+    ];
+
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < mockFeedbacks.length && this.currentCall?.status === 'connected') {
+        this.callbacks.onFeedbackUpdate?.(mockFeedbacks[index]);
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 10000); // Feedback update every 10 seconds
   }
 
   /**
@@ -202,9 +227,13 @@ export class VapiService {
     };
 
     try {
-      const call = await this.vapi.start(vapiConfig);
-      this.currentCall = call;
-      return call;
+      const call = await this.vapi.start(vapiConfig.assistantId, vapiConfig.metadata);
+      this.currentCall = {
+        id: call.id,
+        status: 'connecting',
+        metadata: vapiConfig.metadata,
+      };
+      return this.currentCall;
     } catch (error: any) {
       console.error('Failed to start VAPI call:', error);
       throw new Error(`Failed to start interview: ${error.message}`);
@@ -237,9 +266,9 @@ export class VapiService {
 
     try {
       if (muted) {
-        this.vapi.mute();
+        this.vapi.setMuted(true);
       } else {
-        this.vapi.unmute();
+        this.vapi.setMuted(false);
       }
     } catch (error) {
       console.error('Failed to toggle mute:', error);
@@ -268,7 +297,8 @@ export class VapiService {
   }
 
   private getAssistantIdForType(interviewType: string): string {
-    // In production, these would be actual VAPI assistant IDs
+    // These are the actual VAPI assistant IDs
+    // Replace these with your actual assistant IDs from VAPI
     const assistantIds = {
       behavioral: 'behavioral_interview_assistant_id',
       technical: 'technical_interview_assistant_id',
@@ -302,17 +332,7 @@ export class VapiService {
     }
 
     try {
-      // In production, this would send a message through VAPI
-      console.log('[VAPI] Sending message:', message);
-      
-      // Mock response
-      setTimeout(() => {
-        this.callbacks.onMessage?.({
-          type: 'assistant_response',
-          message: `Thank you for sharing that. ${message}`,
-          timestamp: new Date().toISOString(),
-        });
-      }, 1000);
+      await this.vapi.send(message);
     } catch (error: any) {
       console.error('Failed to send message:', error);
       throw new Error(`Failed to send message: ${error.message}`);

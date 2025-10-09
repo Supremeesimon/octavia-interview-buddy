@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mic, MicOff, PauseCircle, PlayCircle, Loader2, Clock, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { Mic, MicOff, PauseCircle, PlayCircle, Loader2, Clock, AlertCircle, CheckCircle, ArrowRight, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import useVapi from '@/hooks/use-vapi';
+import type { InterviewFeedback } from '@/types';
 
 interface InterviewInterfaceProps {
   resumeData?: {
@@ -29,6 +30,8 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     isMuted,
     volumeLevel,
     transcript,
+    currentFeedback,
+    feedbackHistory,
     startInterview,
     endInterview,
     toggleMute,
@@ -40,6 +43,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   // Local state
   const [interviewEnded, setInterviewEnded] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
+  const [activeTab, setActiveTab] = useState('transcript');
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
   
   // Sample job data
@@ -292,18 +296,107 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
           <div className="flex flex-col">
             <Card className="flex-grow">
               <CardHeader>
-                <CardTitle>Live Transcript</CardTitle>
+                <div className="flex border-b">
+                  <Button
+                    variant={activeTab === 'transcript' ? 'default' : 'ghost'}
+                    className="rounded-none border-b-0"
+                    onClick={() => setActiveTab('transcript')}
+                  >
+                    Live Transcript
+                  </Button>
+                  <Button
+                    variant={activeTab === 'feedback' ? 'default' : 'ghost'}
+                    className="rounded-none border-b-0"
+                    onClick={() => setActiveTab('feedback')}
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Real-time Feedback
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                {transcript ? (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    <p className="text-sm">{transcript}</p>
-                  </div>
+                {activeTab === 'transcript' ? (
+                  transcript ? (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      <p className="text-sm">{transcript}</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground">
+                      <p className="text-sm">
+                        {isCallActive ? "Listening..." : "Transcript will appear here during the interview"}
+                      </p>
+                    </div>
+                  )
                 ) : (
-                  <div className="flex items-center justify-center h-32 text-muted-foreground">
-                    <p className="text-sm">
-                      {isCallActive ? "Listening..." : "Transcript will appear here during the interview"}
-                    </p>
+                  <div className="max-h-64 overflow-y-auto">
+                    {currentFeedback ? (
+                      <div className="space-y-4">
+                        <div className="bg-primary/5 p-4 rounded-lg">
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-medium">Current Score</h4>
+                            <span className="text-2xl font-bold">{currentFeedback.overallScore}/100</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {currentFeedback.detailedAnalysis}
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-medium mb-3">Category Breakdown</h4>
+                          <div className="space-y-3">
+                            {currentFeedback.categories.map((category) => (
+                              <div key={category.name}>
+                                <div className="flex justify-between mb-1">
+                                  <span className="text-sm font-medium">{category.name}</span>
+                                  <span className="text-sm">{category.score}/100</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div
+                                    className="bg-primary h-2 rounded-full"
+                                    style={{ width: `${category.score}%` }}
+                                  ></div>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {category.description}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="font-medium mb-2 text-green-600">Strengths</h4>
+                            <ul className="text-sm space-y-1">
+                              {currentFeedback.strengths.map((strength, index) => (
+                                <li key={index} className="flex items-start">
+                                  <span className="text-green-500 mr-2">•</span>
+                                  {strength}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-medium mb-2 text-amber-600">Areas for Improvement</h4>
+                            <ul className="text-sm space-y-1">
+                              {currentFeedback.improvements.map((improvement, index) => (
+                                <li key={index} className="flex items-start">
+                                  <span className="text-amber-500 mr-2">•</span>
+                                  {improvement}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-32 text-muted-foreground">
+                        <p className="text-sm">
+                          {isCallActive ? "Analyzing your performance..." : "Feedback will appear here during the interview"}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

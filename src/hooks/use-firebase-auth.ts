@@ -11,6 +11,7 @@ interface UseFirebaseAuthReturn {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ user: UserProfile; token: string }>;
   register: (data: { name: string; email: string; password: string; institutionDomain?: string }) => Promise<{ user: UserProfile; token: string }>;
+  loginWithGoogle: () => Promise<{ user: UserProfile; token: string }>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
 }
@@ -63,6 +64,16 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     }
   };
 
+  const loginWithGoogle = async () => {
+    setIsLoading(true);
+    try {
+      const result = await firebaseAuthService.loginWithGoogle();
+      return result;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     setIsLoading(true);
     try {
@@ -83,6 +94,7 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     isAuthenticated: !!user,
     login,
     register,
+    loginWithGoogle,
     logout,
     requestPasswordReset
   };
