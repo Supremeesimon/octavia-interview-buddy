@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +7,7 @@ import { toast } from "sonner";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
+import useVapi from '@/hooks/use-vapi';
 
 interface InterviewInterfaceProps {
   resumeData?: {
@@ -19,19 +19,29 @@ interface InterviewInterfaceProps {
 const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [timer, setTimer] = useState(0);
+  
+  // VAPI integration for voice interviews
+  const {
+    currentCall,
+    isCallActive,
+    isConnecting,
+    isConnected,
+    callDuration,
+    isMuted,
+    volumeLevel,
+    transcript,
+    startInterview,
+    endInterview,
+    toggleMute,
+    isLoading: vapiLoading,
+    error: vapiError,
+    clearError,
+  } = useVapi();
+  
+  // Local state
   const [interviewEnded, setInterviewEnded] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
-  const timerRef = useRef<number | null>(null);
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
-  
-  // VAPI integration setup
-  const [isAudioConnected, setIsAudioConnected] = useState(false);
-  const [isMicEnabled, setIsMicEnabled] = useState(false);
   
   // Sample job data
   const jobData = {
@@ -50,42 +60,65 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
   };
   
-  // Connect to VAPI for voice interaction
-  const connectToVapi = async () => {
+  // Format time helper
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  // Time remaining calculation (15 minutes = 900 seconds)
+  const totalInterviewTime = 900; // 15 minutes
+  const timeRemaining = totalInterviewTime - callDuration;
+  
+  // Show warning when 2 minutes are left
+  useEffect(() => {
+    if (timeRemaining <= 120 && timeRemaining > 115 && isCallActive) {
+      setShowWarning(true);
+      toast.warning("Only 2 minutes remaining in your interview!");
+      
+      // Hide warning after 5 seconds
+      setTimeout(() => {
+        setShowWarning(false);
+      }, 5000);
+    }
+  }, [timeRemaining, isCallActive]);
+  
+  // Auto-end interview after 15 minutes (900 seconds)
+  useEffect(() => {
+    if (callDuration >= 900 && isCallActive) {
+      handleEndInterview();
+      toast.info("Interview ended: 15 minute time limit reached");
+    }
+  }, [callDuration, isCallActive]);
+  
+  // Start interview with VAPI
+  const handleStartInterview = async () => {
     try {
-      // In production, this would initialize VAPI connection
-      setIsAudioConnected(true);
-      toast.success("Audio connected successfully");
-      return true;
+      await startInterview(resumeData, 'general');
     } catch (error) {
-      console.error("VAPI connection error:", error);
-      toast.error("Audio connection failed - please try again");
-      return false;
+      console.error('Failed to start interview:', error);
     }
   };
   
-  const enableMicrophone = async () => {
+  // End interview
+  const handleEndInterview = useCallback(async () => {
     try {
-      // In production, this would enable the microphone via VAPI
-      setIsMicEnabled(true);
+      await endInterview();
+      setInterviewEnded(true);
     } catch (error) {
-      console.error("Error enabling microphone:", error);
-      toast.error("Failed to enable microphone");
+      console.error('Failed to end interview:', error);
     }
+  }, [endInterview]);
+
+  const handleScheduleMore = () => {
+    navigate('/resumes');
+    toast.success("Redirecting to scheduling page");
   };
-  
-  const disableMicrophone = useCallback(async () => {
-    try {
-      // In production, this would disable the microphone via VAPI
-      setIsMicEnabled(false);
-    } catch (error) {
-      console.error("Error disabling microphone:", error);
-    }
-  }, []);
   
   // Simulate microphone levels for visualization
   useEffect(() => {
-    if (isRecording && !isPaused && audioVisualizerRef.current) {
+    if (isCallActive && audioVisualizerRef.current) {
       const bars = audioVisualizerRef.current.querySelectorAll('.audio-bar');
       
       const animateBars = () => {
@@ -98,123 +131,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       const interval = setInterval(animateBars, 100);
       return () => clearInterval(interval);
     }
-  }, [isRecording, isPaused]);
-  
-  // Timer functionality
-  useEffect(() => {
-    if (isRecording && !isPaused) {
-      timerRef.current = window.setInterval(() => {
-        setTimer(prevTimer => prevTimer + 1);
-      }, 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isRecording, isPaused]);
-  
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-  
-  // Time remaining calculation (15 minutes = 900 seconds)
-  const totalInterviewTime = 900; // 15 minutes
-  const timeRemaining = totalInterviewTime - timer;
-  
-  // Show warning when 2 minutes are left
-  useEffect(() => {
-    if (timeRemaining <= 120 && timeRemaining > 115 && isRecording) {
-      setShowWarning(true);
-      toast.warning("Only 2 minutes remaining in your interview!");
-      
-      // Hide warning after 5 seconds
-      setTimeout(() => {
-        setShowWarning(false);
-      }, 5000);
-    }
-  }, [timeRemaining, isRecording]);
-  
-  const handleStartRecording = async () => {
-    // Connect to VAPI for voice interaction
-    const connected = await connectToVapi();
-    
-    if (connected) {
-      setIsRecording(true);
-      setIsPaused(false);
-      setTranscript('');
-      
-      // In production, VAPI would handle real-time transcription
-      // For demo purposes, simulate transcription updating
-      const transcriptionInterval = setInterval(() => {
-        if (!isRecording || isPaused) {
-          clearInterval(transcriptionInterval);
-          return;
-        }
-        
-        // Simulate AI responses (in production, this comes from VAPI)
-        const demoResponses = [
-          "I have over five years of experience in software development...",
-          "My background includes working with cross-functional teams to deliver high-quality products...",
-          "I've specialized in frontend development using React and TypeScript...",
-          "In my previous role, I led a team of three developers to implement a new feature...",
-        ];
-        
-        const randomResponse = demoResponses[Math.floor(Math.random() * demoResponses.length)];
-        setTranscript(prev => prev + (prev ? ' ' : '') + randomResponse);
-      }, 5000); // Update every 5 seconds
-    }
-  };
-  
-  const handleStopRecording = useCallback(() => {
-    setIsRecording(false);
-    setIsLoading(true);
-    
-    // Disconnect from VAPI
-    if (isAudioConnected) {
-      disableMicrophone();
-      setIsAudioConnected(false);
-    }
-    
-    // Simulate AI processing time
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
-  }, [isAudioConnected, disableMicrophone]);
-  
-  const handlePauseRecording = () => {
-    setIsPaused(true);
-    disableMicrophone();
-  };
-  
-  const handleResumeRecording = () => {
-    setIsPaused(false);
-    enableMicrophone();
-  };
-  
-  const handleEndInterview = useCallback(() => {
-    handleStopRecording();
-    setInterviewEnded(true);
-    toast.success("Interview completed! Results will be sent to your email shortly.");
-  }, [handleStopRecording]);
-  
-  // Auto-end interview after 15 minutes (900 seconds)
-  useEffect(() => {
-    if (timer >= 900 && isRecording) {
-      handleEndInterview();
-      toast.info("Interview ended: 15 minute time limit reached");
-    }
-  }, [timer, isRecording, handleEndInterview]);
-
-  const handleScheduleMore = () => {
-    navigate('/resumes');
-    toast.success("Redirecting to scheduling page");
-  };
+  }, [isCallActive]);
   
   return (
     <div className="container mx-auto px-4 max-w-7xl">
@@ -229,7 +146,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
         </TabsList>
       </Tabs>
       
-      {isRecording && (
+      {isCallActive && (
         <div className={cn(
           "sticky top-0 z-10 mb-4 p-3 rounded-lg flex items-center justify-between",
           showWarning ? "bg-amber-50 border border-amber-200" : "bg-primary/5 border border-primary/10"
@@ -251,7 +168,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                   "h-full transition-all duration-1000 ease-linear",
                   showWarning ? "bg-amber-500" : "bg-primary"
                 )}
-                style={{ width: `${(timer / totalInterviewTime) * 100}%` }}
+                style={{ width: `${(callDuration / totalInterviewTime) * 100}%` }}
               />
             </div>
             <span className={cn(
@@ -297,48 +214,61 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
           <div className="flex flex-col">
             <div className="bg-slate-200 aspect-square rounded-lg flex items-center justify-center mb-4">
               <div className="text-center">
-                <p className="text-2xl font-mono">{formatTime(timer)}</p>
+                <p className="text-2xl font-mono">{formatTime(callDuration)}</p>
+                {isConnecting && (
+                  <p className="text-sm text-muted-foreground mt-2">Connecting to Octavia...</p>
+                )}
+                {isConnected && (
+                  <p className="text-sm text-primary mt-2">Connected</p>
+                )}
               </div>
             </div>
             
             <div className="flex justify-center mb-6">
               <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center">
-                  <Mic className="h-10 w-10 text-white" />
+                <div className={cn(
+                  "w-24 h-24 rounded-full flex items-center justify-center",
+                  isCallActive ? "bg-primary" : "bg-muted"
+                )}>
+                  {isMuted ? (
+                    <MicOff className="h-10 w-10 text-white" />
+                  ) : (
+                    <Mic className="h-10 w-10 text-white" />
+                  )}
                 </div>
                 
-                {isRecording && !isPaused ? (
+                {isCallActive && (
                   <Button 
                     variant="outline" 
                     size="icon"
                     className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
-                    onClick={handlePauseRecording}
-                    tooltip="Pause interview"
+                    onClick={toggleMute}
+                    tooltip={isMuted ? "Unmute microphone" : "Mute microphone"}
                   >
-                    <PauseCircle className="h-5 w-5" />
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
-                    onClick={isRecording ? handleResumeRecording : handleStartRecording}
-                    tooltip={isRecording ? "Resume interview" : "Start recording"}
-                  >
-                    <PlayCircle className="h-5 w-5" />
+                    {isMuted ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                   </Button>
                 )}
               </div>
             </div>
             
-            <Button 
-              size="lg"
-              className="mx-auto bg-primary text-white w-28"
-              onClick={isRecording ? handleStopRecording : handleStartRecording}
-              tooltip={isRecording ? "Stop recording" : "Start your interview"}
-            >
-              {isRecording ? "Stop" : "Start"}
-            </Button>
+            <div className="flex gap-2 justify-center">
+              <Button 
+                size="lg"
+                className="bg-primary text-white"
+                onClick={isCallActive ? handleEndInterview : handleStartInterview}
+                disabled={vapiLoading || isConnecting}
+                tooltip={isCallActive ? "End interview" : "Start your interview"}
+              >
+                {vapiLoading || isConnecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {isConnecting ? "Connecting..." : "Loading..."}
+                  </>
+                ) : (
+                  isCallActive ? "End Interview" : "Start Interview"
+                )}
+              </Button>
+            </div>
           </div>
           
           <div className="flex flex-col gap-6">
@@ -365,12 +295,19 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                 <CardTitle>Transcript</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="min-h-[250px]">
+                <div className="min-h-[250px] max-h-[400px] overflow-y-auto">
                   {transcript ? (
-                    <p>{transcript}</p>
+                    <div className="space-y-2">
+                      {transcript.split('\n\n').map((section, index) => (
+                        <p key={index} className="text-sm">{section}</p>
+                      ))}
+                    </div>
                   ) : (
                     <p className="text-muted-foreground text-center py-12">
-                      Start the conversation to see the transcript
+                      {isCallActive 
+                        ? "Listening... Start speaking to see the transcript" 
+                        : "Start the conversation to see the transcript"
+                      }
                     </p>
                   )}
                 </div>
@@ -380,7 +317,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
         </div>
       )}
       
-      {!isRecording && !interviewEnded && (
+      {!isCallActive && !interviewEnded && (
         <div className="mt-8 max-w-2xl mx-auto">
           <Card>
             <CardHeader>
@@ -395,13 +332,27 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary">✔</span>
-                  <span>Google Calendar integration for scheduling</span>
+                  <span>Real-time conversation with Octavia AI</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary">✔</span>
-                  <span>Automated email reminders via Make.com</span>
+                  <span>15-minute interview sessions with immediate feedback</span>
                 </li>
               </ul>
+              
+              {vapiError && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                  <p className="text-destructive text-sm">{vapiError}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={clearError}
+                    className="mt-2"
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
