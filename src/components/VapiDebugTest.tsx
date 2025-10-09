@@ -1,82 +1,78 @@
 import React, { useState, useEffect } from 'react';
-import Vapi from '@vapi-ai/web';
-import config from '@/lib/config';
+import vapiService from '@/services/vapi.service';
 
 const VapiDebugTest: React.FC = () => {
-  const [testResults, setTestResults] = useState<any>(null);
-  const [isTesting, setIsTesting] = useState<boolean>(true);
+  const [status, setStatus] = useState<string>('Checking...');
+  const [isMock, setIsMock] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<string>('');
 
   useEffect(() => {
-    const testVapiIntegration = async () => {
+    // Check VAPI status
+    const checkVapiStatus = () => {
       try {
-        console.log('Testing VAPI integration...');
-        console.log('VAPI Public Key:', config.vapi.publicKey);
+        // @ts-ignore - accessing private property for testing
+        const vapiInstance = vapiService['vapi'];
         
-        // Initialize VAPI SDK
-        const vapiInstance = new Vapi(config.vapi.publicKey);
-        
-        // Check if VAPI instance is created
-        console.log('VAPI Instance:', vapiInstance);
-        
-        // Test the assistant ID
-        const assistantId = 'a1218d48-1102-4890-a0a6-d0ed2d207410';
-        console.log('Testing with Assistant ID:', assistantId);
-        
-        // Test if we can access the start method
-        console.log('Start method available:', typeof vapiInstance.start);
-        
-        setTestResults({
-          success: true,
-          message: 'VAPI integration test completed',
-          publicKey: config.vapi.publicKey ? 'Present' : 'Missing',
-          vapiInstance: vapiInstance ? 'Created' : 'Failed',
-          assistantId: assistantId,
-          startMethod: typeof vapiInstance.start
-        });
-      } catch (error: any) {
-        console.error('VAPI Test Error:', error);
-        setTestResults({
-          success: false,
-          error: error.message,
-          stack: error.stack
-        });
-      } finally {
-        setIsTesting(false);
+        if (vapiInstance) {
+          // Check if it's the mock implementation
+          if (vapiInstance.start && vapiInstance.start.toString().includes('[MOCK VAPI]')) {
+            setStatus('Using Mock Implementation');
+            setIsMock(true);
+          } else {
+            setStatus('VAPI Properly Initialized');
+            setIsMock(false);
+          }
+        } else {
+          setStatus('VAPI Not Initialized');
+          setIsMock(true);
+        }
+      } catch (error) {
+        setStatus('Error Checking VAPI Status');
+        setIsMock(true);
       }
     };
 
-    testVapiIntegration();
+    checkVapiStatus();
   }, []);
 
-  if (isTesting) {
-    return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <h2 className="text-lg font-bold mb-2">VAPI Debug Test</h2>
-        <p>Testing VAPI integration...</p>
-      </div>
-    );
-  }
+  const testVapi = async () => {
+    setTestResult('Testing...');
+    try {
+      // @ts-ignore - accessing private property for testing
+      const vapiInstance = vapiService['vapi'];
+      
+      if (!vapiInstance) {
+        setTestResult('Error: VAPI instance not available');
+        return;
+      }
+      
+      // Check if it's the mock implementation
+      if (vapiInstance.start && vapiInstance.start.toString().includes('[MOCK VAPI]')) {
+        setTestResult('Using mock implementation - testing with mock parameters');
+        const result = await vapiInstance.start('test-assistant-id', { metadata: { test: true } });
+        setTestResult(`Mock test result: ${result ? 'Success' : 'Failed'}`);
+        return;
+      }
+      
+      // For real VAPI, we'll just check if the methods exist
+      setTestResult(`VAPI instance valid. Start method: ${typeof vapiInstance.start}`);
+    } catch (error) {
+      setTestResult(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   return (
-    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-      <h2 className="text-lg font-bold mb-2">VAPI Debug Test Results</h2>
-      <div className="space-y-2">
-        <pre className="bg-gray-100 p-2 rounded text-xs overflow-auto">
-          {JSON.stringify(testResults, null, 2)}
-        </pre>
-        {testResults?.success && (
-          <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded">
-            <p className="font-semibold text-green-800">✅ VAPI Integration Test Successful!</p>
-            <p className="text-green-700">The assistant ID has been updated and VAPI is properly configured.</p>
-          </div>
-        )}
-        {!testResults?.success && (
-          <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded">
-            <p className="font-semibold text-red-800">❌ VAPI Integration Test Failed!</p>
-            <p className="text-red-700">Check the error details above and ensure your VAPI credentials are correct.</p>
-          </div>
-        )}
-      </div>
+    <div className="p-4 bg-blue-100 border border-blue-400 rounded">
+      <h2 className="text-lg font-bold mb-2">VAPI Debug Test</h2>
+      <p><strong>Status:</strong> {status}</p>
+      <p><strong>Using Mock:</strong> {isMock ? 'Yes' : 'No'}</p>
+      <p><strong>Test Result:</strong> {testResult}</p>
+      <button 
+        onClick={testVapi}
+        className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm"
+      >
+        Test VAPI
+      </button>
     </div>
   );
 };

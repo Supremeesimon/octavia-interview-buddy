@@ -17,10 +17,9 @@ const VapiTestPage: React.FC = () => {
         </div>
         
         <div className="bg-white shadow-xl rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">VAPI Assistant ID Verification</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">VAPI Debug Information</h2>
           <p className="text-gray-600 mb-6">
-            This page verifies that the VAPI assistant ID has been correctly updated to fix the 
-            "Cannot read properties of null (reading 'id')" error.
+            This page helps verify that the VAPI integration is working correctly.
           </p>
           
           <VapiDebugTest />
@@ -29,9 +28,10 @@ const VapiTestPage: React.FC = () => {
         <div className="bg-white shadow-xl rounded-lg p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Next Steps</h2>
           <ul className="list-disc pl-5 space-y-2 text-gray-600">
-            <li>If the test above shows success, the VAPI integration should now work correctly</li>
-            <li>Navigate to the interview page to test starting an actual interview</li>
-            <li>If you still encounter issues, check your VAPI public key in the environment configuration</li>
+            <li>Check the status above to see if VAPI is properly initialized</li>
+            <li>Click "Test VAPI" to verify the integration</li>
+            <li>If using mock implementation, voice interviews will be simulated</li>
+            <li>If VAPI is properly initialized, you can test actual voice interviews</li>
           </ul>
         </div>
       </div>

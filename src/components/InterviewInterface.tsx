@@ -92,6 +92,11 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     try {
       console.log('handleStartInterview called');
       
+      // Log the resumeData being passed
+      console.log('Resume data:', resumeData);
+      console.log('Resume data type:', typeof resumeData);
+      console.log('Resume data keys:', resumeData ? Object.keys(resumeData) : 'null/undefined');
+      
       // Extract hierarchical information from user context
       const studentId = user?.id || '';
       const institutionId = user?.institutionId || '';

@@ -145,7 +145,7 @@ const VapiTest: React.FC = () => {
       
       setTestResult(`Attempting direct call with assistant ID: ${assistantId}...`);
       
-      // Try the direct call
+      // Try the direct call - using the correct format for VAPI SDK
       const result = await directVapi.start(assistantId, {
         metadata: {
           test: true,

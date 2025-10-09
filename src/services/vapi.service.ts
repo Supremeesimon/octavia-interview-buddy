@@ -56,10 +56,17 @@ export class VapiService {
         throw new Error('Failed to create VAPI instance');
       }
       
+      // Additional check to see if this is a valid VAPI instance
+      // by checking for expected methods
+      if (typeof this.vapi.start !== 'function') {
+        console.warn('VAPI instance missing start method, may be invalid');
+      }
+      
       this.setupEventListeners();
       console.log('VAPI initialized successfully');
     } catch (error) {
       console.error('Failed to initialize VAPI:', error);
+      console.error('Stack trace:', error.stack);
       // Fallback to mock implementation if VAPI fails
       this.initializeMockVapi();
     }
@@ -68,7 +75,8 @@ export class VapiService {
   private initializeMockVapi(): void {
     // Mock VAPI implementation for development
     this.vapi = {
-      start: async (assistantId: string, metadata: any) => {
+      start: async (assistantId: string, overrides?: { metadata?: any }) => {
+        const metadata = overrides?.metadata || {};
         console.log('[MOCK VAPI] Starting call with assistant:', assistantId, 'metadata:', metadata);
         this.currentCall = {
           id: `mock_call_${Date.now()}`,
@@ -119,6 +127,13 @@ export class VapiService {
             timestamp: new Date().toISOString(),
           });
         }, 1000);
+      },
+      
+      // Mock event listener setup
+      on: (event: string, callback: Function) => {
+        console.log(`[MOCK VAPI] Event listener registered for: ${event}`);
+        // In a real implementation, we would store these callbacks
+        // For now, we'll just log that they were registered
       }
     };
     
@@ -130,7 +145,13 @@ export class VapiService {
 
     console.log('Setting up VAPI event listeners');
 
-    // Set up VAPI event listeners
+    // Check if we're using the mock implementation
+    if (this.vapi.start && this.vapi.start.toString().includes('[MOCK VAPI]')) {
+      console.log('Using mock VAPI implementation, event listeners not applicable');
+      return;
+    }
+
+    // Set up VAPI event listeners (only for real VAPI implementation)
     this.vapi.on('call-start', () => {
       console.log('VAPI call started');
       this.callbacks.onCallStart?.();
@@ -305,6 +326,53 @@ export class VapiService {
   }
 
   /**
+   * Test interview call with simulated parameters
+   */
+  async testInterviewCall(
+    resumeData: any,
+    interviewType: string = 'general',
+    studentId?: string,
+    departmentId?: string,
+    institutionId?: string
+  ): Promise<any> {
+    try {
+      const assistantId = this.getAssistantIdForType(interviewType);
+      console.log('Testing interview call with assistant ID:', assistantId);
+      
+      // If we're using the mock implementation, return a mock response
+      if (this.vapi && this.vapi.start && this.vapi.start.toString().includes('[MOCK VAPI]')) {
+        console.log('Using mock implementation for test call');
+        return {
+          id: `mock_call_${Date.now()}`,
+          status: 'queued',
+          assistantId,
+        };
+      }
+      
+      // Prepare metadata for the assistant with hierarchical information
+      const metadata = {
+        resumeData: resumeData || {},
+        interviewType,
+        startTime: new Date().toISOString(),
+        studentId,
+        departmentId,
+        institutionId
+      };
+      
+      console.log('Testing with metadata:', metadata);
+      
+      // Start the test call
+      const result = await this.vapi.start(assistantId, { metadata });
+      console.log('Test call result:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Test interview call failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Start an interview call
    */
   async startInterview(
@@ -355,6 +423,7 @@ export class VapiService {
       
       // Start the call with the assistant ID and metadata
       console.log('Executing vapi.start...');
+      // The correct format according to VAPI documentation is to pass metadata in the overrides object
       const call = await this.vapi.start(assistantId, { metadata });
       
       console.log('VAPI start response received:', call);

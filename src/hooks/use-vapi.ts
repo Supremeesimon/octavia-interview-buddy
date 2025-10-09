@@ -188,12 +188,12 @@ export const useVapi = (): UseVapiReturn => {
     setFeedbackHistory([]);
 
     try {
-      console.log('Starting interview with parameters:', {
-        resumeData: resumeData ? 'Provided' : 'Not provided',
+      console.log('Starting interview with:', {
+        resumeData,
         interviewType,
-        studentId: studentId || 'Not provided',
-        departmentId: departmentId || 'Not provided',
-        institutionId: institutionId || 'Not provided'
+        studentId,
+        departmentId,
+        institutionId
       });
       
       const call = await vapiService.startInterview(
