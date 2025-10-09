@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { File, FileText, Upload, Calendar, Clock, Download, Pencil, Trash2, Plus } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const ResumesList = () => {
   const isMobile = useIsMobile();
-  const navigate = useNavigate();
   
   const mockResumes = [
     {
@@ -38,31 +35,10 @@ const ResumesList = () => {
     }
   ];
 
-  const handleTabChange = (value: string) => {
-    switch (value) {
-      case 'resumes':
-        // Stay on this page
-        break;
-      case 'interviews':
-        navigate('/interview');
-        break;
-    }
-  };
+
   
   return (
     <div className="container mx-auto px-4 max-w-5xl">
-      <div className="mb-6">
-        <Tabs defaultValue="resumes" className="w-full mb-6" onValueChange={handleTabChange}>
-          <TabsList className="w-full max-w-md">
-            <TabsTrigger value="interviews" className="flex-1">
-              Interviews
-            </TabsTrigger>
-            <TabsTrigger value="resumes" className="flex-1">
-              Resumes
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
       
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-2xl md:text-3xl font-bold">Resumes</h1>

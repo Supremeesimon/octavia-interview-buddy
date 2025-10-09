@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mic, MicOff, PauseCircle, PlayCircle, Loader2, Clock, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import useVapi from '@/hooks/use-vapi';
 
@@ -49,17 +48,6 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     resumeName: "Default Resume"
   };
 
-  const handleTabChange = (value: string) => {
-    switch (value) {
-      case 'interview':
-        // Stay on this page
-        break;
-      case 'resumes':
-        navigate('/resumes');
-        break;
-    }
-  };
-  
   // Format time helper
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -135,16 +123,6 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   
   return (
     <div className="container mx-auto px-4 max-w-7xl">
-      <Tabs defaultValue="interview" className="w-full mb-6" onValueChange={handleTabChange}>
-        <TabsList className="w-full max-w-md">
-          <TabsTrigger value="interview" tooltip="Practice interview session">
-            Interview
-          </TabsTrigger>
-          <TabsTrigger value="resumes" tooltip="Manage your resumes">
-            Resumes
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
       
       {isCallActive && (
         <div className={cn(
@@ -202,7 +180,6 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
             <Button 
               onClick={handleScheduleMore} 
               className="gap-2"
-              tooltip="Schedule additional practice interviews"
             >
               Schedule More Interviews
               <ArrowRight className="h-4 w-4" />
@@ -219,142 +196,135 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                   <p className="text-sm text-muted-foreground mt-2">Connecting to Octavia...</p>
                 )}
                 {isConnected && (
-                  <p className="text-sm text-primary mt-2">Connected</p>
+                  <p className="text-sm text-green-600 mt-2">Connected to Octavia AI</p>
+                )}
+                {vapiError && (
+                  <p className="text-sm text-red-600 mt-2">Connection error. Please try again.</p>
                 )}
               </div>
             </div>
             
-            <div className="flex justify-center mb-6">
-              <div className="relative">
-                <div className={cn(
-                  "w-24 h-24 rounded-full flex items-center justify-center",
-                  isCallActive ? "bg-primary" : "bg-muted"
-                )}>
-                  {isMuted ? (
-                    <MicOff className="h-10 w-10 text-white" />
-                  ) : (
-                    <Mic className="h-10 w-10 text-white" />
-                  )}
+            {!isCallActive && !interviewEnded && (
+              <div className="space-y-4">
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-medium mb-2">Interview Details</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{jobData.title}</p>
+                  <p className="text-sm text-muted-foreground">Resume: {jobData.resumeName}</p>
                 </div>
                 
-                {isCallActive && (
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    className="rounded-full absolute -bottom-2 -right-2 h-10 w-10 bg-white"
-                    onClick={toggleMute}
-                    tooltip={isMuted ? "Unmute microphone" : "Mute microphone"}
-                  >
-                    {isMuted ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-                  </Button>
-                )}
+                <div className="p-4 bg-primary/5 rounded-lg">
+                  <h4 className="font-medium flex items-center gap-1 mb-2">
+                    <Clock className="h-4 w-4" /> 
+                    Interview Length
+                  </h4>
+                  <p className="text-sm text-muted-foreground">15 minutes maximum</p>
+                </div>
+                
+                <Button 
+                  onClick={handleStartInterview} 
+                  className="w-full gap-2"
+                  disabled={vapiLoading || isConnecting}
+                >
+                  {vapiLoading || isConnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle className="h-4 w-4" />
+                      Start Interview
+                    </>
+                  )}
+                </Button>
               </div>
-            </div>
+            )}
             
-            <div className="flex gap-2 justify-center">
-              <Button 
-                size="lg"
-                className="bg-primary text-white"
-                onClick={isCallActive ? handleEndInterview : handleStartInterview}
-                disabled={vapiLoading || isConnecting}
-                tooltip={isCallActive ? "End interview" : "Start your interview"}
-              >
-                {vapiLoading || isConnecting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {isConnecting ? "Connecting..." : "Loading..."}
-                  </>
-                ) : (
-                  isCallActive ? "End Interview" : "Start Interview"
-                )}
-              </Button>
-            </div>
+            {isCallActive && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-center space-x-4">
+                  <Button
+                    onClick={toggleMute}
+                    variant={isMuted ? "destructive" : "secondary"}
+                    size="lg"
+                    className="gap-2"
+                  >
+                    {isMuted ? (
+                      <>
+                        <MicOff className="h-5 w-5" />
+                        Unmute
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-5 w-5" />
+                        Mute
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={handleEndInterview}
+                    variant="destructive"
+                    size="lg"
+                    className="gap-2"
+                  >
+                    <PauseCircle className="h-5 w-5" />
+                    End Interview
+                  </Button>
+                </div>
+                
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Audio Levels</h4>
+                  <div ref={audioVisualizerRef} className="flex items-end justify-center space-x-1 h-12">
+                    {[...Array(20)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="audio-bar bg-primary w-2 rounded-t transition-all duration-100"
+                        style={{ height: '10px' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
-          <div className="flex flex-col gap-6">
-            <Card>
+          <div className="flex flex-col">
+            <Card className="flex-grow">
               <CardHeader>
-                <CardTitle>Interview details</CardTitle>
+                <CardTitle>Live Transcript</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Job</h3>
-                    <p className="text-primary">{jobData.title}</p>
+                {transcript ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <p className="text-sm">{transcript}</p>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Resume</h3>
-                    <p>{jobData.resumeName}</p>
+                ) : (
+                  <div className="flex items-center justify-center h-32 text-muted-foreground">
+                    <p className="text-sm">
+                      {isCallActive ? "Listening..." : "Transcript will appear here during the interview"}
+                    </p>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Transcript</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="min-h-[250px] max-h-[400px] overflow-y-auto">
-                  {transcript ? (
-                    <div className="space-y-2">
-                      {transcript.split('\n\n').map((section, index) => (
-                        <p key={index} className="text-sm">{section}</p>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-12">
-                      {isCallActive 
-                        ? "Listening... Start speaking to see the transcript" 
-                        : "Start the conversation to see the transcript"
-                      }
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {isCallActive && (
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle>Interview Tips</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="text-sm space-y-1 text-muted-foreground">
+                    <li>• Speak clearly and at a normal pace</li>
+                    <li>• Take a moment to think before answering</li>
+                    <li>• Use specific examples from your experience</li>
+                    <li>• Ask for clarification if needed</li>
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        </div>
-      )}
-      
-      {!isCallActive && !interviewEnded && (
-        <div className="mt-8 max-w-2xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>About Your AI Interview</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p>This interview uses voice AI powered by VAPI to simulate a real interview experience.</p>
-              <ul className="space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">✔</span>
-                  <span>Your responses are automatically transcribed</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">✔</span>
-                  <span>Real-time conversation with Octavia AI</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">✔</span>
-                  <span>15-minute interview sessions with immediate feedback</span>
-                </li>
-              </ul>
-              
-              {vapiError && (
-                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                  <p className="text-destructive text-sm">{vapiError}</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={clearError}
-                    className="mt-2"
-                  >
-                    Dismiss
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       )}
     </div>
