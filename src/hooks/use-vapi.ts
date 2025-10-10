@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import vapiService, { type VapiCallbacks } from '@/services/vapi.service';
+import vapiService from '@/services/vapi.service';
 import type { VapiCall, InterviewFeedback } from '@/types';
 
 interface UseVapiReturn {
@@ -43,7 +43,25 @@ interface UseVapiReturn {
   clearError: () => void;
 }
 
-export const useVapi = (): UseVapiReturn => {
+export interface VapiCallbacks {
+  onCallStart?: () => void;
+  onCallEnd?: (call: VapiCall) => void;
+  onSpeechStart?: () => void;
+  onSpeechEnd?: () => void;
+  onMessage?: (message: any) => void;
+  onTranscript?: (transcript: string) => void;
+  onFeedbackUpdate?: (feedback: InterviewFeedback) => void;
+  onError?: (error: Error) => void;
+  onVolumeLevel?: (level: number) => void;
+  onAnalysis?: (analysis: any) => void; // Add this for end-of-call analysis
+  onInterviewEnd?: () => void; // Add this for when AI ends interview
+}
+
+interface UseVapiProps {
+  onInterviewEnd?: () => void;
+}
+
+export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
   const [currentCall, setCurrentCall] = useState<VapiCall | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,9 +110,13 @@ export const useVapi = (): UseVapiReturn => {
 
     onCallEnd: (call: VapiCall) => {
       console.log('Interview call ended:', call);
+      console.log('Setting current call and stopping duration tracking');
       setCurrentCall(call);
       stopDurationTracking();
       setCallDuration(call.duration || callDuration);
+      // Clear any errors when call ends normally
+      console.log('Clearing errors in onCallEnd');
+      setError(null);
       toast.info('Interview completed');
     },
 
@@ -119,11 +141,18 @@ export const useVapi = (): UseVapiReturn => {
     },
 
     onTranscript: (newTranscript: string) => {
-      console.log('Transcript update:', newTranscript);
-      setTranscript(prev => {
-        // Append new transcript or replace if it's a complete update
-        return prev ? `${prev}\n\n${newTranscript}` : newTranscript;
-      });
+      console.log('Transcript update in hook:', newTranscript);
+      console.log('Previous transcript:', transcript);
+      
+      // Only update if we have new transcript content
+      if (newTranscript && newTranscript.trim() !== '') {
+        setTranscript(prev => {
+          // Append new transcript or replace if it's a complete update
+          const updatedTranscript = prev ? `${prev}\n\n${newTranscript}` : newTranscript;
+          console.log('Updated transcript:', updatedTranscript);
+          return updatedTranscript;
+        });
+      }
     },
 
     onFeedbackUpdate: (feedback: InterviewFeedback) => {
@@ -141,13 +170,108 @@ export const useVapi = (): UseVapiReturn => {
 
     onError: (error: Error) => {
       console.error('VAPI error:', error);
-      setError(error.message);
-      toast.error(`Interview error: ${error.message}`);
+      console.log('Current call status:', currentCall?.status);
+      
+      // Only show error toast if it's not a normal interview end
+      // Check if the error message indicates a normal end
+      const isNormalEnd = error.message && (
+        error.message.includes('call ended') || 
+        error.message.includes('call stopped') ||
+        error.message.includes('ended') ||
+        error.message.includes('disconnected') ||
+        error.message.includes('not connected') ||
+        error.message.includes('no active call') ||
+        error.message.includes('already ended') ||
+        error.message.includes('WebSocket closed') ||
+        error.message.includes('connection closed') ||
+        error.message.includes('hang up') ||
+        error.message.includes('hangup') ||
+        error.message.includes('user disconnected') ||
+        error.message.includes('peer closed') ||
+        error.message.includes('undefined')
+      );
+      
+      console.log('Is normal end based on message:', isNormalEnd);
+      
+      // Also check if this might be a normal end based on call status
+      const isCallActuallyEnded = currentCall?.status === 'ended';
+      
+      console.log('Is call actually ended:', isCallActuallyEnded);
+      
+      if (!isNormalEnd && !isCallActuallyEnded) {
+        // Set the error state
+        setError(error.message);
+        // Show the error toast
+        toast.error(`Interview error: ${error.message || 'An unknown error occurred'}`);
+      } else {
+        console.log('Suppressing error toast for normal interview end');
+        // Clear the error since this is a normal end
+        // Add a small delay to ensure state is updated
+        setTimeout(() => {
+          setError(null);
+        }, 100);
+      }
     },
 
     onVolumeLevel: (level: number) => {
       setVolumeLevel(level);
     },
+    
+    onAnalysis: (analysis: any) => {
+      console.log('Analysis update received:', analysis);
+      
+      // Check if this is an end-of-call analysis which means the AI ended the interview
+      if (analysis && analysis.summary) {
+        console.log('Analysis has summary, AI ended the interview');
+        // Stop the timer when AI ends the interview
+        console.log('Stopping duration tracking');
+        stopDurationTracking();
+        
+        // Notify parent component that interview has ended
+        console.log('Calling parent onInterviewEnd callback from onAnalysis');
+        props?.onInterviewEnd?.();
+      }
+      
+      // Convert the analysis data to a feedback object
+      if (analysis && analysis.successEvaluation) {
+        const feedback: InterviewFeedback = {
+          id: `feedback-${Date.now()}`,
+          interviewId: 'current-interview',
+          overallScore: analysis.successEvaluation.score || 0,
+          categories: analysis.structuredData?.categories || [],
+          strengths: analysis.structuredData?.strengths || [],
+          improvements: analysis.structuredData?.improvements || [],
+          recommendations: analysis.structuredData?.recommendations || [],
+          detailedAnalysis: analysis.summary || '',
+          createdAt: new Date()
+        };
+        
+        console.log('Converted feedback object:', feedback);
+        setCurrentFeedback(feedback);
+        setFeedbackHistory(prev => [...prev, feedback]);
+        
+        // Show toast notification for significant feedback updates
+        if (feedback.overallScore) {
+          toast.info(`Feedback Update: ${feedback.overallScore}/100`, {
+            description: `Check the feedback tab for detailed analysis`
+          });
+        }
+      }
+    },
+    
+    onInterviewEnd: () => {
+      // This is called when AI ends the interview
+      console.log('AI ended the interview via onInterviewEnd callback');
+      // Stop the timer when AI ends the interview
+      console.log('Stopping duration tracking');
+      stopDurationTracking();
+      // Clear any errors since this is a normal end
+      console.log('Clearing errors');
+      setError(null);
+      // Notify parent component that interview has ended
+      console.log('Calling parent onInterviewEnd callback');
+      props?.onInterviewEnd?.();
+    }
   };
 
   // Initialize VAPI callbacks
@@ -220,6 +344,7 @@ export const useVapi = (): UseVapiReturn => {
   // End interview
   const endInterview = useCallback(async () => {
     setIsLoading(true);
+    setError(null); // Clear any existing errors
 
     try {
       const endedCall = await vapiService.endInterview();
@@ -227,6 +352,8 @@ export const useVapi = (): UseVapiReturn => {
         setCurrentCall(endedCall);
       }
       stopDurationTracking();
+      // Set interviewEnded state to true
+      // This will be handled by the parent component
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to end interview';
       setError(errorMessage);
@@ -235,6 +362,9 @@ export const useVapi = (): UseVapiReturn => {
       setIsLoading(false);
     }
   }, [stopDurationTracking]);
+
+  // Auto-end interview after 15 minutes (900 seconds)
+  // This logic is handled in the InterviewInterface component
 
   // Toggle mute
   const toggleMute = useCallback(() => {

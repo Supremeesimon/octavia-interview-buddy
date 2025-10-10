@@ -19,6 +19,7 @@ export interface VapiCallbacks {
   onError?: (error: Error) => void;
   onVolumeLevel?: (level: number) => void;
   onAnalysis?: (analysis: any) => void; // Add this for end-of-call analysis
+  onInterviewEnd?: () => void; // Add this for when AI ends interview
 }
 
 export class VapiService {
@@ -46,6 +47,14 @@ export class VapiService {
         throw new Error('VAPI public key is missing. Please check your environment configuration.');
       }
       
+      // Check if we're in production and the public key is still a placeholder
+      if (config.app.environment === 'production' && 
+          (config.vapi.publicKey === 'your_vapi_public_key_here' || 
+           config.vapi.publicKey.includes('your_') || 
+           config.vapi.publicKey.length < 20)) {
+        throw new Error('Invalid VAPI public key in production. Please set a valid VAPI public key in your environment variables. Check your .env.production file and replace the placeholder values with actual configuration.');
+      }
+      
       console.log('Initializing VAPI with public key:', config.vapi.publicKey.substring(0, 8) + '...');
       
       // Initialize VAPI SDK with public key
@@ -67,7 +76,13 @@ export class VapiService {
     } catch (error) {
       console.error('Failed to initialize VAPI:', error);
       console.error('Stack trace:', error.stack);
-      // Fallback to mock implementation if VAPI fails
+      
+      // In production, we should not fall back to mock implementation
+      if (config.app.environment === 'production') {
+        throw new Error(`VAPI initialization failed in production: ${error.message}`);
+      }
+      
+      // Fallback to mock implementation if VAPI fails (only in development)
       this.initializeMockVapi();
     }
   }
@@ -171,7 +186,13 @@ export class VapiService {
         await this.handleEndOfCallAnalysis(call);
       }
       
+      // Call the callback to notify the UI
+      console.log('Calling onCallEnd callback');
       this.callbacks.onCallEnd?.(this.currentCall);
+      
+      // Also call onInterviewEnd to ensure consistent behavior
+      console.log('Calling onInterviewEnd callback');
+      this.callbacks.onInterviewEnd?.();
     });
 
     this.vapi.on('speech-start', () => {
@@ -190,23 +211,77 @@ export class VapiService {
     });
 
     this.vapi.on('transcript', (transcript: any) => {
-      console.log('Transcript update:', transcript);
-      this.callbacks.onTranscript?.(transcript);
+      console.log('Transcript update received:', transcript);
+      console.log('Transcript type:', typeof transcript);
+      console.log('Transcript keys:', transcript ? Object.keys(transcript) : 'null/undefined');
+      
+      // Handle different transcript formats
+      let transcriptText = '';
+      if (typeof transcript === 'string') {
+        transcriptText = transcript;
+      } else if (transcript && typeof transcript === 'object') {
+        // Check for common transcript properties
+        if (transcript.transcript) {
+          transcriptText = transcript.transcript;
+        } else if (transcript.text) {
+          transcriptText = transcript.text;
+        } else if (transcript.message) {
+          transcriptText = transcript.message;
+        } else {
+          // If we can't find the text, convert the object to string
+          transcriptText = JSON.stringify(transcript);
+        }
+      }
+      
+      console.log('Processed transcript text:', transcriptText);
+      this.callbacks.onTranscript?.(transcriptText);
     });
 
     this.vapi.on('volume-level', (level: number) => {
-      this.callbacks.onVolumeLevel?.(level);
+      // Ensure level is between 0 and 100
+      const normalizedLevel = Math.min(100, Math.max(0, level));
+      this.callbacks.onVolumeLevel?.(normalizedLevel);
     });
 
     this.vapi.on('error', (error: any) => {
       console.error('VAPI error:', error);
-      this.callbacks.onError?.(error);
+      
+      // Check if this is a normal disconnection error
+      const isNormalDisconnection = error.message && (
+        error.message.includes('call ended') || 
+        error.message.includes('call stopped') ||
+        error.message.includes('ended') ||
+        error.message.includes('disconnected') ||
+        error.message.includes('not connected') ||
+        error.message.includes('no active call') ||
+        error.message.includes('already ended') ||
+        error.message.includes('WebSocket closed') ||
+        error.message.includes('connection closed') ||
+        error.message.includes('hang up') ||
+        error.message.includes('hangup') ||
+        error.message.includes('user disconnected') ||
+        error.message.includes('peer closed')
+      );
+      
+      // If it's a normal disconnection, don't call the error callback
+      if (!isNormalDisconnection) {
+        console.log('Calling onError callback with error:', error);
+        this.callbacks.onError?.(error);
+      } else {
+        console.log('Suppressing normal disconnection error:', error.message);
+      }
     });
 
     // Add listener for analysis updates
     this.vapi.on('analysis', (analysis: any) => {
       console.log('VAPI analysis received:', analysis);
       this.callbacks.onAnalysis?.(analysis);
+      
+      // If this is an end-of-call analysis, also call onInterviewEnd
+      if (analysis && analysis.summary) {
+        console.log('Analysis has summary, calling onInterviewEnd callback');
+        this.callbacks.onInterviewEnd?.();
+      }
     });
 
     console.log('VAPI event listeners set up successfully');
@@ -432,11 +507,11 @@ export class VapiService {
       
       // Check if call is null or undefined
       if (call === null) {
-        throw new Error('VAPI returned null response. This typically means the assistant ID is invalid or the assistant is not properly configured in VAPI.');
+        throw new Error('VAPI returned null response. This typically means the assistant ID is invalid or the assistant is not properly configured in VAPI. Please verify that your VAPI assistant is correctly set up in the VAPI dashboard.');
       }
       
       if (call === undefined) {
-        throw new Error('VAPI returned undefined response. This could indicate a network issue or VAPI service problem.');
+        throw new Error('VAPI returned undefined response. This could indicate a network issue or VAPI service problem. Please check your internet connection and try again.');
       }
       
       // Check if call is an object with properties
@@ -477,6 +552,17 @@ export class VapiService {
         errorMessage = error.toString();
       }
       
+      // Special handling for common VAPI errors
+      if (errorMessage.includes('assistant ID is invalid')) {
+        errorMessage += ' Please verify that your VAPI assistant ID is correctly configured in the VAPI service.';
+      } else if (errorMessage.includes('VAPI public key is missing')) {
+        errorMessage += ' Please ensure that VITE_VAPI_PUBLIC_KEY is set in your environment variables.';
+      } else if (errorMessage.includes('network issue')) {
+        errorMessage += ' Please check your internet connection and try again.';
+      } else if (errorMessage.includes('null response')) {
+        errorMessage += ' This typically means the assistant ID is invalid or the assistant is not properly configured in VAPI. Please check your VAPI dashboard to ensure the assistant is correctly configured.';
+      }
+      
       throw new Error(`Failed to start interview: ${errorMessage}`);
     }
   }
@@ -495,6 +581,20 @@ export class VapiService {
       return this.currentCall;
     } catch (error: any) {
       console.error('Failed to end VAPI call:', error);
+      // Check if this is a normal disconnection error
+      const isNormalDisconnection = error.message && (
+        error.message.includes('not connected') || 
+        error.message.includes('no active call') ||
+        error.message.includes('disconnected') ||
+        error.message.includes('already ended')
+      );
+      
+      // If it's a normal disconnection, don't throw an error
+      if (isNormalDisconnection) {
+        console.log('Call ended normally');
+        return this.currentCall;
+      }
+      
       throw new Error(`Failed to end interview: ${error.message}`);
     }
   }
@@ -590,6 +690,13 @@ export class VapiService {
       const callId = call.id;
       const metadata = call.metadata || {};
       
+      console.log('VAPI Service: Handling end-of-call analysis', {
+        callId,
+        hasAnalysis: !!analysis,
+        hasMetadata: !!metadata,
+        metadataKeys: Object.keys(metadata || {})
+      });
+      
       // Extract hierarchical data for proper isolation
       const analysisData = {
         callId,
@@ -611,12 +718,18 @@ export class VapiService {
         recommendations: analysis.structuredData?.recommendations || []
       };
 
+      console.log('VAPI Service: Saving analysis data to Firebase', {
+        callId: analysisData.callId,
+        studentId: analysisData.studentId ? 'Present' : 'Empty (anonymous)',
+        interviewType: analysisData.interviewType
+      });
+
       // Store analysis data in Firebase for institutional dashboards
       await interviewService.saveEndOfCallAnalysis(analysisData);
       
-      console.log('End-of-call analysis saved to Firebase:', analysisData);
+      console.log('VAPI Service: End-of-call analysis saved successfully to Firebase');
     } catch (error) {
-      console.error('Error handling end-of-call analysis:', error);
+      console.error('VAPI Service: Error handling end-of-call analysis:', error);
     }
   }
 }

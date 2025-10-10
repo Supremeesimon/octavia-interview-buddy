@@ -7,44 +7,28 @@ set -e
 
 echo "🔥 Starting Firebase deployment for Octavia Interview Buddy..."
 
-# Check if Firebase CLI is installed
-if ! command -v firebase &> /dev/null; then
-    echo "❌ Firebase CLI is not installed. Installing..."
-    npm install -g firebase-tools
+# Check if Firebase service account exists
+if [ ! -f "firebase-service-account.json" ]; then
+    echo "❌ Firebase service account file not found!"
+    echo "Please ensure firebase-service-account.json exists in the project root."
+    exit 1
 fi
 
-# Check if user is logged in to Firebase
-echo "🔐 Checking Firebase authentication..."
-if ! firebase projects:list &> /dev/null; then
-    echo "🔑 Please log in to Firebase..."
-    firebase login
-fi
+# Set environment variable for service account
+export GOOGLE_APPLICATION_CREDENTIALS="firebase-service-account.json"
+echo "🔐 Using Firebase service account for authentication..."
 
 # Set the correct Firebase project
 echo "📊 Setting Firebase project..."
-firebase use octavia-practice-interviewer
+npx firebase use octavia-practice-interviewer
 
 # Build the application
 echo "🏗️ Building the application..."
 npm run build
 
-# Deploy Firestore rules
-echo "📋 Deploying Firestore security rules..."
-firebase deploy --only firestore:rules
-
-# Deploy Storage rules
-echo "📁 Deploying Storage security rules..."
-firebase deploy --only storage:rules
-
 # Deploy to Firebase Hosting
 echo "🌐 Deploying to Firebase Hosting..."
-firebase deploy --only hosting
-
-# Deploy Functions (if they exist)
-if [ -d "functions" ]; then
-    echo "⚡ Deploying Cloud Functions..."
-    firebase deploy --only functions
-fi
+GOOGLE_APPLICATION_CREDENTIALS="firebase-service-account.json" npx firebase deploy --only hosting
 
 echo "✅ Deployment completed successfully!"
 echo "🚀 Your application is now live at: https://octavia-practice-interviewer.web.app"

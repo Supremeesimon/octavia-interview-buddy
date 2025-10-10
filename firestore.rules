@@ -139,6 +139,18 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && isPlatformAdmin();
     }
 
+    // End of call analysis collection
+    match /end-of-call-analysis/{analysisId} {
+      // Allow read for development/testing
+      allow read: if true; // TODO: Restrict in production
+      
+      // Platform admins can read/write all analyses
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+      
+      // Allow write for authenticated users
+      allow write: if isAuthenticated();
+    }
+
     // System configuration (platform admins only)
     match /system_config/{doc=**} {
       allow read, write: if isAuthenticated() && isPlatformAdmin();

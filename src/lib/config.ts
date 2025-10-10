@@ -69,8 +69,13 @@ config.features.enablePerformanceMonitoring = config.app.environment === 'produc
 const validateConfig = () => {
   const errors: string[] = [];
   
-  if (!config.vapi.publicKey && config.app.environment === 'production') {
-    errors.push('VITE_VAPI_PUBLIC_KEY is required for production');
+  if (!config.vapi.publicKey) {
+    errors.push('VITE_VAPI_PUBLIC_KEY is required');
+  } else if (config.app.environment === 'production' && 
+             (config.vapi.publicKey === 'your_vapi_public_key_here' || 
+              config.vapi.publicKey.includes('your_') || 
+              config.vapi.publicKey.length < 20)) {
+    errors.push('VITE_VAPI_PUBLIC_KEY must be a valid key in production');
   }
   
   if (!config.api.baseUrl) {

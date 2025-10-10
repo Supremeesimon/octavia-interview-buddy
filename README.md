@@ -1,69 +1,109 @@
-# Welcome to your Lovable project
+# Octavia Interview Buddy
 
-## Project info
+Welcome to Octavia Interview Buddy - your AI-powered interview practice platform!
 
-**URL**: https://lovable.dev/projects/21bb4659-713c-41f1-bac2-54d39a22da7b
+## Features
 
-## How can I edit this code?
+- **AI-Powered Interviews**: Practice with our advanced voice AI that simulates real interview scenarios
+- **Real-time Feedback**: Get instant feedback on your communication skills, technical knowledge, and problem-solving abilities
+- **Performance Analytics**: Track your progress over time with detailed analytics and insights
+- **Anonymous Access**: Try our platform without creating an account
+- **Multi-role Support**: Platform for students, institution admins, and platform administrators
 
-There are several ways of editing your application.
+## Getting Started
 
-**Use Lovable**
+### Prerequisites
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/21bb4659-713c-41f1-bac2-54d39a22da7b) and start prompting.
+- Node.js (v16 or higher)
+- npm or yarn
+- Firebase account
+- VAPI.ai account
 
-Changes made via Lovable will be committed automatically to this repo.
+### Installation
 
-**Use your preferred IDE**
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Copy `.env.example` to `.env.local` and fill in your configuration
+4. Run the development server: `npm run dev`
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Environment Variables
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Create a `.env.local` file with the following variables:
 
-Follow these steps:
+```
+# APPLICATION CONFIGURATION
+VITE_APP_NAME="Octavia Interview Buddy"
+VITE_APP_VERSION="1.0.0"
+VITE_APP_ENVIRONMENT="development"
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# API CONFIGURATION
+VITE_API_URL="http://localhost:3001/api"
+VITE_API_TIMEOUT="30000"
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# VAPI INTEGRATION (Voice AI)
+VITE_VAPI_URL="https://api.vapi.ai"
+VITE_VAPI_PUBLIC_KEY="your_vapi_public_key_here"
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# FIREBASE CONFIGURATION
+VITE_FIREBASE_API_KEY="your_firebase_api_key_here"
+VITE_FIREBASE_AUTH_DOMAIN="your_firebase_auth_domain_here"
+VITE_FIREBASE_PROJECT_ID="your_firebase_project_id_here"
+VITE_FIREBASE_STORAGE_BUCKET="your_firebase_storage_bucket_here"
+VITE_FIREBASE_MESSAGING_SENDER_ID="your_firebase_messaging_sender_id_here"
+VITE_FIREBASE_APP_ID="your_firebase_app_id_here"
+VITE_FIREBASE_MEASUREMENT_ID="your_firebase_measurement_id_here"
 ```
 
-**Edit a file directly in GitHub**
+## Development
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Available Scripts
 
-**Use GitHub Codespaces**
+- `npm run dev` - Start the development server
+- `npm run build` - Build the production version
+- `npm run lint` - Run ESLint
+- `npm run test-anonymous-data` - Test anonymous user data collection
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Anonymous User Data Collection
 
-## What technologies are used for this project?
+The platform collects interview data for both authenticated and anonymous users. For anonymous users, all interview data is collected except for personally identifiable information.
 
-This project is built with .
+To check anonymous user data:
+1. Visit `/analytics/anonymous-data` in the application
+2. Or run `npm run test-anonymous-data` to simulate data collection
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+See [ANONYMOUS_USER_DATA.md](ANONYMOUS_USER_DATA.md) for detailed information.
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/21bb4659-713c-41f1-bac2-54d39a22da7b) and click on Share -> Publish.
+### Firebase Deployment
 
-## I want to use a custom domain - is that possible?
+1. Install Firebase CLI: `npm install -g firebase-tools`
+2. Login to Firebase: `firebase login`
+3. Deploy hosting: `npm run deploy:hosting`
+4. Deploy rules: `npm run deploy:rules`
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## Project Structure
+
+```
+src/
+├── components/        # React components
+├── hooks/            # Custom React hooks
+├── lib/              # Utility libraries
+├── pages/            # Page components
+├── services/         # Business logic services
+├── styles/           # CSS and styling
+├── types/            # TypeScript types
+└── App.tsx          # Main application component
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a pull request
+
+## License
+
+This project is licensed under the MIT License.

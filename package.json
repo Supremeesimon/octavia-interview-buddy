@@ -12,10 +12,13 @@
     "preview": "vite preview",
     "deploy": "./deploy.sh",
     "deploy:hosting": "npm run build && firebase deploy --only hosting",
-    "deploy:rules": "firebase deploy --only firestore:rules,storage:rules",
+    "deploy:rules": "firebase deploy --only firestore:rules",
     "firebase:emulators": "firebase emulators:start",
     "firebase:login": "firebase login",
-    "firebase:use": "firebase use octavia-practice-interviewer"
+    "firebase:use": "firebase use octavia-practice-interviewer",
+    "test-anonymous-data": "npx tsx src/scripts/test-anonymous-interview.ts",
+    "debug-vapi": "npx tsx src/scripts/debug-vapi-service.ts",
+    "test-data-saving": "npx tsx src/scripts/test-data-saving.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -52,6 +55,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
+    "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.3.0",
     "firebase": "^12.3.0",
     "firebase-admin": "^13.5.0",
@@ -74,6 +78,7 @@
   "devDependencies": {
     "@eslint/js": "^9.9.0",
     "@tailwindcss/typography": "^0.5.15",
+    "@types/dotenv": "^8.2.0",
     "@types/node": "^22.5.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -82,6 +87,7 @@
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
+    "firebase-tools": "^14.19.1",
     "globals": "^15.9.0",
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",

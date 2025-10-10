@@ -23,6 +23,7 @@ import DepartmentAllocationPage from "./pages/DepartmentAllocationPage";
 import StudentGroupAllocationPage from "./pages/StudentGroupAllocationPage";
 import ComprehensiveAnalyticsDashboard from "./pages/ComprehensiveAnalyticsDashboard";
 import VapiTestPage from "./pages/VapiTestPage";
+import AnonymousDataPage from "./pages/AnonymousDataPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/terms" element={<TermsOfServicePage />} />
           <Route path="/departments" element={<DepartmentAllocationPage />} />
           <Route path="/student-groups" element={<StudentGroupAllocationPage />} />
+          <Route path="/analytics/anonymous-data" element={<AnonymousDataPage />} />
           <Route path="/vapi-test" element={<VapiTestPage />} />
           {/* Jobs pages are temporarily hidden */}
           {/* <Route path="/jobs" element={<JobsPage />} /> */}

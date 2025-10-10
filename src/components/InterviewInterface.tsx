@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router-dom';
 import useVapi from '@/hooks/use-vapi';
 import { useAuth } from '@/hooks/use-auth';
 import type { InterviewFeedback } from '@/types';
-import VapiTest from '@/components/VapiTest';
 
 interface InterviewInterfaceProps {
   resumeData?: {
@@ -41,13 +40,54 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     isLoading: vapiLoading,
     error: vapiError,
     clearError,
-  } = useVapi();
+  } = useVapi({
+    onInterviewEnd: () => {
+      console.log('AI ended the interview - onInterviewEnd callback called');
+      console.log('Setting interviewEnded to true');
+      setInterviewEnded(true);
+      // Clear any error state when interview ends normally
+      console.log('Clearing errors');
+      clearError();
+      // Also clear VAPI error if present
+      if (vapiError) {
+        console.log('Clearing VAPI error');
+        clearError();
+      }
+      // Show success message and navigate to completion page
+      console.log('Showing success toast');
+      toast.success('Interview completed by Octavia AI');
+    }
+  });
   
   // Local state
   const [interviewEnded, setInterviewEnded] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [activeTab, setActiveTab] = useState('transcript');
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
+  
+  // Clear error when interview ends
+  useEffect(() => {
+    if (interviewEnded) {
+      console.log('Interview ended, clearing errors');
+      clearError();
+    }
+  }, [interviewEnded, clearError]);
+  
+  // Also clear error when call becomes inactive
+  useEffect(() => {
+    if (!isCallActive && currentCall && currentCall.status === 'ended') {
+      console.log('Call became inactive and ended, clearing errors');
+      clearError();
+    }
+  }, [isCallActive, currentCall, clearError]);
+  
+  // Clear VAPI error if interview is ended
+  useEffect(() => {
+    if (interviewEnded && vapiError) {
+      console.log('Interview ended but VAPI error still present, clearing it');
+      clearError();
+    }
+  }, [interviewEnded, vapiError, clearError]);
   
   // Sample job data
   const jobData = {
@@ -135,40 +175,86 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     try {
       await endInterview();
       setInterviewEnded(true);
+      // Clear any error state when interview ends normally
+      clearError();
     } catch (error) {
       console.error('Failed to end interview:', error);
+      // Only show error if it's not a normal end
+      const isNormalEnd = error.message && (
+        error.message.includes('call ended') || 
+        error.message.includes('call stopped') ||
+        error.message.includes('ended') ||
+        error.message.includes('disconnected') ||
+        error.message.includes('not connected') ||
+        error.message.includes('no active call') ||
+        error.message.includes('already ended')
+      );
+      
+      if (!isNormalEnd) {
+        toast.error(`Failed to end interview: ${error.message || 'An unknown error occurred'}`);
+      }
     }
-  }, [endInterview]);
+  }, [endInterview, clearError]);
 
   const handleScheduleMore = () => {
     navigate('/resumes');
     toast.success("Redirecting to scheduling page");
   };
   
-  // Simulate microphone levels for visualization
+  // Update audio visualization based on actual volume levels
   useEffect(() => {
-    if (isCallActive && audioVisualizerRef.current) {
-      const bars = audioVisualizerRef.current.querySelectorAll('.audio-bar');
+    if (!isCallActive || !audioVisualizerRef.current) return;
+
+    const bars = audioVisualizerRef.current.querySelectorAll('.audio-bar');
+    let previousVolume = 0;
+    
+    // Use the actual volume level from VAPI
+    const updateBars = () => {
+      // Smooth the volume changes to avoid jittery animation
+      const smoothedVolume = (volumeLevel + previousVolume) / 2;
+      previousVolume = volumeLevel;
       
-      const animateBars = () => {
-        bars.forEach(bar => {
-          const height = Math.floor(Math.random() * 50) + 10;
-          (bar as HTMLElement).style.height = `${height}px`;
-        });
-      };
-      
-      const interval = setInterval(animateBars, 100);
-      return () => clearInterval(interval);
-    }
-  }, [isCallActive]);
-  
+      bars.forEach((bar, index) => {
+        // Create a more dynamic wave-like effect
+        const time = Date.now() / 200;
+        const positionEffect = Math.sin(index * 0.5) * 0.3 + 0.7;
+        const timeEffect = Math.sin(time + index * 0.3) * 0.5 + 0.5;
+        
+        // Combine effects with volume level
+        const combinedEffect = smoothedVolume * positionEffect * timeEffect;
+        
+        // Scale the volume level (0-100) to a height between 5px and 40px
+        const minHeight = 5;
+        const maxHeight = 40;
+        const height = minHeight + (combinedEffect / 100) * (maxHeight - minHeight);
+        
+        (bar as HTMLElement).style.height = `${height}px`;
+        
+        // Add color variation based on volume level
+        let backgroundColor = '';
+        if (smoothedVolume < 30) {
+          backgroundColor = 'bg-green-500'; // Low volume - green
+        } else if (smoothedVolume < 70) {
+          backgroundColor = 'bg-yellow-500'; // Medium volume - yellow
+        } else {
+          backgroundColor = 'bg-red-500'; // High volume - red
+        }
+        
+        // Remove existing background classes and add new one
+        (bar as HTMLElement).className = `audio-bar w-2 rounded-t transition-all duration-75 ease-out ${backgroundColor}`;
+      });
+    };
+    
+    // Update immediately with current volume level
+    updateBars();
+    
+    // Set up an interval to continuously update the visualization
+    const interval = setInterval(updateBars, 50);
+    return () => clearInterval(interval);
+  }, [isCallActive, volumeLevel]);
+
   return (
     <div className="container mx-auto px-4 max-w-7xl">
-      
-      <div className="mb-4">
-        <VapiTest />
-      </div>
-      
       {isCallActive && (
         <div className={cn(
           "sticky top-0 z-10 mb-4 p-3 rounded-lg flex items-center justify-between",
@@ -214,21 +300,80 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
             
-            <p>Thank you for completing your interview. Your responses have been recorded.</p>
+            {user ? (
+              // Authenticated user messaging
+              <>
+                <p>Thank you for completing your interview. Your responses have been recorded.</p>
+                
+                <div className="bg-primary/10 p-4 rounded-lg">
+                  <p className="text-sm">
+                    A calendar invite and interview summary will be sent to your email shortly.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="bg-primary/5 p-3 rounded-lg">
+                    <h4 className="font-medium text-primary">Your Interview Data</h4>
+                    <p>All your responses, performance metrics, and feedback have been saved to your account.</p>
+                  </div>
+                  <div className="bg-primary/5 p-3 rounded-lg">
+                    <h4 className="font-medium text-primary">Next Steps</h4>
+                    <p>Check your dashboard for detailed analysis and improvement recommendations.</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              // Anonymous user messaging
+              <>
+                <p>Thank you for trying Octavia AI Interview Practice!</p>
+                
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                  <p className="text-sm">
+                    <strong>Unlock Your Full Potential:</strong> Sign up to access your detailed interview analysis, 
+                    personalized feedback, and track your progress over time.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="bg-primary/5 p-3 rounded-lg">
+                    <h4 className="font-medium text-primary">Your Interview Data</h4>
+                    <p>We've recorded your responses and performance metrics for your reference.</p>
+                  </div>
+                  <div className="bg-primary/5 p-3 rounded-lg">
+                    <h4 className="font-medium text-primary">Get Your Analysis</h4>
+                    <p>Sign up to receive your detailed performance feedback and improvement suggestions.</p>
+                  </div>
+                </div>
+              </>
+            )}
             
-            <div className="bg-primary/10 p-4 rounded-lg">
-              <p className="text-sm">
-                A calendar invite and interview summary will be sent to your email shortly.
-              </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {user ? (
+                <Button 
+                  onClick={handleScheduleMore} 
+                  className="gap-2"
+                >
+                  Schedule More Interviews
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    onClick={() => navigate('/signup')} 
+                    className="gap-2"
+                  >
+                    Create Account
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={handleScheduleMore}
+                  >
+                    Try Another Interview
+                  </Button>
+                </>
+              )}
             </div>
-            
-            <Button 
-              onClick={handleScheduleMore} 
-              className="gap-2"
-            >
-              Schedule More Interviews
-              <ArrowRight className="h-4 w-4" />
-            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -245,6 +390,9 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                 )}
                 {vapiError && (
                   <p className="text-sm text-red-600 mt-2">Connection error. Please try again.</p>
+                )}
+                {!isConnecting && !isConnected && !vapiError && isCallActive && (
+                  <p className="text-sm text-green-600 mt-2">Connected to Octavia AI</p>
                 )}
               </div>
             </div>
@@ -324,11 +472,14 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                     {[...Array(20)].map((_, i) => (
                       <div
                         key={i}
-                        className="audio-bar bg-primary w-2 rounded-t transition-all duration-100"
-                        style={{ height: '10px' }}
+                        className="audio-bar bg-primary w-2 rounded-t transition-all duration-75 ease-out"
+                        style={{ height: '5px' }}
                       />
                     ))}
                   </div>
+                  <p className="text-xs text-center text-muted-foreground mt-2">
+                    {isCallActive ? "Audio levels are responding to speech" : "Start interview to see audio visualization"}
+                  </p>
                 </div>
               </div>
             )}
@@ -359,7 +510,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                 {activeTab === 'transcript' ? (
                   transcript ? (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                      <p className="text-sm">{transcript}</p>
+                      <p className="text-sm whitespace-pre-wrap">{transcript}</p>
                     </div>
                   ) : (
                     <div className="flex items-center justify-center h-32 text-muted-foreground">
