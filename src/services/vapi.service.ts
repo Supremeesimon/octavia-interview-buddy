@@ -182,7 +182,13 @@ export class VapiService {
       };
       
       // Handle end-of-call analysis data
+      // Only save if analysis exists and hasn't been saved already through the analysis event
       if (call.analysis) {
+        // Check if this is a complete analysis (has summary)
+        if (call.analysis.summary) {
+          console.log('Call-end event has complete analysis, but it may have already been saved through analysis event');
+          // We'll still call handleEndOfCallAnalysis, but the Firebase operation should be idempotent
+        }
         await this.handleEndOfCallAnalysis(call);
       }
       
@@ -273,13 +279,39 @@ export class VapiService {
     });
 
     // Add listener for analysis updates
-    this.vapi.on('analysis', (analysis: any) => {
+    this.vapi.on('analysis', async (analysis: any) => {
       console.log('VAPI analysis received:', analysis);
       this.callbacks.onAnalysis?.(analysis);
       
-      // If this is an end-of-call analysis, also call onInterviewEnd
+      // If this is an end-of-call analysis, save it to Firebase and call onInterviewEnd
       if (analysis && analysis.summary) {
-        console.log('Analysis has summary, calling onInterviewEnd callback');
+        console.log('Analysis has summary, saving to Firebase and calling onInterviewEnd callback');
+        
+        // Create a mock call object to pass to handleEndOfCallAnalysis
+        // This is needed because the analysis event doesn't include call metadata
+        const mockCall = {
+          id: `call_${Date.now()}`, // This will be replaced if we have a current call
+          analysis: analysis,
+          metadata: this.currentCall?.metadata || {},
+          transcript: '', // Transcript is handled separately
+          recordingUrl: '',
+          duration: 0
+        };
+        
+        // If we have a current call, use its ID and other properties
+        if (this.currentCall) {
+          mockCall.id = this.currentCall.id;
+          mockCall.metadata = this.currentCall.metadata || mockCall.metadata;
+        }
+        
+        // Save the analysis data to Firebase
+        try {
+          await this.handleEndOfCallAnalysis(mockCall);
+          console.log('End-of-call analysis saved to Firebase successfully');
+        } catch (error) {
+          console.error('Failed to save end-of-call analysis to Firebase:', error);
+        }
+        
         this.callbacks.onInterviewEnd?.();
       }
     });
