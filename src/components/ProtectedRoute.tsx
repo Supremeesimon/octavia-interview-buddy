@@ -14,24 +14,37 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole 
 }) => {
   const { user, isLoading, isAuthenticated } = useFirebaseAuth();
+  
+  console.log('ProtectedRoute check:', { user, isLoading, isAuthenticated, requiredRole });
 
   // Show loading state while checking auth
   if (isLoading) {
+    console.log('ProtectedRoute: Still loading auth state');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2">Loading...</span>
       </div>
     );
   }
 
+  // Handle authentication errors
+  if (!isAuthenticated && !isLoading) {
+    console.log('ProtectedRoute: User not authenticated');
+    toast.error('Please log in to access this page');
+    return <Navigate to="/login" replace />;
+  }
+
   // Redirect to login if not authenticated
-  if (!isAuthenticated || !user) {
+  if (!user) {
+    console.log('ProtectedRoute: No user found');
     toast.error('Please log in to access this page');
     return <Navigate to="/login" replace />;
   }
 
   // Check role requirements if specified
   if (requiredRole && user.role !== requiredRole) {
+    console.log('ProtectedRoute: User role mismatch', { userRole: user.role, requiredRole });
     toast.error('You do not have permission to access this page');
     // Redirect based on user role
     switch (user.role) {
@@ -46,6 +59,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }
 
+  console.log('ProtectedRoute: User authorized, rendering children');
   return <>{children}</>;
 };
 

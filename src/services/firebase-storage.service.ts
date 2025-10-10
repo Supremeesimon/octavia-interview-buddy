@@ -58,9 +58,11 @@ export class FirebaseStorageService {
     resumeId: string,
     onProgress?: (progress: UploadProgress) => void
   ): Promise<{ downloadURL: string; metadata: FileMetadata }> {
+    console.log(`Uploading resume for user ${userId} with resumeId ${resumeId}`);
     this.validateFile(file, 'resume');
     
     const filePath = `${this.STORAGE_PATHS.resumes}/${userId}/${resumeId}`;
+    console.log(`File path: ${filePath}`);
     const storageRef = ref(storage, filePath);
     
     if (onProgress) {
@@ -77,13 +79,18 @@ export class FirebaseStorageService {
             };
             onProgress(progress);
           },
-          (error) => reject(this.handleStorageError(error)),
+          (error) => {
+            console.error('Upload error:', error);
+            reject(this.handleStorageError(error));
+          },
           async () => {
             try {
               const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
               const metadata = await this.getFileMetadata(filePath);
+              console.log('Upload completed successfully');
               resolve({ downloadURL, metadata });
             } catch (error) {
+              console.error('Error getting file metadata:', error);
               reject(this.handleStorageError(error));
             }
           }
@@ -93,6 +100,7 @@ export class FirebaseStorageService {
       const snapshot = await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(snapshot.ref);
       const metadata = await this.getFileMetadata(filePath);
+      console.log('Upload completed successfully');
       return { downloadURL, metadata };
     }
   }
@@ -272,31 +280,57 @@ export class FirebaseStorageService {
   // List user files
   async listUserFiles(userId: string, folder: keyof typeof this.STORAGE_PATHS): Promise<FileMetadata[]> {
     try {
+      console.log(`Listing files for user ${userId} in folder ${folder}`);
       const folderRef = ref(storage, `${this.STORAGE_PATHS[folder]}/${userId}`);
-      const result = await listAll(folderRef);
+      console.log(`Folder ref path: ${folderRef.toString()}`);
       
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('File listing timeout')), 10000);
+      });
+      
+      const listAllPromise = listAll(folderRef);
+      const result = await Promise.race([listAllPromise, timeoutPromise]) as any;
+      
+      console.log(`Found ${result.items.length} items and ${result.prefixes.length} prefixes`);
+      
+      // Limit concurrent metadata requests to prevent overload
       const files: FileMetadata[] = [];
-      for (const itemRef of result.items) {
-        try {
-          const metadata = await getMetadata(itemRef);
-          const downloadURL = await getDownloadURL(itemRef);
-          
-          files.push({
-            name: metadata.name,
-            size: metadata.size,
-            contentType: metadata.contentType || 'unknown',
-            timeCreated: metadata.timeCreated,
-            updated: metadata.updated,
-            downloadURL
-          });
-        } catch (itemError) {
-          // Continue with other items even if one fails
-        }
+      const batchSize = 5;
+      
+      for (let i = 0; i < result.items.length; i += batchSize) {
+        const batch = result.items.slice(i, i + batchSize);
+        const batchPromises = batch.map(async (itemRef: any) => {
+          try {
+            console.log(`Processing item: ${itemRef.name}`);
+            const metadata = await getMetadata(itemRef);
+            const downloadURL = await getDownloadURL(itemRef);
+            
+            return {
+              name: metadata.name,
+              size: metadata.size,
+              contentType: metadata.contentType || 'unknown',
+              timeCreated: metadata.timeCreated,
+              updated: metadata.updated,
+              downloadURL
+            };
+          } catch (itemError) {
+            console.error(`Error processing item ${itemRef.name}:`, itemError);
+            return null; // Return null for failed items
+          }
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        // Filter out null results (failed items)
+        files.push(...batchResults.filter(result => result !== null) as FileMetadata[]);
       }
       
+      console.log(`Returning ${files.length} files`);
       return files.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
     } catch (error) {
-      // Return empty array instead of throwing error
+      console.error('Error listing user files:', error);
+      // Return empty array instead of throwing error, but log it
+      console.error('Returning empty array due to error');
       return [];
     }
   }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import StudentDashboard from '@/components/StudentDashboard';
@@ -8,17 +8,39 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 
 const StudentDashboardPage = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isLoading } = useFirebaseAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  useEffect(() => {
+    console.log('StudentDashboardPage rendered with user:', user, 'isLoading:', isLoading);
+  }, [user, isLoading]);
   
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     // Keep everything within this page - no navigation
   };
+  
+  // Show loading state while auth is checking
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  // Redirect to login if not authenticated
+  if (!user) {
+    console.log('No user found, redirecting to login');
+    navigate('/login');
+    return null;
+  }
   
   return (
     <div className="min-h-screen flex flex-col overflow-hidden w-full">

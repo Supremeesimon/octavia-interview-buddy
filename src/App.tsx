@@ -28,43 +28,47 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider delayDuration={300}>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/interview" element={<Interview />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
-          <Route path="/resumes" element={<ProtectedRoute requiredRole="student"><ResumesPage /></ProtectedRoute>} />
-          <Route path="/analytics" element={<ProtectedRoute><ComprehensiveAnalyticsDashboard /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute requiredRole="platform_admin"><AdminControlPanel /></ProtectedRoute>} />
-          <Route path="/admin/add-institution" element={<ProtectedRoute requiredRole="platform_admin"><AddInstitutionPage /></ProtectedRoute>} />
-          <Route path="/admin/institution/:id/analytics" element={<ProtectedRoute requiredRole="platform_admin"><InstitutionAnalyticsPage /></ProtectedRoute>} />
-          <Route path="/admin/export" element={<ProtectedRoute requiredRole="platform_admin"><ExportDataPage /></ProtectedRoute>} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/privacy" element={<PrivacyPolicyPage />} />
-          <Route path="/terms" element={<TermsOfServicePage />} />
-          <Route path="/departments" element={<DepartmentAllocationPage />} />
-          <Route path="/student-groups" element={<StudentGroupAllocationPage />} />
-          <Route path="/analytics/anonymous-data" element={<AnonymousDataPage />} />
-          <Route path="/vapi-test" element={<VapiTestPage />} />
-          {/* Jobs pages are temporarily hidden */}
-          {/* <Route path="/jobs" element={<JobsPage />} /> */}
-          {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}
-          {/* <Route path="/jobs/apply/:id" element={<JobApplicationPage />} /> */}
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  console.log('App component rendered');
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider delayDuration={300}>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter basename="/">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/interview" element={<Interview />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
+            <Route path="/resumes" element={<ProtectedRoute requiredRole="student"><ResumesPage /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><ComprehensiveAnalyticsDashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute requiredRole="platform_admin"><AdminControlPanel /></ProtectedRoute>} />
+            <Route path="/admin/add-institution" element={<ProtectedRoute requiredRole="platform_admin"><AddInstitutionPage /></ProtectedRoute>} />
+            <Route path="/admin/institution/:id/analytics" element={<ProtectedRoute requiredRole="platform_admin"><InstitutionAnalyticsPage /></ProtectedRoute>} />
+            <Route path="/admin/export" element={<ProtectedRoute requiredRole="platform_admin"><ExportDataPage /></ProtectedRoute>} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsOfServicePage />} />
+            <Route path="/departments" element={<DepartmentAllocationPage />} />
+            <Route path="/student-groups" element={<StudentGroupAllocationPage />} />
+            <Route path="/analytics/anonymous-data" element={<AnonymousDataPage />} />
+            <Route path="/vapi-test" element={<VapiTestPage />} />
+            {/* Jobs pages are temporarily hidden */}
+            {/* <Route path="/jobs" element={<JobsPage />} /> */}
+            {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}
+            {/* <Route path="/jobs/apply/:id" element={<JobApplicationPage />} /> */}
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

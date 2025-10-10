@@ -62,51 +62,60 @@ export const useStudentDashboard = (): StudentDashboardData => {
         );
 
         const unsubscribe = onSnapshot(interviewsQuery, (snapshot) => {
-          const interviews = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...(doc.data() as any)
-          } as Interview));
+          try {
+            const interviews = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...(doc.data() as any)
+            } as Interview));
 
-          // Find scheduled interview (next upcoming)
-          const now = new Date();
-          const scheduledInterview = interviews.find(interview => 
-            interview.status === 'scheduled' && 
-            interview.scheduledAt && 
-            new Date(interview.scheduledAt) > now
-          ) || null;
+            // Find scheduled interview (next upcoming)
+            const now = new Date();
+            const scheduledInterview = interviews.find(interview => 
+              interview.status === 'scheduled' && 
+              interview.scheduledAt && 
+              new Date(interview.scheduledAt) > now
+            ) || null;
 
-          // Check for scheduled interviews
-          const hasScheduledInterviews = interviews.some(interview => 
-            interview.status === 'scheduled' && 
-            interview.scheduledAt && 
-            new Date(interview.scheduledAt) > now
-          );
+            // Check for scheduled interviews
+            const hasScheduledInterviews = interviews.some(interview => 
+              interview.status === 'scheduled' && 
+              interview.scheduledAt && 
+              new Date(interview.scheduledAt) > now
+            );
 
-          // Check for LinkedIn profile (simplified check - in a real implementation, 
-          // you would check for actual LinkedIn URLs in the resume data)
-          const hasLinkedIn = interviews.some(interview => 
-            interview.resumeId && interview.resumeId.includes('linkedin')
-          );
+            // Check for LinkedIn profile (simplified check - in a real implementation, 
+            // you would check for actual LinkedIn URLs in the resume data)
+            const hasLinkedIn = interviews.some(interview => 
+              interview.resumeId && interview.resumeId.includes('linkedin')
+            );
 
-          // Calculate completed interviews and average score
-          const completedInterviews = interviews.filter(i => i.status === 'completed').length;
-          const totalScore = interviews
-            .filter(i => i.status === 'completed' && i.score)
-            .reduce((sum, interview) => sum + (interview.score || 0), 0);
-          const averageScore = completedInterviews > 0 ? totalScore / completedInterviews : 0;
+            // Calculate completed interviews and average score
+            const completedInterviews = interviews.filter(i => i.status === 'completed').length;
+            const totalScore = interviews
+              .filter(i => i.status === 'completed' && i.score)
+              .reduce((sum, interview) => sum + (interview.score || 0), 0);
+            const averageScore = completedInterviews > 0 ? totalScore / completedInterviews : 0;
 
-          setData({
-            interviews,
-            stats,
-            scheduledInterview,
-            completedInterviews,
-            averageScore,
-            hasResumes,
-            hasLinkedIn,
-            hasScheduledInterviews,
-            isLoading: false,
-            error: null
-          });
+            setData({
+              interviews,
+              stats,
+              scheduledInterview,
+              completedInterviews,
+              averageScore,
+              hasResumes,
+              hasLinkedIn,
+              hasScheduledInterviews,
+              isLoading: false,
+              error: null
+            });
+          } catch (error) {
+            console.error('Error processing interview data:', error);
+            setData(prev => ({
+              ...prev,
+              isLoading: false,
+              error: 'Failed to process interview data'
+            }));
+          }
         }, (error) => {
           console.error('Error fetching interviews:', error);
           setData(prev => ({
@@ -122,7 +131,7 @@ export const useStudentDashboard = (): StudentDashboardData => {
         setData(prev => ({
           ...prev,
           isLoading: false,
-          error: 'Failed to load dashboard data'
+          error: error instanceof Error ? error.message : 'Failed to load dashboard data'
         }));
       }
     };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Upload, Loader2, Download } from 'lucide-react';
+import { FileText, Upload, Loader2, Download, AlertCircle } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import { Input } from '@/components/ui/input';
@@ -9,43 +9,79 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 
 const SimpleResumesList = () => {
-  const { user } = useFirebaseAuth();
+  const { user, isLoading: isAuthLoading } = useFirebaseAuth();
   const { uploadResume, listUserFiles, isUploading, uploadProgress } = useFirebaseStorage();
   
   const [resumes, setResumes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Load user's resumes from Firebase
   useEffect(() => {
+    let isMounted = true; // Add this to prevent state updates after unmount
+    
     const loadResumes = async () => {
-      if (!user) {
-        setIsLoading(false);
+      // Wait for auth to be ready
+      if (isAuthLoading) {
+        console.log('Auth is still loading...');
         return;
       }
       
+      if (!user) {
+        console.log('No user found, setting loading to false');
+        if (isMounted) setIsLoading(false);
+        return;
+      }
+      
+      console.log('Loading resumes for user:', user.id);
+      
       try {
-        setIsLoading(true);
-        const userFiles = await listUserFiles(user.id, 'resumes');
-        setResumes(userFiles.map(file => ({
-          id: file.name,
-          name: file.name,
-          size: file.size,
-          updated: file.updated,
-          downloadURL: file.downloadURL,
-          contentType: file.contentType
-        })));
+        if (isMounted) {
+          setIsLoading(true);
+          setError(null);
+        }
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 15000);
+        });
+        
+        const listFilesPromise = listUserFiles(user.id, 'resumes');
+        const userFiles = await Promise.race([listFilesPromise, timeoutPromise]) as any;
+        
+        console.log('Loaded user files:', userFiles);
+        if (isMounted) {
+          setResumes(userFiles.map((file: any) => ({
+            id: file.name,
+            name: file.name,
+            size: file.size,
+            updated: file.updated,
+            downloadURL: file.downloadURL,
+            contentType: file.contentType
+          })));
+        }
       } catch (error) {
         console.error('Error loading resumes:', error);
-        toast.error('Failed to load resumes');
+        if (isMounted) {
+          setError(error instanceof Error ? error.message : 'Failed to load resumes');
+          toast.error('Failed to load resumes: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     
     loadResumes();
-  }, [user, listUserFiles]);
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [user, listUserFiles, isAuthLoading]);
   
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -88,25 +124,43 @@ const SimpleResumesList = () => {
       
       setShowUploadDialog(false);
       setSelectedFile(null);
+      toast.success('Resume uploaded successfully!');
     } catch (error) {
       console.error('Error uploading resume:', error);
+      setError(error instanceof Error ? error.message : 'Failed to upload resume');
       toast.error('Failed to upload resume');
     }
   };
   
   const handleDownload = (downloadURL: string, fileName: string) => {
-    const link = document.createElement('a');
-    link.href = downloadURL;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const link = document.createElement('a');
+      link.href = downloadURL;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error('Failed to download file');
+    }
   };
+  
+  // Show loading state while auth is checking
+  if (isAuthLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Checking authentication...</span>
+      </div>
+    );
+  }
   
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading your resumes...</span>
       </div>
     );
   }
@@ -120,6 +174,15 @@ const SimpleResumesList = () => {
           Upload Resume
         </Button>
       </div>
+      
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <p className="text-red-800">{error}</p>
+          </div>
+        </div>
+      )}
       
       {user ? (
         resumes.length > 0 ? (
@@ -204,6 +267,12 @@ const SimpleResumesList = () => {
                     <span>{Math.round(uploadProgress.percentage)}%</span>
                   </div>
                   <Progress value={uploadProgress.percentage} />
+                </div>
+              )}
+              
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-2">
+                  <p className="text-red-800 text-sm">{error}</p>
                 </div>
               )}
             </div>

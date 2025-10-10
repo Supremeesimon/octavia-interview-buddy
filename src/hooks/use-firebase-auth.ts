@@ -20,6 +20,7 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -32,6 +33,7 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
           setUser(userProfile);
         } catch (error) {
           console.error('Error getting user profile:', error);
+          setError(error instanceof Error ? error.message : 'Failed to get user profile');
           setUser(null);
         }
       } else {
@@ -49,6 +51,9 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     try {
       const result = await firebaseAuthService.login({ email, password });
       return result;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Login failed');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -59,6 +64,9 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     try {
       const result = await firebaseAuthService.register(data);
       return result;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Registration failed');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -69,6 +77,9 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     try {
       const result = await firebaseAuthService.loginWithGoogle();
       return result;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Google login failed');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -78,13 +89,21 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     setIsLoading(true);
     try {
       await firebaseAuthService.logout();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Logout failed');
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
   const requestPasswordReset = async (email: string) => {
-    await firebaseAuthService.requestPasswordReset(email);
+    try {
+      await firebaseAuthService.requestPasswordReset(email);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Password reset request failed');
+      throw error;
+    }
   };
 
   return {

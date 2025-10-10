@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { File, FileText, Upload, Calendar, Clock, Download, Pencil, Trash2, Plus, Loader2 } from 'lucide-react';
+import { File, FileText, Upload, Calendar, Clock, Download, Pencil, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
@@ -19,6 +19,10 @@ const ResumesList = () => {
   const [resumes, setResumes] = useState<any[]>([]);
   const [isLoadingResumes, setIsLoadingResumes] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(0); // Add this for resetting file input
+  
+  // Add ref for file input
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   // Load user's resumes from Firebase
   useEffect(() => {
@@ -106,7 +110,16 @@ const ResumesList = () => {
       setShowUploadDialog(false);
     }
   };
-  
+
+  const resetFileInput = () => {
+    setFileInputKey(prev => prev + 1); // Force re-render of input
+  };
+
+  const handleResumeUploadClick = () => {
+    // Trigger click on the hidden file input
+    fileInputRef.current?.click();
+  };
+
   const handleDeleteResume = async (resumeId: string, fileName: string) => {
     if (!user) return;
     
@@ -141,7 +154,10 @@ const ResumesList = () => {
       
       {error && (
         <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
-          <p className="text-destructive text-sm">{error}</p>
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-destructive mr-2" />
+            <p className="text-destructive text-sm">{error}</p>
+          </div>
         </div>
       )}
       
@@ -254,15 +270,30 @@ const ResumesList = () => {
             <DialogTitle>Upload Resume</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              type="file"
-              accept=".pdf,.doc,.docx"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleFileUpload(e.target.files[0]);
-                }
-              }}
-            />
+            <label 
+              className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors block"
+              onClick={handleResumeUploadClick}
+            >
+              <Upload className="h-12 w-12 mx-auto text-muted-foreground opacity-30 mb-2" />
+              <p className="text-muted-foreground mb-2">Drag and drop your resume here</p>
+              <p className="text-xs text-muted-foreground mb-4">or</p>
+              <Button type="button" variant="outline">
+                Browse Files
+              </Button>
+              <input 
+                key={fileInputKey} // Add key to reset input
+                ref={fileInputRef} // Add ref
+                type="file" 
+                className="hidden" 
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleFileUpload(e.target.files[0]);
+                    resetFileInput(); // Reset for next use
+                  }
+                }}
+              />
+            </label>
             <p className="text-sm text-muted-foreground">
               Supported formats: PDF, DOC, DOCX (Max 10MB)
             </p>

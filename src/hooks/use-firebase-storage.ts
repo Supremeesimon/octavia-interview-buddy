@@ -34,6 +34,7 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
     file: File,
     resumeId: string
   ): Promise<{ downloadURL: string; metadata: FileMetadata } | null> => {
+    console.log(`useFirebaseStorage: uploadResume called with userId=${userId}, fileName=${file.name}`);
     setIsUploading(true);
     setError(null);
     setUploadProgress(null);
@@ -47,10 +48,12 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
       );
       
       toast.success(`Resume "${file.name}" uploaded successfully!`);
+      console.log('useFirebaseStorage: uploadResume completed successfully');
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload resume';
       setError(errorMessage);
+      console.error('useFirebaseStorage: uploadResume failed:', err);
       toast.error(errorMessage);
       return null;
     } finally {
@@ -169,10 +172,13 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
     setError(null);
 
     try {
+      console.log(`useFirebaseStorage: listUserFiles called with userId=${userId}, folder=${folder}`);
       const result = await firebaseStorageService.listUserFiles(userId, folder);
+      console.log(`useFirebaseStorage: listUserFiles completed with ${result.length} files`);
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load files';
+      console.error('useFirebaseStorage: listUserFiles failed:', err);
       setError(errorMessage);
       toast.error(errorMessage);
       return [];

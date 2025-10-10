@@ -37,6 +37,11 @@ const StudentDashboard = () => {
   const [showBookingCalendar, setShowBookingCalendar] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0); // Add this for resetting file input
+  
+  // Add ref for file input
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const { user } = useFirebaseAuth();
   const { uploadResume } = useFirebaseStorage();
@@ -56,6 +61,15 @@ const StudentDashboard = () => {
   // Use real student name from auth
   const studentName = user?.name || "Student";
   
+  // Add this helper function
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+  
   // Process interview history from Firebase data
   const interviewHistory = interviews.map(interview => ({
     id: interview.id,
@@ -74,7 +88,12 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleResumeUpload = async (e) => {
+  const handleResumeUploadClick = () => {
+    // Trigger click on the hidden file input
+    fileInputRef.current?.click();
+  };
+
+  const handleResumeUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedFile || !user) {
@@ -82,24 +101,35 @@ const StudentDashboard = () => {
       return;
     }
     
+    console.log(`StudentDashboard: handleResumeUpload called with file ${selectedFile.name}`);
+    
     try {
       setIsUploading(true);
+      setError(null);
       const resumeId = `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      await uploadResume(user.id, selectedFile, resumeId);
-      toast.success("Resume uploaded successfully!");
-      setSelectedFile(null);
+      console.log(`StudentDashboard: Uploading resume with ID ${resumeId} for user ${user.id}`);
+      const result = await uploadResume(user.id, selectedFile, resumeId);
+      
+      if (result) {
+        toast.success("Resume uploaded successfully!");
+        setSelectedFile(null);
+        resetFileInput();
+      } else {
+        throw new Error("Upload failed");
+      }
       
       // Optionally navigate to the resumes tab to see the uploaded file
       // window.location.href = '/student?tab=resumes';
     } catch (error) {
       console.error('Error uploading resume:', error);
+      setError(error instanceof Error ? error.message : 'Failed to upload resume');
       toast.error("Failed to upload resume. Please try again.");
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleLinkedinSubmit = (e) => {
+  const handleLinkedinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (linkedinUrl.includes('linkedin.com')) {
       toast.success("LinkedIn URL added successfully!");
@@ -116,6 +146,11 @@ const StudentDashboard = () => {
     setShowBookingCalendar(false);
   };
   
+  const resetFileInput = () => {
+    setFileInputKey(prev => prev + 1); // Force re-render of input
+    setSelectedFile(null);
+  };
+
   // Show loading state while data is being fetched
   if (isLoading || isFeedbackLoading) {
     return (
@@ -129,6 +164,13 @@ const StudentDashboard = () => {
   
   return (
     <div className="container mx-auto px-4 max-w-5xl">
+      {/* Error message */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-800">{error}</p>
+        </div>
+      )}
+      
       {/* Welcome/Onboarding Panel */}
       <Card className="mb-8 bg-primary/5 border-primary/20">
         <CardContent className="p-6">
@@ -206,7 +248,7 @@ const StudentDashboard = () => {
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => setSelectedFile(null)}
+                    onClick={resetFileInput}
                   >
                     Remove
                   </Button>
@@ -228,7 +270,10 @@ const StudentDashboard = () => {
               </div>
             ) : (
               <div className="mb-4">
-                <label className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-primary/50 transition-colors">
+                <label 
+                  className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-primary/50 transition-colors block"
+                  onClick={handleResumeUploadClick}
+                >
                   <Upload className="h-12 w-12 mx-auto text-muted-foreground opacity-30 mb-2" />
                   <p className="text-muted-foreground mb-2">Drag and drop your resume here</p>
                   <p className="text-xs text-muted-foreground mb-4">or</p>
@@ -236,6 +281,8 @@ const StudentDashboard = () => {
                     Browse Files
                   </Button>
                   <input 
+                    key={fileInputKey} // Add key to reset input
+                    ref={fileInputRef} // Add ref
                     type="file" 
                     className="hidden" 
                     accept=".pdf,.doc,.docx"
@@ -535,10 +582,3 @@ const StudentDashboard = () => {
 };
 
 export default StudentDashboard;
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
