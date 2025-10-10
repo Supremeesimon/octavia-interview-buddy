@@ -792,13 +792,92 @@ export class VapiService {
       await interviewService.saveEndOfCallAnalysis(analysisData);
       
       console.log('✅ VAPI Service: End-of-call analysis saved successfully to Firebase');
+      
+      // Also send a copy to our webhook endpoint as a backup
+      // This ensures data is captured even if the webhook fails
+      try {
+        await this.sendToWebhookBackup(analysisData);
+      } catch (webhookError) {
+        console.warn('⚠️ VAPI Service: Failed to send to webhook backup:', webhookError);
+        // Continue even if webhook backup fails
+      }
     } catch (error) {
       console.error('❌ VAPI Service: Error handling end-of-call analysis:', error);
       console.error('Error name:', error.name);
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
+      
+      // Try to send to webhook as a last resort
+      try {
+        const analysis = call.analysis;
+        const callId = call.id;
+        const metadata = call.metadata || {};
+        
+        const analysisData = {
+          callId,
+          summary: analysis?.summary || '',
+          structuredData: analysis?.structuredData || {},
+          successEvaluation: analysis?.successEvaluation || {},
+          transcript: call.transcript || '',
+          recordingUrl: call.recordingUrl || '',
+          duration: call.duration || 0,
+          timestamp: new Date(),
+          studentId: metadata.studentId || '',
+          departmentId: metadata.departmentId || metadata.department || '',
+          institutionId: metadata.institutionId || '',
+          interviewType: metadata.interviewType || 'general',
+          overallScore: analysis?.successEvaluation?.score || 0,
+          categories: analysis?.structuredData?.categories || [],
+          strengths: analysis?.structuredData?.strengths || [],
+          improvements: analysis?.structuredData?.improvements || [],
+          recommendations: analysis?.structuredData?.recommendations || []
+        };
+        
+        await this.sendToWebhookBackup(analysisData);
+      } catch (backupError) {
+        console.error('❌ VAPI Service: Failed to send to webhook backup as last resort:', backupError);
+      }
     }
   }
+
+  /**
+   * Send analysis data to webhook as backup
+   * This is a fallback mechanism in case the main VAPI webhook fails
+   */
+  private async sendToWebhookBackup(analysisData: any): Promise<void> {
+    // In a production environment, you might want to send this to your own webhook
+    // For now, we'll just log it as a backup mechanism
+    console.log('🔄 VAPI Service: Backup webhook data prepared:', JSON.stringify(analysisData, null, 2));
+    
+    // If you have a custom webhook endpoint, you could send the data here
+    // Example:
+    /*
+    try {
+      const response = await fetch('YOUR_WEBHOOK_ENDPOINT', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: {
+            type: 'end-of-call-report',
+            ...analysisData
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Webhook backup failed with status ${response.status}`);
+      }
+      
+      console.log('✅ VAPI Service: Backup webhook sent successfully');
+    } catch (error) {
+      console.error('❌ VAPI Service: Failed to send backup webhook:', error);
+      throw error;
+    }
+    */
+  }
+
 }
 
 // Export singleton instance

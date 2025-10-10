@@ -33,6 +33,11 @@ service cloud.firestore {
     function sameInstitution(institutionDomain) {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.institutionDomain == institutionDomain;
     }
+    
+    // Allow Firebase Functions to write data (for webhook integration)
+    function isServerProcess() {
+      return request.auth.token.admin == true;
+    }
 
     // Users collection
     match /users/{userId} {
@@ -106,6 +111,9 @@ service cloud.firestore {
       // Institution admins can read feedback from their institution
       allow read: if isAuthenticated() && isInstitutionAdmin() && 
                   sameInstitution(resource.data.institutionDomain);
+      
+      // Firebase Functions can write feedback (for webhook integration)
+      allow write: if isServerProcess();
     }
 
     // Session purchases collection
@@ -152,6 +160,9 @@ service cloud.firestore {
       
       // Allow write for anonymous users (empty studentId indicates anonymous)
       allow create: if request.resource.data.studentId == '';
+      
+      // Allow Firebase Functions to write data (for webhook integration)
+      allow create, write: if isServerProcess();
     }
     
     // Interviews collection
@@ -167,6 +178,9 @@ service cloud.firestore {
       
       // Allow write for anonymous users (empty studentId indicates anonymous)
       allow create: if request.resource.data.studentId == '';
+      
+      // Allow Firebase Functions to write data (for webhook integration)
+      allow create, write: if isServerProcess();
     }
 
     // System configuration (platform admins only)
