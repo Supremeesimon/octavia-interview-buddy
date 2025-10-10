@@ -286,7 +286,9 @@ export class InterviewService {
   // Save end-of-call analysis data with proper hierarchy
   async saveEndOfCallAnalysis(analysisData: any): Promise<void> {
     try {
-      console.log('Interview Service: Saving end-of-call analysis', {
+      console.log('💾 Interview Service: saveEndOfCallAnalysis called with data:', JSON.stringify(analysisData, null, 2));
+      
+      console.log('📋 Interview Service: Preparing analysis data for saving', {
         callId: analysisData.callId,
         studentId: analysisData.studentId ? 'Present' : 'Empty (anonymous)',
         hasSummary: !!analysisData.summary,
@@ -302,40 +304,42 @@ export class InterviewService {
         createdAt: serverTimestamp()
       };
 
-      console.log('Interview Service: Attempting to save to Firestore collection:', this.COLLECTIONS.endOfCallAnalysis);
+      console.log('☁️ Interview Service: Attempting to save to Firestore collection:', this.COLLECTIONS.endOfCallAnalysis);
+      console.log('📄 Interview Service: Document ID to be created:', analysisId);
       
       await setDoc(doc(db, this.COLLECTIONS.endOfCallAnalysis, analysisId), analysisRecord);
       
-      console.log('Interview Service: Successfully saved end-of-call analysis to Firestore');
+      console.log('✅ Interview Service: Successfully saved end-of-call analysis to Firestore');
       
       // Update student statistics
       if (analysisData.studentId) {
-        console.log('Interview Service: Updating student stats for student:', analysisData.studentId);
+        console.log('📈 Interview Service: Updating student stats for student:', analysisData.studentId);
         await this.updateStudentStatsFromAnalysis(analysisData.studentId, analysisData);
       } else {
-        console.log('Interview Service: No studentId provided, skipping student stats update (anonymous user)');
+        console.log('ℹ️ Interview Service: No studentId provided, skipping student stats update (anonymous user)');
       }
       
       // Update department statistics
       if (analysisData.department) {
-        console.log('Interview Service: Updating department stats for department:', analysisData.department);
+        console.log('🏢 Interview Service: Updating department stats for department:', analysisData.department);
         await this.updateDepartmentStatsFromAnalysis(analysisData.department, analysisData);
       } else {
-        console.log('Interview Service: No department provided, skipping department stats update');
+        console.log('ℹ️ Interview Service: No department provided, skipping department stats update');
       }
       
       // Update institution statistics
       if (analysisData.institutionId) {
-        console.log('Interview Service: Updating institution stats for institution:', analysisData.institutionId);
+        console.log('🏛️ Interview Service: Updating institution stats for institution:', analysisData.institutionId);
         await this.updateInstitutionStatsFromAnalysis(analysisData.institutionId, analysisData);
       } else {
-        console.log('Interview Service: No institutionId provided, skipping institution stats update');
+        console.log('ℹ️ Interview Service: No institutionId provided, skipping institution stats update');
       }
-    } catch (error) {
-      console.error('Interview Service: Error saving end-of-call analysis:', error);
-      console.error('Error code:', (error as any).code);
-      console.error('Error message:', (error as any).message);
-      throw new Error('Failed to save end-of-call analysis');
+    } catch (error: any) {
+      console.error('❌ Interview Service: Error saving end-of-call analysis:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      throw new Error(`Failed to save end-of-call analysis: ${error.message}`);
     }
   }
 

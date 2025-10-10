@@ -149,6 +149,24 @@ service cloud.firestore {
       
       // Allow write for authenticated users
       allow write: if isAuthenticated();
+      
+      // Allow write for anonymous users (empty studentId indicates anonymous)
+      allow create: if request.resource.data.studentId == '';
+    }
+    
+    // Interviews collection
+    match /interviews/{interviewId} {
+      // Platform admins can read/write all interviews
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+      
+      // Allow read for development/testing
+      allow read: if true; // TODO: Restrict in production
+      
+      // Allow write for authenticated users
+      allow write: if isAuthenticated();
+      
+      // Allow write for anonymous users (empty studentId indicates anonymous)
+      allow create: if request.resource.data.studentId == '';
     }
 
     // System configuration (platform admins only)

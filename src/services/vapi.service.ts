@@ -280,12 +280,13 @@ export class VapiService {
 
     // Add listener for analysis updates
     this.vapi.on('analysis', async (analysis: any) => {
-      console.log('VAPI analysis received:', analysis);
+      console.log('📊 VAPI Service: analysis event received:', JSON.stringify(analysis, null, 2));
       this.callbacks.onAnalysis?.(analysis);
       
       // If this is an end-of-call analysis, save it to Firebase and call onInterviewEnd
       if (analysis && analysis.summary) {
-        console.log('Analysis has summary, saving to Firebase and calling onInterviewEnd callback');
+        console.log('🎯 VAPI Service: Analysis has summary, this is an end-of-call analysis');
+        console.log('💾 VAPI Service: Saving to Firebase and calling onInterviewEnd callback');
         
         // Create a mock call object to pass to handleEndOfCallAnalysis
         // This is needed because the analysis event doesn't include call metadata
@@ -300,19 +301,29 @@ export class VapiService {
         
         // If we have a current call, use its ID and other properties
         if (this.currentCall) {
+          console.log('🔗 VAPI Service: Using current call data:', {
+            currentCallId: this.currentCall.id,
+            hasMetadata: !!this.currentCall.metadata
+          });
           mockCall.id = this.currentCall.id;
           mockCall.metadata = this.currentCall.metadata || mockCall.metadata;
+        } else {
+          console.log('⚠️ VAPI Service: No current call data available');
         }
         
+        console.log('📥 VAPI Service: Calling handleEndOfCallAnalysis with mock call data');
         // Save the analysis data to Firebase
         try {
           await this.handleEndOfCallAnalysis(mockCall);
-          console.log('End-of-call analysis saved to Firebase successfully');
+          console.log('✅ VAPI Service: End-of-call analysis saved to Firebase successfully');
         } catch (error) {
-          console.error('Failed to save end-of-call analysis to Firebase:', error);
+          console.error('❌ VAPI Service: Failed to save end-of-call analysis to Firebase:', error);
         }
         
+        console.log('🔔 VAPI Service: Calling onInterviewEnd callback');
         this.callbacks.onInterviewEnd?.();
+      } else {
+        console.log('ℹ️ VAPI Service: Analysis event received but no summary, not an end-of-call analysis');
       }
     });
 
@@ -718,16 +729,32 @@ export class VapiService {
    */
   private async handleEndOfCallAnalysis(call: any): Promise<void> {
     try {
+      console.log('🔍 VAPI Service: handleEndOfCallAnalysis called with call data:', JSON.stringify(call, null, 2));
+      
       const analysis = call.analysis;
       const callId = call.id;
       const metadata = call.metadata || {};
       
-      console.log('VAPI Service: Handling end-of-call analysis', {
+      console.log('📋 VAPI Service: Processing end-of-call analysis', {
         callId,
         hasAnalysis: !!analysis,
         hasMetadata: !!metadata,
-        metadataKeys: Object.keys(metadata || {})
+        metadataKeys: Object.keys(metadata || {}),
+        hasSummary: !!(analysis && analysis.summary),
+        hasStructuredData: !!(analysis && analysis.structuredData),
+        hasSuccessEvaluation: !!(analysis && analysis.successEvaluation)
       });
+      
+      // Validate that we have the required analysis data
+      if (!analysis) {
+        console.warn('⚠️ VAPI Service: No analysis data found in call object');
+        return;
+      }
+      
+      if (!analysis.summary) {
+        console.warn('⚠️ VAPI Service: Analysis data missing summary');
+        return;
+      }
       
       // Extract hierarchical data for proper isolation
       const analysisData = {
@@ -750,18 +777,26 @@ export class VapiService {
         recommendations: analysis.structuredData?.recommendations || []
       };
 
-      console.log('VAPI Service: Saving analysis data to Firebase', {
+      console.log('💾 VAPI Service: Saving analysis data to Firebase', {
         callId: analysisData.callId,
         studentId: analysisData.studentId ? 'Present' : 'Empty (anonymous)',
-        interviewType: analysisData.interviewType
+        interviewType: analysisData.interviewType,
+        overallScore: analysisData.overallScore,
+        hasSummary: !!analysisData.summary,
+        hasTranscript: !!analysisData.transcript,
+        hasRecordingUrl: !!analysisData.recordingUrl
       });
 
       // Store analysis data in Firebase for institutional dashboards
+      console.log('☁️ VAPI Service: Calling interviewService.saveEndOfCallAnalysis...');
       await interviewService.saveEndOfCallAnalysis(analysisData);
       
-      console.log('VAPI Service: End-of-call analysis saved successfully to Firebase');
+      console.log('✅ VAPI Service: End-of-call analysis saved successfully to Firebase');
     } catch (error) {
-      console.error('VAPI Service: Error handling end-of-call analysis:', error);
+      console.error('❌ VAPI Service: Error handling end-of-call analysis:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
     }
   }
 }
