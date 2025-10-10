@@ -7,45 +7,71 @@ import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 
 const ResumesList = () => {
   const isMobile = useIsMobile();
-  const { user } = useFirebaseAuth();
-  const { uploadResume, listUserFiles, deleteFile, isUploading, uploadProgress } = useFirebaseStorage();
+  const { user, isLoading: isAuthLoading } = useFirebaseAuth();
+  const { uploadResume, listUserFiles, deleteFile, isUploading, uploadProgress, error, clearError } = useFirebaseStorage();
   
   const [resumes, setResumes] = useState<any[]>([]);
-  const [isLoadingResumes, setIsLoadingResumes] = useState(true);
+  const [isLoadingResumes, setIsLoadingResumes] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   
   // Load user's resumes from Firebase
   useEffect(() => {
+    let isMounted = true;
+    
     const loadResumes = async () => {
-      if (!user) return;
+      if (isAuthLoading) {
+        return;
+      }
       
-      setIsLoadingResumes(true);
+      if (!user) {
+        if (isMounted) {
+          setResumes([]);
+        }
+        return;
+      }
+      
+      if (isMounted) {
+        setIsLoadingResumes(true);
+      }
+      
+      clearError();
       try {
         const userFiles = await listUserFiles(user.id, 'resumes');
-        setResumes(userFiles.map(file => ({
-          id: file.name.split('.')[0],
-          name: file.name,
-          lastUpdated: new Date(file.updated).toLocaleDateString(),
-          format: file.contentType.includes('pdf') ? 'PDF' : file.contentType.includes('word') ? 'DOCX' : 'Unknown',
-          size: formatFileSize(file.size),
-          downloadURL: file.downloadURL,
-          isDefault: false // TODO: Implement default resume logic
-        })));
+        if (isMounted) {
+          setResumes(userFiles.map(file => ({
+            id: file.name.split('.')[0],
+            name: file.name,
+            lastUpdated: new Date(file.updated).toLocaleDateString(),
+            format: file.contentType.includes('pdf') ? 'PDF' : file.contentType.includes('word') ? 'DOCX' : 'Unknown',
+            size: formatFileSize(file.size),
+            downloadURL: file.downloadURL,
+            isDefault: false
+          })));
+        }
       } catch (error) {
         console.error('Error loading resumes:', error);
+        if (isMounted) {
+          toast.error('Failed to load resumes. Please try again.');
+        }
       } finally {
-        setIsLoadingResumes(false);
+        if (isMounted) {
+          setIsLoadingResumes(false);
+        }
       }
     };
     
     loadResumes();
-  }, [user, listUserFiles]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [user, isAuthLoading, listUserFiles, clearError]);
   
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -92,15 +118,13 @@ const ResumesList = () => {
     }
   };
   
-  // Remove mock data - now using real Firebase data from useState
-  
   return (
     <div className="container mx-auto px-4 max-w-5xl">
       
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-2xl md:text-3xl font-bold">Resumes</h1>
         
-        <Button className="gap-2" onClick={() => setShowUploadDialog(true)} disabled={isUploading}>
+        <Button className="gap-2" onClick={() => setShowUploadDialog(true)} disabled={isUploading || isAuthLoading || !user}>
           {isUploading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -115,6 +139,12 @@ const ResumesList = () => {
         </Button>
       </div>
       
+      {error && (
+        <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+          <p className="text-destructive text-sm">{error}</p>
+        </div>
+      )}
+      
       {uploadProgress && (
         <div className="mb-4">
           <div className="flex justify-between text-sm mb-2">
@@ -125,7 +155,12 @@ const ResumesList = () => {
         </div>
       )}
       
-      {isLoadingResumes ? (
+      {isAuthLoading ? (
+        <div className="text-center py-10">
+          <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      ) : isLoadingResumes ? (
         <div className="text-center py-10">
           <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground mb-4" />
           <p className="text-muted-foreground">Loading your resumes...</p>
@@ -201,7 +236,11 @@ const ResumesList = () => {
           <p className="text-muted-foreground mb-4">
             Upload your resume to apply for jobs and prepare for interviews
           </p>
-          <Button className="gap-2" onClick={() => setShowUploadDialog(true)}>
+          <Button 
+            className="gap-2" 
+            onClick={() => setShowUploadDialog(true)}
+            disabled={isAuthLoading || !user}
+          >
             <Upload className="h-4 w-4" />
             Upload Resume
           </Button>
@@ -233,6 +272,5 @@ const ResumesList = () => {
     </div>
   );
 };
-
 
 export default ResumesList;

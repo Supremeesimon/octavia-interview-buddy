@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import StudentDashboard from '@/components/StudentDashboard';
-import ResumesList from '@/components/ResumesList';
+import SimpleResumesList from '@/components/SimpleResumesList';
 import InterviewInterface from '@/components/InterviewInterface';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -57,7 +56,7 @@ const StudentDashboardPage = () => {
               </TabsContent>
               
               <TabsContent value="resumes" className="mt-6">
-                <ResumesList />
+                <SimpleResumesList />
               </TabsContent>
             </Tabs>
           </div>

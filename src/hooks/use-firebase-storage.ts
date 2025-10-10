@@ -169,7 +169,8 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
     setError(null);
 
     try {
-      return await firebaseStorageService.listUserFiles(userId, folder);
+      const result = await firebaseStorageService.listUserFiles(userId, folder);
+      return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load files';
       setError(errorMessage);

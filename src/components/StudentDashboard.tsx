@@ -16,41 +16,87 @@ import {
   FileUp,
   MessageSquare,
   Download,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from "sonner";
 import BookingCalendar from './BookingCalendar';
+import { useStudentDashboard } from '@/hooks/use-student-dashboard';
+import { useInterviewFeedback } from '@/hooks/use-interview-feedback';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 
 const StudentDashboard = () => {
-  const [resumeUploaded, setResumeUploaded] = useState(false);
+  const navigate = useNavigate();
   const [linkedinUrlAdded, setLinkedinUrlAdded] = useState(false);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [interviewBooked, setInterviewBooked] = useState(false);
   const [showBookingCalendar, setShowBookingCalendar] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
-  const studentName = "Alex Johnson";
-  const completedInterviews = 2;
-  const [scheduledInterview, setScheduledInterview] = useState<{date: string, time: string, title: string} | null>(null);
+  const { user } = useFirebaseAuth();
+  const { uploadResume } = useFirebaseStorage();
+  const { 
+    interviews, 
+    stats, 
+    scheduledInterview, 
+    completedInterviews, 
+    averageScore, 
+    hasResumes,
+    hasLinkedIn,
+    hasScheduledInterviews,
+    isLoading 
+  } = useStudentDashboard();
+  const { feedback, isLoading: isFeedbackLoading } = useInterviewFeedback();
   
-  const interviewHistory = [
-    { id: 1, date: "May 28, 2023", title: "Technical Interview Practice", score: 82 },
-    { id: 2, date: "May 15, 2023", title: "Behavioral Interview Practice", score: 78 },
-  ];
+  // Use real student name from auth
+  const studentName = user?.name || "Student";
+  
+  // Process interview history from Firebase data
+  const interviewHistory = interviews.map(interview => ({
+    id: interview.id,
+    date: interview.createdAt.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }),
+    title: `${interview.type.charAt(0).toUpperCase() + interview.type.slice(1)} Interview`,
+    score: interview.score || 0
+  }));
 
-  const feedbackCategories = [
-    { name: "Confidence", score: 85 },
-    { name: "Clarity", score: 78 },
-    { name: "Communication", score: 82 },
-    { name: "Relevance", score: 75 }
-  ];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
 
-  const handleResumeUpload = (e) => {
+  const handleResumeUpload = async (e) => {
     e.preventDefault();
-    toast.success("Resume uploaded successfully!");
-    setResumeUploaded(true);
+    
+    if (!selectedFile || !user) {
+      toast.error("Please select a file to upload");
+      return;
+    }
+    
+    try {
+      setIsUploading(true);
+      const resumeId = `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await uploadResume(user.id, selectedFile, resumeId);
+      toast.success("Resume uploaded successfully!");
+      setSelectedFile(null);
+      
+      // Optionally navigate to the resumes tab to see the uploaded file
+      // window.location.href = '/student?tab=resumes';
+    } catch (error) {
+      console.error('Error uploading resume:', error);
+      toast.error("Failed to upload resume. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleLinkedinSubmit = (e) => {
@@ -58,20 +104,28 @@ const StudentDashboard = () => {
     if (linkedinUrl.includes('linkedin.com')) {
       toast.success("LinkedIn URL added successfully!");
       setLinkedinUrlAdded(true);
+      // In a real implementation, this would save to Firebase
     } else {
       toast.error("Please enter a valid LinkedIn URL");
     }
   };
   
   const handleBookingComplete = (date: Date, time: string) => {
-    setScheduledInterview({
-      date: date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-      time: time,
-      title: "General Behavioral Interview"
-    });
+    // In a real implementation, this would create a scheduled interview in Firebase
     setInterviewBooked(true);
     setShowBookingCalendar(false);
   };
+  
+  // Show loading state while data is being fetched
+  if (isLoading || isFeedbackLoading) {
+    return (
+      <div className="container mx-auto px-4 max-w-5xl">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto px-4 max-w-5xl">
@@ -88,29 +142,29 @@ const StudentDashboard = () => {
               
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  {resumeUploaded ? 
+                  {hasResumes ? 
                     <CheckCircle className="h-5 w-5 text-green-500" /> : 
                     <XCircle className="h-5 w-5 text-red-500" />
                   }
-                  <span className={resumeUploaded ? "text-green-600" : "text-muted-foreground"}>
+                  <span className={hasResumes ? "text-green-600" : "text-muted-foreground"}>
                     Upload your resume
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {linkedinUrlAdded ? 
+                  {hasLinkedIn ? 
                     <CheckCircle className="h-5 w-5 text-green-500" /> : 
                     <XCircle className="h-5 w-5 text-red-500" />
                   }
-                  <span className={linkedinUrlAdded ? "text-green-600" : "text-muted-foreground"}>
+                  <span className={hasLinkedIn ? "text-green-600" : "text-muted-foreground"}>
                     Add your LinkedIn profile
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {interviewBooked ? 
+                  {hasScheduledInterviews ? 
                     <CheckCircle className="h-5 w-5 text-green-500" /> : 
                     <XCircle className="h-5 w-5 text-red-500" />
                   }
-                  <span className={interviewBooked ? "text-green-600" : "text-muted-foreground"}>
+                  <span className={hasScheduledInterviews ? "text-green-600" : "text-muted-foreground"}>
                     Book your first interview
                   </span>
                 </div>
@@ -140,29 +194,57 @@ const StudentDashboard = () => {
             <CardDescription>Upload your resume and add your LinkedIn profile</CardDescription>
           </CardHeader>
           <CardContent className="flex-grow">
-            {resumeUploaded ? (
+            {selectedFile ? (
               <div className="p-4 border rounded-md mb-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">MyResume.pdf</div>
-                    <div className="text-sm text-muted-foreground">Uploaded on May 10, 2023</div>
+                    <div className="font-medium">{selectedFile.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {formatFileSize(selectedFile.size)}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm">View</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setResumeUploaded(false)}>Replace</Button>
-                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSelectedFile(null)}
+                  >
+                    Remove
+                  </Button>
                 </div>
+                <Button 
+                  className="w-full mt-2" 
+                  onClick={handleResumeUpload}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    'Upload Resume'
+                  )}
+                </Button>
               </div>
             ) : (
               <div className="mb-4">
-                <form onSubmit={handleResumeUpload}>
-                  <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center mb-4">
-                    <Upload className="h-12 w-12 mx-auto text-muted-foreground opacity-30 mb-2" />
-                    <p className="text-muted-foreground mb-2">Drag and drop your resume here</p>
-                    <p className="text-xs text-muted-foreground mb-4">or</p>
-                    <Button type="submit">Browse Files</Button>
-                  </div>
-                </form>
+                <label className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-primary/50 transition-colors">
+                  <Upload className="h-12 w-12 mx-auto text-muted-foreground opacity-30 mb-2" />
+                  <p className="text-muted-foreground mb-2">Drag and drop your resume here</p>
+                  <p className="text-xs text-muted-foreground mb-4">or</p>
+                  <Button type="button" variant="outline">
+                    Browse Files
+                  </Button>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleFileChange}
+                  />
+                </label>
+                <p className="text-xs text-muted-foreground text-center">
+                  Supported formats: PDF, DOC, DOCX (Max 10MB)
+                </p>
               </div>
             )}
             
@@ -226,14 +308,28 @@ const StudentDashboard = () => {
             ) : scheduledInterview ? (
               <>
                 <div className="mb-4">
-                  <div className="text-xl font-medium mb-2">{scheduledInterview.title}</div>
+                  <div className="text-xl font-medium mb-2">
+                    {scheduledInterview.type.charAt(0).toUpperCase() + scheduledInterview.type.slice(1)} Interview
+                  </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
-                    <span>{scheduledInterview.date}</span>
+                    <span>
+                      {scheduledInterview.scheduledAt.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground mt-1">
                     <Clock className="h-4 w-4" />
-                    <span>{scheduledInterview.time}</span>
+                    <span>
+                      {scheduledInterview.scheduledAt.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
                   </div>
                 </div>
                 
@@ -333,51 +429,68 @@ const StudentDashboard = () => {
         
         <TabsContent value="feedback">
           <Card>
-            <CardHeader>
-              <CardTitle>Behavioral Interview Practice</CardTitle>
-              <CardDescription>Completed on May 15, 2023</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 pt-0">
-              <div className="mb-6">
-                <h3 className="font-medium mb-3">Score Breakdown</h3>
-                <div className="space-y-4">
-                  {feedbackCategories.map(category => (
-                    <div key={category.name}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm">{category.name}</span>
-                        <span className="text-sm font-medium">{category.score}/100</span>
-                      </div>
-                      <Progress value={category.score} className="h-2" />
+            {feedback ? (
+              <>
+                <CardHeader>
+                  <CardTitle>{feedback.categories.length > 0 ? "Interview Feedback" : "Behavioral Interview Practice"}</CardTitle>
+                  <CardDescription>
+                    Completed on {feedback.createdAt.toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 pt-0">
+                  <div className="mb-6">
+                    <h3 className="font-medium mb-3">Score Breakdown</h3>
+                    <div className="space-y-4">
+                      {feedback.categories.map(category => (
+                        <div key={category.name}>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">{category.name}</span>
+                            <span className="text-sm font-medium">{category.score}/100</span>
+                          </div>
+                          <Progress value={category.score} className="h-2" />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                  
+                  <div className="mb-6">
+                    <h3 className="font-medium mb-2">Strengths</h3>
+                    <div className="bg-green-50 border border-green-100 rounded-md p-3 text-sm text-green-800">
+                      <p>{feedback.strengths.join(', ') || "No specific strengths identified"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-6">
+                    <h3 className="font-medium mb-2">Areas for Improvement</h3>
+                    <div className="bg-amber-50 border border-amber-100 rounded-md p-3 text-sm text-amber-800">
+                      <p>{feedback.improvements.join(', ') || "No specific improvements identified"}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium mb-2">Overall Assessment</h3>
+                    <p className="text-sm text-muted-foreground">{feedback.detailedAnalysis || "No detailed analysis available"}</p>
+                  </div>
+                </CardContent>
+                <CardFooter className="px-6 pt-0">
+                  <Button variant="outline" className="w-full gap-2">
+                    <Download className="h-4 w-4" />
+                    Download Feedback Report
+                  </Button>
+                </CardFooter>
+              </>
+            ) : (
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center justify-center text-center h-40">
+                  <MessageSquare className="h-12 w-12 text-muted-foreground opacity-30 mb-4" />
+                  <p className="text-muted-foreground">Complete an interview to see feedback</p>
                 </div>
-              </div>
-              
-              <div className="mb-6">
-                <h3 className="font-medium mb-2">Strengths</h3>
-                <div className="bg-green-50 border border-green-100 rounded-md p-3 text-sm text-green-800">
-                  <p>You demonstrated strong communication skills and provided concrete examples. Your enthusiasm came through well, and you maintained good pacing throughout the interview.</p>
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <h3 className="font-medium mb-2">Areas for Improvement</h3>
-                <div className="bg-amber-50 border border-amber-100 rounded-md p-3 text-sm text-amber-800">
-                  <p>Consider structuring your answers using the STAR method (Situation, Task, Action, Result) to provide more context. Some of your responses could be more concise while still conveying the key information.</p>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="font-medium mb-2">Overall Assessment</h3>
-                <p className="text-sm text-muted-foreground">Your interview performance was generally strong, with clear communication and relevant examples. Continue practicing with structured responses and focus on quantifying your achievements when possible.</p>
-              </div>
-            </CardContent>
-            <CardFooter className="px-6 pt-0">
-              <Button variant="outline" className="w-full gap-2">
-                <Download className="h-4 w-4" />
-                Download Feedback Report
-              </Button>
-            </CardFooter>
+              </CardContent>
+            )}
           </Card>
         </TabsContent>
         
@@ -422,3 +535,10 @@ const StudentDashboard = () => {
 };
 
 export default StudentDashboard;
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];

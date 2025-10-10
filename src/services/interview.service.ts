@@ -183,6 +183,37 @@ export class InterviewService {
     }
   }
 
+  // Get latest interview feedback for a student
+  async getLatestStudentFeedback(studentId: string): Promise<InterviewFeedback | null> {
+    try {
+      // First, get the latest completed interview for the student
+      const interviewsQuery = query(
+        collection(db, this.COLLECTIONS.interviews),
+        where('studentId', '==', studentId),
+        where('status', '==', 'completed'),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
+      
+      const interviewsSnapshot = await getDocs(interviewsQuery);
+      
+      if (interviewsSnapshot.empty) {
+        return null;
+      }
+      
+      const latestInterview = {
+        id: interviewsSnapshot.docs[0].id,
+        ...(interviewsSnapshot.docs[0].data() as any)
+      } as Interview;
+      
+      // Then get the feedback for that interview
+      return await this.getInterviewFeedback(latestInterview.id);
+    } catch (error) {
+      console.error('Error getting latest student feedback:', error);
+      throw new Error('Failed to get latest student feedback');
+    }
+  }
+
   // Update student statistics
   async updateStudentStats(studentId: string, stats: Partial<StudentStats>): Promise<void> {
     try {

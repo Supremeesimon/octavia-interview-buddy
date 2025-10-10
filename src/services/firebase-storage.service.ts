@@ -277,22 +277,27 @@ export class FirebaseStorageService {
       
       const files: FileMetadata[] = [];
       for (const itemRef of result.items) {
-        const metadata = await getMetadata(itemRef);
-        const downloadURL = await getDownloadURL(itemRef);
-        
-        files.push({
-          name: metadata.name,
-          size: metadata.size,
-          contentType: metadata.contentType || 'unknown',
-          timeCreated: metadata.timeCreated,
-          updated: metadata.updated,
-          downloadURL
-        });
+        try {
+          const metadata = await getMetadata(itemRef);
+          const downloadURL = await getDownloadURL(itemRef);
+          
+          files.push({
+            name: metadata.name,
+            size: metadata.size,
+            contentType: metadata.contentType || 'unknown',
+            timeCreated: metadata.timeCreated,
+            updated: metadata.updated,
+            downloadURL
+          });
+        } catch (itemError) {
+          // Continue with other items even if one fails
+        }
       }
       
       return files.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
     } catch (error) {
-      throw this.handleStorageError(error);
+      // Return empty array instead of throwing error
+      return [];
     }
   }
 
