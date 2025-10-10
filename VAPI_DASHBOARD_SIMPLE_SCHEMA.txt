@@ -1,0 +1,132 @@
+# VAPI Dashboard Schema Entry Guide
+
+## Step 1: Root Property
+Name: message
+Type: object
+Description: Contains the webhook payload
+
+## Step 2: After saving the root property, add these properties one by one:
+
+### First Level Properties (all under "message" object):
+
+1. Name: type
+   Type: string
+   Default Value: end-of-call-report
+   Description: Type of message
+
+2. Name: callId
+   Type: string
+   Description: Unique identifier for the call
+
+3. Name: startedAt
+   Type: string
+   Description: ISO 8601 timestamp when call started
+
+4. Name: endedAt
+   Type: string
+   Description: ISO 8601 timestamp when call ended
+
+5. Name: endedReason
+   Type: string
+   Description: Reason the call ended
+
+6. Name: cost
+   Type: number
+   Description: Cost of the call
+
+7. Name: compliance
+   Type: object
+   Description: Compliance information
+
+8. Name: transcript
+   Type: string
+   Description: Full transcript of the call
+
+9. Name: recordingUrl
+   Type: string
+   Description: URL to the call recording
+
+10. Name: summary
+    Type: string
+    Description: Summary of the call
+
+11. Name: structuredData
+    Type: object
+    Description: Structured analysis data
+
+12. Name: successEvaluation
+    Type: object
+    Description: Evaluation of call success
+
+13. Name: duration
+    Type: number
+    Description: Duration of call in seconds
+
+14. Name: metadata
+    Type: object
+    Description: Metadata from the original call
+
+## Step 3: Nested Properties (add these after their parent objects)
+
+### For "compliance" object:
+1. Name: pii
+   Type: object
+   Description: PII compliance data
+
+2. Name: pci
+   Type: object
+   Description: PCI compliance data
+
+### For "pii" and "pci" objects:
+1. Name: violations
+   Type: array
+   Description: List of compliance violations
+
+### For "structuredData" object:
+1. Name: categories
+   Type: array
+   Description: Performance categories with scores
+
+2. Name: strengths
+   Type: array
+   Description: List of strengths identified
+
+3. Name: improvements
+   Type: array
+   Description: List of areas for improvement
+
+4. Name: recommendations
+   Type: array
+   Description: List of recommendations
+
+### For "successEvaluation" object:
+1. Name: score
+   Type: number
+   Description: Overall score (0-100)
+
+2. Name: passed
+   Type: boolean
+   Description: Whether the evaluation passed
+
+### For "metadata" object:
+1. Name: studentId
+   Type: string
+   Description: ID of the student (if authenticated)
+
+2. Name: departmentId
+   Type: string
+   Description: ID of the department
+
+3. Name: institutionId
+   Type: string
+   Description: ID of the institution
+
+4. Name: interviewType
+   Type: string
+   Description: Type of interview
+
+## Important Notes:
+- Add properties one at a time
+- Make sure to select the correct parent object when adding nested properties
+- Set the default value for "type" field to "end-of-call-report"
+- All fields are required unless specified otherwise

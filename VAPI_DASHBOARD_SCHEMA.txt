@@ -1,0 +1,123 @@
+Request Body
+Define the structure of your request body using the schema builder.
+
+Properties
+Name: message
+Type: object
+Description: Contains the webhook payload
+
+Properties
+Name: type
+Type: string
+Default Value: end-of-call-report
+Description: Type of message
+Enum Values: end-of-call-report
+
+Name: callId
+Type: string
+Description: Unique identifier for the call
+
+Name: startedAt
+Type: string
+Description: ISO 8601 timestamp when call started
+
+Name: endedAt
+Type: string
+Description: ISO 8601 timestamp when call ended
+
+Name: endedReason
+Type: string
+Description: Reason the call ended
+
+Name: cost
+Type: number
+Description: Cost of the call
+
+Name: compliance
+Type: object
+Description: Compliance information
+
+Name: transcript
+Type: string
+Description: Full transcript of the call
+
+Name: recordingUrl
+Type: string
+Description: URL to the call recording
+
+Name: summary
+Type: string
+Description: Summary of the call
+
+Name: structuredData
+Type: object
+Description: Structured analysis data
+
+Name: successEvaluation
+Type: object
+Description: Evaluation of call success
+
+Name: duration
+Type: number
+Description: Duration of call in seconds
+
+Name: metadata
+Type: object
+Description: Metadata from the original call
+
+Nested Properties for compliance:
+Name: pii
+Type: object
+Description: PII compliance data
+
+Name: pci
+Type: object
+Description: PCI compliance data
+
+Nested Properties for pii and pci:
+Name: violations
+Type: array
+Description: List of compliance violations
+
+Nested Properties for structuredData:
+Name: categories
+Type: array
+Description: Performance categories with scores
+
+Name: strengths
+Type: array
+Description: List of strengths identified
+
+Name: improvements
+Type: array
+Description: List of areas for improvement
+
+Name: recommendations
+Type: array
+Description: List of recommendations
+
+Nested Properties for successEvaluation:
+Name: score
+Type: number
+Description: Overall score (0-100)
+
+Name: passed
+Type: boolean
+Description: Whether the evaluation passed
+
+Nested Properties for metadata:
+Name: studentId
+Type: string
+Description: ID of the student (if authenticated)
+
+Name: departmentId
+Type: string
+Description: ID of the department
+
+Name: institutionId
+Type: string
+Description: ID of the institution
+
+Name: interviewType
+Type: string
+Description: Type of interview

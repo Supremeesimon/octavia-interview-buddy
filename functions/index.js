@@ -8,14 +8,18 @@ admin.initializeApp();
 exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
   try {
     // Log the incoming request for debugging
-    console.log('VAPI Webhook received:', {
+    console.log('📥 VAPI Webhook received:', {
       method: req.method,
       headers: req.headers,
-      body: req.body
+      bodyKeys: req.body ? Object.keys(req.body) : 'null',
+      userAgent: req.get('User-Agent'),
+      contentType: req.get('Content-Type'),
+      timestamp: new Date().toISOString()
     });
 
     // Only handle POST requests
     if (req.method !== 'POST') {
+      console.log('❌ Method not allowed:', req.method);
       res.status(405).send('Method Not Allowed');
       return;
     }
@@ -24,14 +28,21 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
 
     // Validate the message structure
     if (!message) {
-      console.warn('Invalid webhook payload: missing message');
+      console.warn('⚠️ Invalid webhook payload: missing message');
       res.status(400).send('Invalid payload: missing message');
       return;
     }
 
+    console.log('📄 Message details:', {
+      type: message.type,
+      callId: message.callId,
+      hasAnalysis: !!message.analysis,
+      hasTranscript: !!message.transcript
+    });
+
     // Only handle end-of-call reports
     if (message.type === 'end-of-call-report') {
-      console.log('Processing end-of-call report for call:', message.callId);
+      console.log('✅ Processing end-of-call report for call:', message.callId);
       
       const report = {
         callId: message.callId || null,
@@ -56,34 +67,15 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
 
       // Save to Firestore in the end-of-call-analysis collection
       const docRef = await admin.firestore().collection('end-of-call-analysis').add(report);
-      console.log('Saved end-of-call report with ID:', docRef.id);
-
-      // Also save to Cloud Storage as JSON backup (optional)
-      try {
-        const storage = admin.storage();
-        const bucket = storage.bucket(); // Uses default bucket
-        const fileName = `callReports/${message.callId || docRef.id}.json`;
-        const file = bucket.file(fileName);
-        
-        await file.save(JSON.stringify(report, null, 2), {
-          metadata: {
-            contentType: 'application/json'
-          }
-        });
-        
-        console.log('Saved end-of-call report to Cloud Storage:', fileName);
-      } catch (storageError) {
-        console.warn('Failed to save report to Cloud Storage:', storageError);
-        // Continue even if Cloud Storage save fails
-      }
+      console.log('💾 Saved end-of-call report to Firestore with ID:', docRef.id);
 
       res.status(200).send('Report processed successfully');
     } else {
-      console.log('Received non end-of-call-report message type:', message.type);
+      console.log('ℹ️ Non end-of-call-report message type received:', message.type);
       res.status(200).send('Message received but not processed (not an end-of-call report)');
     }
   } catch (error) {
-    console.error('Error processing VAPI webhook:', error);
+    console.error('💥 Error processing VAPI webhook:', error);
     res.status(500).send('Internal server error');
   }
 });

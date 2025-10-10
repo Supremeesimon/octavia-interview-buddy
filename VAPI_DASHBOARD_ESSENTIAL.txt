@@ -1,0 +1,78 @@
+# VAPI Dashboard - Webhook Configuration
+
+## Webhook URL:
+https://us-central1-octavia-practice-interviewer.cloudfunctions.net/vapiWebhook
+
+## Request Body Schema (Enter one property at a time):
+
+### 1. First, enter the root property:
+Name: message
+Type: object
+Description: Contains the webhook payload
+
+### 2. Then add these properties under "message":
+
+Name: type
+Type: string
+Default Value: end-of-call-report
+Description: Type of message
+
+Name: callId
+Type: string
+Description: Unique identifier for the call
+
+Name: startedAt
+Type: string
+Description: ISO 8601 timestamp when call started
+
+Name: endedAt
+Type: string
+Description: ISO 8601 timestamp when call ended
+
+Name: endedReason
+Type: string
+Description: Reason the call ended
+
+Name: cost
+Type: number
+Description: Cost of the call
+
+Name: compliance
+Type: object
+Description: Compliance information
+
+Name: transcript
+Type: string
+Description: Full transcript of the call
+
+Name: recordingUrl
+Type: string
+Description: URL to the call recording
+
+Name: summary
+Type: string
+Description: Summary of the call
+
+Name: structuredData
+Type: object
+Description: Structured analysis data
+
+Name: successEvaluation
+Type: object
+Description: Evaluation of call success
+
+Name: duration
+Type: number
+Description: Duration of call in seconds
+
+Name: metadata
+Type: object
+Description: Metadata from the original call
+
+## Event Selection:
+Select "End of Call Report" events only
+
+## Important:
+- Add properties one at a time
+- Make sure to set the default value for "type" to "end-of-call-report"
+- All other properties should be added as children of the "message" object

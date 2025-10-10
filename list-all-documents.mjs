@@ -18,7 +18,7 @@ async function listAllDocuments() {
     
     // Check end-of-call-analysis collection
     console.log('--- end-of-call-analysis collection ---');
-    const analysisSnapshot = await db.collection('end-of-call-analysis').orderBy('timestamp', 'desc').get();
+    const analysisSnapshot = await db.collection('end-of-call-analysis').orderBy('createdAt', 'desc').get();
     console.log(`Found ${analysisSnapshot.size} documents`);
     
     if (!analysisSnapshot.empty) {
@@ -27,10 +27,9 @@ async function listAllDocuments() {
         console.log(`\n${index + 1}. Document ID: ${doc.id}`);
         console.log(`   Call ID: ${data.callId || 'N/A'}`);
         console.log(`   Student ID: "${data.studentId || 'N/A'}"`);
-        console.log(`   Timestamp: ${data.timestamp?.toDate?.() || data.timestamp || 'N/A'}`);
+        console.log(`   Created At: ${data.createdAt?.toDate?.() || data.createdAt || 'N/A'}`);
         console.log(`   Interview Type: ${data.interviewType || 'N/A'}`);
-        console.log(`   Overall Score: ${data.overallScore || 'N/A'}`);
-        console.log(`   Has Summary: ${!!data.summary}`);
+        console.log(`   Summary: ${data.summary ? data.summary.substring(0, 50) + '...' : 'N/A'}`);
       });
     }
     

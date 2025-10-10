@@ -73,6 +73,18 @@ To check anonymous user data:
 
 See [ANONYMOUS_USER_DATA.md](ANONYMOUS_USER_DATA.md) for detailed information.
 
+### VAPI Webhook Integration
+
+This project includes Firebase Functions for handling VAPI webhooks to capture end-of-call reports automatically.
+
+To deploy the webhook function:
+1. Navigate to the functions directory: `cd functions`
+2. Install dependencies: `npm install`
+3. Deploy: `firebase deploy --only functions`
+4. Add the webhook URL to your VAPI Dashboard
+
+See [VAPI_INTEGRATION_STRATEGY.md](VAPI_INTEGRATION_STRATEGY.md) for detailed information about the integration strategy.
+
 ## Deployment
 
 ### Firebase Deployment
