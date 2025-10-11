@@ -10,13 +10,12 @@ import { toast } from 'sonner';
 
 const SimpleResumesList = () => {
   const { user, isLoading: isAuthLoading } = useFirebaseAuth();
-  const { uploadResume, listUserFiles, isUploading, uploadProgress } = useFirebaseStorage();
+  const { uploadResume, listUserFiles, isUploading, uploadProgress, error, clearError } = useFirebaseStorage();
   
   const [resumes, setResumes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
   
   // Load user's resumes from Firebase
   useEffect(() => {
@@ -40,7 +39,7 @@ const SimpleResumesList = () => {
       try {
         if (isMounted) {
           setIsLoading(true);
-          setError(null);
+          clearError(); // Clear any previous errors
         }
         
         // Add timeout to prevent hanging
@@ -53,19 +52,30 @@ const SimpleResumesList = () => {
         
         console.log('Loaded user files:', userFiles);
         if (isMounted) {
-          setResumes(userFiles.map((file: any) => ({
-            id: file.name,
-            name: file.name,
-            size: file.size,
-            updated: file.updated,
-            downloadURL: file.downloadURL,
-            contentType: file.contentType
-          })));
+          setResumes(userFiles.map((file: any) => {
+            // Extract original filename by removing the resume ID prefix
+            // Filename format is: resume_{timestamp}_{random}_{original_filename}
+            let displayName = file.name;
+            const nameParts = file.name.split('_');
+            if (nameParts.length > 3) {
+              // Reconstruct the original filename
+              displayName = nameParts.slice(3).join('_');
+            }
+            
+            return {
+              id: file.name,
+              name: displayName,
+              originalName: file.name, // Keep the original for reference
+              size: file.size,
+              updated: file.updated,
+              downloadURL: file.downloadURL,
+              contentType: file.contentType
+            };
+          }));
         }
       } catch (error) {
         console.error('Error loading resumes:', error);
         if (isMounted) {
-          setError(error instanceof Error ? error.message : 'Failed to load resumes');
           toast.error('Failed to load resumes: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
       } finally {
@@ -81,7 +91,7 @@ const SimpleResumesList = () => {
     return () => {
       isMounted = false;
     };
-  }, [user, listUserFiles, isAuthLoading]);
+  }, [user, listUserFiles, isAuthLoading, clearError]);
   
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -105,30 +115,37 @@ const SimpleResumesList = () => {
   };
   
   const handleUpload = async () => {
-    if (!selectedFile || !user) return;
+    if (!selectedFile || !user) {
+      toast.error("Please select a file to upload");
+      return;
+    }
     
     try {
+      // Generate a proper resume ID using timestamp and random string
       const resumeId = `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      await uploadResume(user.id, selectedFile, resumeId);
+      const result = await uploadResume(user.id, selectedFile, resumeId);
       
-      // Refresh the resumes list
-      const userFiles = await listUserFiles(user.id, 'resumes');
-      setResumes(userFiles.map(file => ({
-        id: file.name,
-        name: file.name,
-        size: file.size,
-        updated: file.updated,
-        downloadURL: file.downloadURL,
-        contentType: file.contentType
-      })));
-      
-      setShowUploadDialog(false);
-      setSelectedFile(null);
-      toast.success('Resume uploaded successfully!');
+      if (result) {
+        // Refresh the resumes list
+        const userFiles = await listUserFiles(user.id, 'resumes');
+        setResumes(userFiles.map(file => ({
+          id: file.name,
+          name: file.name,
+          size: file.size,
+          updated: file.updated,
+          downloadURL: file.downloadURL,
+          contentType: file.contentType
+        })));
+        
+        setShowUploadDialog(false);
+        setSelectedFile(null);
+        toast.success('Resume uploaded successfully!');
+      } else {
+        throw new Error("Upload failed");
+      }
     } catch (error) {
       console.error('Error uploading resume:', error);
-      setError(error instanceof Error ? error.message : 'Failed to upload resume');
-      toast.error('Failed to upload resume');
+      toast.error('Failed to upload resume: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
   
@@ -169,7 +186,7 @@ const SimpleResumesList = () => {
     <div className="container mx-auto px-4 max-w-5xl">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Resumes</h1>
-        <Button onClick={() => setShowUploadDialog(true)} disabled={!user}>
+        <Button onClick={() => setShowUploadDialog(true)} disabled={!user || isUploading}>
           <Upload className="h-4 w-4 mr-2" />
           Upload Resume
         </Button>
@@ -213,6 +230,7 @@ const SimpleResumesList = () => {
                       variant="outline" 
                       size="sm"
                       onClick={() => handleDownload(resume.downloadURL, resume.name)}
+                      disabled={!resume.downloadURL}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Download
@@ -229,7 +247,10 @@ const SimpleResumesList = () => {
             <p className="text-muted-foreground mb-4">
               Get started by uploading your resume
             </p>
-            <Button onClick={() => setShowUploadDialog(true)}>
+            <Button 
+              onClick={() => setShowUploadDialog(true)} 
+              disabled={!user || isUploading}
+            >
               <Upload className="h-4 w-4 mr-2" />
               Upload Resume
             </Button>
@@ -255,6 +276,7 @@ const SimpleResumesList = () => {
                 type="file"
                 accept=".pdf,.doc,.docx"
                 onChange={handleFileChange}
+                disabled={isUploading}
               />
               <p className="text-sm text-muted-foreground">
                 Supported formats: PDF, DOC, DOCX (Max 10MB)
@@ -278,7 +300,11 @@ const SimpleResumesList = () => {
             </div>
             
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowUploadDialog(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowUploadDialog(false)}
+                disabled={isUploading}
+              >
                 Cancel
               </Button>
               <Button 

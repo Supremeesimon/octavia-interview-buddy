@@ -54,7 +54,7 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload resume';
       setError(errorMessage);
       console.error('useFirebaseStorage: uploadResume failed:', err);
-      toast.error(errorMessage);
+      toast.error(`Upload failed: ${errorMessage}`);
       return null;
     } finally {
       setIsUploading(false);
@@ -86,7 +86,7 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload recording';
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(`Recording upload failed: ${errorMessage}`);
       return null;
     } finally {
       setIsUploading(false);
@@ -114,7 +114,7 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload profile picture';
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(`Profile picture upload failed: ${errorMessage}`);
       return null;
     } finally {
       setIsUploading(false);
@@ -142,7 +142,7 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload institution logo';
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(`Institution logo upload failed: ${errorMessage}`);
       return null;
     } finally {
       setIsUploading(false);
@@ -160,7 +160,7 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete file';
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(`File deletion failed: ${errorMessage}`);
       return false;
     }
   }, []);
@@ -180,7 +180,7 @@ export function useFirebaseStorage(): UseFirebaseStorageReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load files';
       console.error('useFirebaseStorage: listUserFiles failed:', err);
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(`Failed to load files: ${errorMessage}`);
       return [];
     }
   }, []);

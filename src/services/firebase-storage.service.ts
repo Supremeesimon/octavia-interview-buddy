@@ -57,11 +57,15 @@ export class FirebaseStorageService {
     file: File,
     resumeId: string,
     onProgress?: (progress: UploadProgress) => void
-  ): Promise<{ downloadURL: string; metadata: FileMetadata }> {
+  ): Promise<{ downloadURL: string; metadata: FileMetadata } | null> {
     console.log(`Uploading resume for user ${userId} with resumeId ${resumeId}`);
     this.validateFile(file, 'resume');
     
-    const filePath = `${this.STORAGE_PATHS.resumes}/${userId}/${resumeId}`;
+    // Use the actual filename but ensure uniqueness by prepending the resumeId
+    // Sanitize filename to remove special characters that might cause issues
+    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileName = `${resumeId}_${sanitizedFileName}`;
+    const filePath = `${this.STORAGE_PATHS.resumes}/${userId}/${fileName}`;
     console.log(`File path: ${filePath}`);
     const storageRef = ref(storage, filePath);
     
@@ -97,11 +101,16 @@ export class FirebaseStorageService {
         );
       });
     } else {
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      const metadata = await this.getFileMetadata(filePath);
-      console.log('Upload completed successfully');
-      return { downloadURL, metadata };
+      try {
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        const metadata = await this.getFileMetadata(filePath);
+        console.log('Upload completed successfully');
+        return { downloadURL, metadata };
+      } catch (error) {
+        console.error('Upload error:', error);
+        throw this.handleStorageError(error);
+      }
     }
   }
 
@@ -378,26 +387,36 @@ export class FirebaseStorageService {
   private handleStorageError(error: any): Error {
     console.error('Firebase Storage Error:', error);
     
-    switch (error.code) {
-      case 'storage/unauthorized':
-        return new Error('You do not have permission to upload this file');
-      case 'storage/canceled':
-        return new Error('Upload was canceled');
-      case 'storage/quota-exceeded':
-        return new Error('Storage quota exceeded');
-      case 'storage/unauthenticated':
-        return new Error('User is not authenticated');
-      case 'storage/retry-limit-exceeded':
-        return new Error('Upload failed after multiple retries');
-      case 'storage/invalid-checksum':
-        return new Error('File was corrupted during upload');
-      case 'storage/server-file-wrong-size':
-        return new Error('File size mismatch');
-      case 'storage/unknown':
-        return new Error('An unknown error occurred during upload');
-      default:
-        return new Error(error.message || 'File upload failed');
+    // More detailed error handling
+    if (error.code) {
+      switch (error.code) {
+        case 'storage/unauthorized':
+          return new Error('You do not have permission to upload this file. Please make sure you are logged in and have the correct permissions.');
+        case 'storage/canceled':
+          return new Error('Upload was canceled');
+        case 'storage/quota-exceeded':
+          return new Error('Storage quota exceeded');
+        case 'storage/unauthenticated':
+          return new Error('User is not authenticated. Please log in to upload files.');
+        case 'storage/retry-limit-exceeded':
+          return new Error('Upload failed after multiple retries');
+        case 'storage/invalid-checksum':
+          return new Error('File was corrupted during upload');
+        case 'storage/server-file-wrong-size':
+          return new Error('File size mismatch');
+        case 'storage/unknown':
+          return new Error('An unknown error occurred during upload: ' + (error.message || ''));
+        default:
+          return new Error(error.message || 'File upload failed');
+      }
     }
+    
+    // Handle other types of errors
+    if (error.message) {
+      return new Error(error.message);
+    }
+    
+    return new Error('File upload failed');
   }
 }
 

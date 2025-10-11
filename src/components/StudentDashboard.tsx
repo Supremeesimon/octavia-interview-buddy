@@ -76,8 +76,8 @@ const StudentDashboard = () => {
     date: interview.createdAt.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 
-      day: 'numeric' 
-    }),
+      day: 'numeric' }
+    ),
     title: `${interview.type.charAt(0).toUpperCase() + interview.type.slice(1)} Interview`,
     score: interview.score || 0
   }));
@@ -93,9 +93,7 @@ const StudentDashboard = () => {
     fileInputRef.current?.click();
   };
 
-  const handleResumeUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleResumeUpload = async () => {
     if (!selectedFile || !user) {
       toast.error("Please select a file to upload");
       return;
@@ -106,6 +104,7 @@ const StudentDashboard = () => {
     try {
       setIsUploading(true);
       setError(null);
+      // Generate a proper resume ID using timestamp and random string
       const resumeId = `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       console.log(`StudentDashboard: Uploading resume with ID ${resumeId} for user ${user.id}`);
       const result = await uploadResume(user.id, selectedFile, resumeId);
@@ -117,9 +116,6 @@ const StudentDashboard = () => {
       } else {
         throw new Error("Upload failed");
       }
-      
-      // Optionally navigate to the resumes tab to see the uploaded file
-      // window.location.href = '/student?tab=resumes';
     } catch (error) {
       console.error('Error uploading resume:', error);
       setError(error instanceof Error ? error.message : 'Failed to upload resume');
