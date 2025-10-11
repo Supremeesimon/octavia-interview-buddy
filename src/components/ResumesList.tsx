@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { File, FileText, Upload, Calendar, Clock, Download, Pencil, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { File, FileText, Upload, Calendar, Clock, Download, Eye, Pencil, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
@@ -120,6 +120,16 @@ const ResumesList = () => {
     fileInputRef.current?.click();
   };
 
+  const handleViewResume = (downloadURL: string) => {
+    try {
+      // Open the file in a new tab
+      window.open(downloadURL, '_blank');
+    } catch (error) {
+      console.error('Error viewing file:', error);
+      toast.error('Failed to view file');
+    }
+  };
+
   const handleDeleteResume = async (resumeId: string, fileName: string) => {
     if (!user) return;
     
@@ -208,6 +218,15 @@ const ResumesList = () => {
                 </div>
               </CardContent>
               <CardFooter className="flex gap-2 pt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-1"
+                  onClick={() => handleViewResume(resume.downloadURL)}
+                >
+                  <Eye className="h-4 w-4" />
+                  {!isMobile && "View"}
+                </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 

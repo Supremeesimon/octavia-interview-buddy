@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Upload, Loader2, Download, AlertCircle } from 'lucide-react';
+import { FileText, Upload, Loader2, Download, AlertCircle, Trash2, Eye } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,13 @@ import { toast } from 'sonner';
 
 const SimpleResumesList = () => {
   const { user, isLoading: isAuthLoading } = useFirebaseAuth();
-  const { uploadResume, listUserFiles, isUploading, uploadProgress, error, clearError } = useFirebaseStorage();
+  const { uploadResume, listUserFiles, deleteFile, isUploading, uploadProgress, error, clearError } = useFirebaseStorage();
   
   const [resumes, setResumes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [resumeToDelete, setResumeToDelete] = useState<any>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   // Load user's resumes from Firebase
@@ -163,6 +165,56 @@ const SimpleResumesList = () => {
     }
   };
   
+  const handleView = (downloadURL: string) => {
+    try {
+      // Open the file in a new tab
+      window.open(downloadURL, '_blank');
+    } catch (error) {
+      console.error('Error viewing file:', error);
+      toast.error('Failed to view file');
+    }
+  };
+  
+  const confirmDelete = (resume: any) => {
+    setResumeToDelete(resume);
+    setShowDeleteDialog(true);
+  };
+  
+  const handleDelete = async () => {
+    if (!resumeToDelete || !user) {
+      toast.error("No resume selected for deletion");
+      return;
+    }
+    
+    try {
+      // Construct the file path
+      const filePath = `resumes/${user.id}/${resumeToDelete.originalName}`;
+      const result = await deleteFile(filePath);
+      
+      if (result) {
+        // Refresh the resumes list
+        const userFiles = await listUserFiles(user.id, 'resumes');
+        setResumes(userFiles.map(file => ({
+          id: file.name,
+          name: file.name,
+          size: file.size,
+          updated: file.updated,
+          downloadURL: file.downloadURL,
+          contentType: file.contentType
+        })));
+        
+        setShowDeleteDialog(false);
+        setResumeToDelete(null);
+        toast.success('Resume deleted successfully!');
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      toast.error('Failed to delete resume: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  };
+  
   // Show loading state while auth is checking
   if (isAuthLoading) {
     return (
@@ -225,15 +277,37 @@ const SimpleResumesList = () => {
                     <p className="text-xs text-muted-foreground">
                       Last updated: {new Date(resume.updated).toLocaleDateString()}
                     </p>
+                    <div className="flex gap-2 mt-2">
+                      <Button 
+                        className="flex-1"
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleView(resume.downloadURL)}
+                        disabled={!resume.downloadURL}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
+                      <Button 
+                        className="flex-1"
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleDownload(resume.downloadURL, resume.name)}
+                        disabled={!resume.downloadURL}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    </div>
                     <Button 
-                      className="w-full mt-2" 
-                      variant="outline" 
+                      className="w-full mt-2"
+                      variant="outline"
                       size="sm"
-                      onClick={() => handleDownload(resume.downloadURL, resume.name)}
+                      onClick={() => confirmDelete(resume)}
                       disabled={!resume.downloadURL}
                     >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
+                      <Trash2 className="h-4 w-4 mr-2 text-red-500" />
+                      <span className="text-red-500">Delete</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -319,6 +393,32 @@ const SimpleResumesList = () => {
                 ) : (
                   'Upload'
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
+            <p className="mb-4">
+              Are you sure you want to delete the resume "<strong>{resumeToDelete?.name}</strong>"? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeleteDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={handleDelete}
+              >
+                Delete
               </Button>
             </div>
           </div>

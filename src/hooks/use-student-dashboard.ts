@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { onSnapshot, query, collection, where, orderBy, limit, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useFirebaseAuth } from './use-firebase-auth';
+import { useFirebaseStorage } from './use-firebase-storage';
 import type { Interview, StudentStats } from '@/types';
 
 interface StudentDashboardData {
@@ -18,7 +19,8 @@ interface StudentDashboardData {
 }
 
 export const useStudentDashboard = (): StudentDashboardData => {
-  const { user } = useFirebaseAuth();
+  const { user, isLoading: isAuthLoading } = useFirebaseAuth();
+  const { listUserFiles } = useFirebaseStorage();
   const [data, setData] = useState<StudentDashboardData>({
     interviews: [],
     stats: null,
@@ -32,6 +34,63 @@ export const useStudentDashboard = (): StudentDashboardData => {
     error: null
   });
 
+  // Load user's resumes from Firebase
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadResumes = async () => {
+      if (!user || isAuthLoading) return;
+      
+      try {
+        const userFiles = await listUserFiles(user.id, 'resumes');
+        
+        if (isMounted) {
+          // Process files to extract original filenames
+          const processedFiles = userFiles.map((file: any) => {
+            // Extract original filename by removing the resume ID prefix
+            // Filename format is: resume_{timestamp}_{random}_{original_filename}
+            let displayName = file.name;
+            const nameParts = file.name.split('_');
+            if (nameParts.length > 3) {
+              // Reconstruct the original filename
+              displayName = nameParts.slice(3).join('_');
+            }
+            
+            return {
+              id: file.name,
+              name: displayName,
+              originalName: file.name, // Keep the original for reference
+              size: file.size,
+              updated: file.updated,
+              downloadURL: file.downloadURL,
+              contentType: file.contentType
+            };
+          });
+          
+          setData(prev => ({
+            ...prev,
+            hasResumes: processedFiles.length > 0,
+            isLoading: false
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading resumes:', error);
+        if (isMounted) {
+          setData(prev => ({
+            ...prev,
+            isLoading: false
+          }));
+        }
+      }
+    };
+    
+    loadResumes();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [user, listUserFiles, isAuthLoading]);
+
   useEffect(() => {
     if (!user) {
       setData(prev => ({ ...prev, isLoading: false }));
@@ -43,15 +102,6 @@ export const useStudentDashboard = (): StudentDashboardData => {
         // Fetch student stats
         const statsDoc = await getDoc(doc(db, 'student-stats', user.id));
         const stats = statsDoc.exists() ? statsDoc.data() as StudentStats : null;
-
-        // Check for resumes
-        const resumesQuery = query(
-          collection(db, 'resumes'),
-          where('userId', '==', user.id)
-        );
-        
-        const resumesSnapshot = await getDocs(resumesQuery);
-        const hasResumes = !resumesSnapshot.empty;
 
         // Set up real-time listener for interviews
         const interviewsQuery = query(
@@ -96,18 +146,19 @@ export const useStudentDashboard = (): StudentDashboardData => {
               .reduce((sum, interview) => sum + (interview.score || 0), 0);
             const averageScore = completedInterviews > 0 ? totalScore / completedInterviews : 0;
 
-            setData({
+            setData(prev => ({
+              ...prev,
               interviews,
               stats,
               scheduledInterview,
               completedInterviews,
               averageScore,
-              hasResumes,
+              hasResumes: prev.hasResumes,
               hasLinkedIn,
               hasScheduledInterviews,
               isLoading: false,
               error: null
-            });
+            }));
           } catch (error) {
             console.error('Error processing interview data:', error);
             setData(prev => ({
