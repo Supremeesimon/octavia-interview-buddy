@@ -43,13 +43,21 @@ const InstitutionDashboard = () => {
   const [activeMainTab, setActiveMainTab] = useState('students');
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState('resume');
   
+  // Generate a unique signup link for the institution
+  const generateSignupLink = () => {
+    // In a real implementation, this would be based on the actual institution ID
+    const institutionId = "institution-xyz"; // This would come from user context
+    const timestamp = Date.now().toString(36);
+    return `https://octavia.ai/signup/${institutionId}?t=${timestamp}`;
+  };
+  
+  const [signupLink, setSignupLink] = useState(generateSignupLink());
+  
   const totalLicenses = 1000;
   const usedLicenses = 368;
   const pendingApprovals = 15;
   const approvedStudents = 353;
   const rejectedStudents = 42;
-  
-  const demoSignupLink = "https://octavia.ai/signup/institution-xyz";
   
   const students = [
     { id: 1, name: "Emma Thompson", email: "ethompson@edu.com", status: "Active", interviewsCompleted: 3, resumeUploaded: true, signupDate: "2023-05-10", lastActivity: "2 days ago" },
@@ -181,7 +189,7 @@ const InstitutionDashboard = () => {
   };
   
   const copySignupLink = () => {
-    navigator.clipboard.writeText(demoSignupLink);
+    navigator.clipboard.writeText(signupLink);
     setCopiedLink(true);
     toast.success("Link copied to clipboard!");
     setTimeout(() => setCopiedLink(false), 2000);
@@ -196,6 +204,8 @@ const InstitutionDashboard = () => {
   };
   
   const regenerateLink = () => {
+    const newLink = generateSignupLink();
+    setSignupLink(newLink);
     toast.success("New signup link generated successfully!");
   };
   
@@ -276,7 +286,7 @@ const InstitutionDashboard = () => {
             <LinkIcon className="text-primary h-5 w-5" />
           </div>
           <div className="flex items-center gap-2 bg-muted p-2 rounded-md mb-4 overflow-hidden">
-            <div className="text-sm truncate flex-1">{demoSignupLink}</div>
+            <div className="text-sm truncate flex-1">{signupLink}</div>
             <Button 
               variant="ghost" 
               size="icon" 

@@ -168,32 +168,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
   }, [timeRemaining, isCallActive]);
   
-  // Auto-end interview after 15 minutes (900 seconds)
-  useEffect(() => {
-    if (callDuration >= 900 && isCallActive) {
-      handleEndInterview();
-      toast.info("Interview ended: 15 minute time limit reached");
-    }
-  }, [callDuration, isCallActive]);
-  
-  // Effect to handle when interview ends (either by user or AI)
-  useEffect(() => {
-    if (interviewEnded) {
-      console.log('Interview ended, ensuring timer is stopped');
-      // Any cleanup needed when interview ends can go here
-    }
-  }, [interviewEnded]);
-  
-  // Effect to stop timer when interview ends
-  useEffect(() => {
-    if (interviewEnded && isCallActive) {
-      console.log('Interview ended but call still active, stopping call');
-      // This shouldn't happen, but let's make sure
-      handleEndInterview().catch(console.error);
-    }
-  }, [interviewEnded, isCallActive]);
-
-  // Start interview with VAPI
+// Start interview with VAPI
   const handleStartInterview = async () => {
     try {
       console.log('handleStartInterview called');
@@ -261,13 +236,38 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       }
     }
   }, [endInterview, clearError]);
+  
+  // Auto-end interview after 15 minutes (900 seconds)
+  useEffect(() => {
+    if (callDuration >= 900 && isCallActive) {
+      handleEndInterview();
+      toast.info("Interview ended: 15 minute time limit reached");
+    }
+  }, [callDuration, isCallActive, handleEndInterview]);
+  
+  // Effect to handle when interview ends (either by user or AI)
+  useEffect(() => {
+    if (interviewEnded) {
+      console.log('Interview ended, ensuring timer is stopped');
+      // Any cleanup needed when interview ends can go here
+    }
+  }, [interviewEnded]);
+  
+  // Effect to stop timer when interview ends
+  useEffect(() => {
+    if (interviewEnded && isCallActive) {
+      console.log('Interview ended but call still active, stopping call');
+      // This shouldn't happen, but let's make sure
+      handleEndInterview().catch(console.error);
+    }
+  }, [interviewEnded, isCallActive, handleEndInterview]);
 
   const handleScheduleMore = () => {
     // Check if user is authenticated with either system
     if (user) {
-      // Navigate to the student dashboard with the interviews tab active
-      navigate('/student?tab=interviews');
-      toast.success("Redirecting to interview scheduling");
+      // Navigate to the student dashboard with the history tab active (default)
+      navigate('/student');
+      toast.success("Redirecting to your dashboard");
     } else {
       // If not authenticated, redirect to login
       navigate('/login');

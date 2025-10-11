@@ -71,16 +71,18 @@ const StudentDashboard = () => {
   };
   
   // Process interview history from Firebase data
+  console.log('Raw interviews data:', interviews);
   const interviewHistory = interviews.map(interview => ({
     id: interview.id,
-    date: interview.createdAt.toLocaleDateString('en-US', { 
+    date: interview.createdAt ? interview.createdAt.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 
       day: 'numeric' }
-    ),
+    ) : 'Unknown Date',
     title: `${interview.type.charAt(0).toUpperCase() + interview.type.slice(1)} Interview`,
     score: interview.score || 0
   }));
+  console.log('Processed interviewHistory:', interviewHistory);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

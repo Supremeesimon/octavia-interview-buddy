@@ -83,6 +83,7 @@ export class VapiService {
       }
       
       // Fallback to mock implementation if VAPI fails (only in development)
+      console.log('Falling back to mock VAPI implementation');
       this.initializeMockVapi();
     }
   }

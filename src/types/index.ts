@@ -346,6 +346,7 @@ export interface SignupRequest {
   email: string;
   password: string;
   institutionDomain?: string;
+  role?: UserRole;
 }
 
 export interface ResumeUploadRequest {

@@ -25,7 +25,11 @@ export const useInterviewFeedback = (): InterviewFeedbackData => {
 
     const fetchFeedback = async () => {
       try {
+        console.log('Fetching latest feedback for student:', user.id);
         const feedback = await interviewService.getLatestStudentFeedback(user.id);
+        console.log('Retrieved feedback:', feedback);
+        console.log('Feedback type:', typeof feedback);
+        console.log('Feedback keys:', feedback ? Object.keys(feedback) : 'null');
         setData({
           feedback,
           isLoading: false,

@@ -70,6 +70,69 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
       // Save to Firestore in the end-of-call-analysis collection
       const docRef = await admin.firestore().collection('end-of-call-analysis').add(report);
       console.log('💾 Saved end-of-call report to Firestore with ID:', docRef.id);
+      
+      // Also save to interviews and interview-feedback collections if we have a studentId
+      if (report.studentId) {
+        console.log('📋 Also saving interview data for student:', report.studentId);
+        
+        // Save to interviews collection
+        const interviewData = {
+          studentId: report.studentId,
+          resumeId: report.resumeId || '',
+          sessionId: report.sessionId || 'vapi-session-' + Date.now(),
+          scheduledAt: new Date(),
+          startedAt: report.startedAt ? new Date(report.startedAt) : new Date(),
+          endedAt: report.endedAt ? new Date(report.endedAt) : new Date(),
+          duration: report.duration || 0,
+          status: 'completed',
+          type: report.interviewType || 'general',
+          vapiCallId: report.callId || '',
+          recordingUrl: report.recordingUrl || '',
+          recordingDuration: report.duration || 0,
+          transcript: report.transcript || '',
+          score: report.successEvaluation?.score || 0,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+        
+        const interviewRef = await admin.firestore().collection('interviews').add(interviewData);
+        console.log('✅ Saved interview data with ID:', interviewRef.id);
+        
+        // Save to interview-feedback collection
+        if (report.successEvaluation?.score > 0) {
+          // Extract categories from structured data
+          const categories = [];
+          if (report.structuredData?.categories && Array.isArray(report.structuredData.categories)) {
+            report.structuredData.categories.forEach(cat => {
+              categories.push({
+                name: cat.name || 'Unnamed Category',
+                score: cat.score || 0,
+                weight: cat.weight || 0,
+                description: cat.description || ''
+              });
+            });
+          }
+          
+          const feedbackData = {
+            interviewId: interviewRef.id,
+            studentId: report.studentId,
+            overallScore: report.successEvaluation.score || 0,
+            categories: categories,
+            strengths: report.structuredData?.strengths || [],
+            improvements: report.structuredData?.improvements || [],
+            recommendations: report.structuredData?.recommendations || [],
+            detailedAnalysis: report.summary || '',
+            aiModelVersion: 'vapi-webhook-1.0',
+            confidenceScore: 0.85,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+          
+          const feedbackRef = await admin.firestore().collection('interview-feedback').add(feedbackData);
+          console.log('✅ Saved feedback data with ID:', feedbackRef.id);
+        }
+      } else {
+        console.log('ℹ️ No studentId provided, skipping interview and feedback data save (anonymous user)');
+      }
 
       res.status(200).send('Report processed successfully');
     } else if (message.type === 'analysis') {
@@ -99,6 +162,69 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
       // Save to Firestore in the end-of-call-analysis collection
       const docRef = await admin.firestore().collection('end-of-call-analysis').add(report);
       console.log('💾 Saved analysis data to Firestore with ID:', docRef.id);
+      
+      // Also save to interviews and interview-feedback collections if we have a studentId
+      if (report.studentId) {
+        console.log('📋 Also saving interview data for student:', report.studentId);
+        
+        // Save to interviews collection
+        const interviewData = {
+          studentId: report.studentId,
+          resumeId: report.resumeId || '',
+          sessionId: report.sessionId || 'vapi-session-' + Date.now(),
+          scheduledAt: new Date(),
+          startedAt: new Date(), // For analysis, we don't have exact start time
+          endedAt: new Date(), // For analysis, we use current time as end time
+          duration: report.duration || 0,
+          status: 'completed',
+          type: report.interviewType || 'general',
+          vapiCallId: report.callId || '',
+          recordingUrl: report.recordingUrl || '',
+          recordingDuration: report.duration || 0,
+          transcript: report.transcript || '',
+          score: report.successEvaluation?.score || 0,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+        
+        const interviewRef = await admin.firestore().collection('interviews').add(interviewData);
+        console.log('✅ Saved interview data with ID:', interviewRef.id);
+        
+        // Save to interview-feedback collection
+        if (report.successEvaluation?.score > 0) {
+          // Extract categories from structured data
+          const categories = [];
+          if (report.structuredData?.categories && Array.isArray(report.structuredData.categories)) {
+            report.structuredData.categories.forEach(cat => {
+              categories.push({
+                name: cat.name || 'Unnamed Category',
+                score: cat.score || 0,
+                weight: cat.weight || 0,
+                description: cat.description || ''
+              });
+            });
+          }
+          
+          const feedbackData = {
+            interviewId: interviewRef.id,
+            studentId: report.studentId,
+            overallScore: report.successEvaluation.score || 0,
+            categories: categories,
+            strengths: report.structuredData?.strengths || [],
+            improvements: report.structuredData?.improvements || [],
+            recommendations: report.structuredData?.recommendations || [],
+            detailedAnalysis: report.summary || '',
+            aiModelVersion: 'vapi-webhook-1.0',
+            confidenceScore: 0.85,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+          
+          const feedbackRef = await admin.firestore().collection('interview-feedback').add(feedbackData);
+          console.log('✅ Saved feedback data with ID:', feedbackRef.id);
+        }
+      } else {
+        console.log('ℹ️ No studentId provided, skipping interview and feedback data save (anonymous user)');
+      }
 
       res.status(200).send('Analysis processed successfully');
     } else {

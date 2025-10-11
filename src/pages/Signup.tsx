@@ -90,12 +90,15 @@ const Signup = () => {
     }
 
     try {
+      // For teacher signup, we need to pass additional data to indicate the role
       const result = await register({
         name: teacherForm.fullName,
         email: teacherForm.email,
-        password: teacherForm.password
+        password: teacherForm.password,
+        role: 'institution_admin' // Teachers are institution admins in our system
       });
       
+      // For now, we'll navigate to dashboard, but we should enhance this to properly handle teacher roles
       navigate('/dashboard');
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
@@ -112,10 +115,12 @@ const Signup = () => {
     }
 
     try {
+      // For admin signup, we need to pass additional data to indicate the role
       const result = await register({
         name: adminForm.fullName,
         email: adminForm.email,
-        password: adminForm.password
+        password: adminForm.password,
+        role: 'platform_admin' // Platform admin role
       });
       
       // Navigate based on the actual role assigned by Firebase

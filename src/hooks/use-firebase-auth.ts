@@ -23,13 +23,20 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('useFirebaseAuth: Setting up auth state listener');
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('useFirebaseAuth: Auth state changed', { firebaseUser: !!firebaseUser });
+      
+      // Set loading state when auth state changes
       setIsLoading(true);
       setFirebaseUser(firebaseUser);
       
       if (firebaseUser) {
         try {
+          console.log('useFirebaseAuth: Fetching user profile for', firebaseUser.uid);
           const userProfile = await firebaseAuthService.getCurrentUser();
+          console.log('useFirebaseAuth: User profile fetched', { userProfile: !!userProfile });
           setUser(userProfile);
         } catch (error) {
           console.error('Error getting user profile:', error);
@@ -37,13 +44,20 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
           setUser(null);
         }
       } else {
+        console.log('useFirebaseAuth: No firebase user, setting user to null');
         setUser(null);
       }
       
+      // Always set loading to false after processing
       setIsLoading(false);
+      console.log('useFirebaseAuth: Finished processing auth state change');
     });
 
-    return () => unsubscribe();
+    // Cleanup function
+    return () => {
+      console.log('useFirebaseAuth: Cleaning up auth state listener');
+      unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

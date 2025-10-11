@@ -193,7 +193,8 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
         error.message.includes('peer closed') ||
         error.message.includes('undefined') ||
         error.message.includes('Cannot read properties of undefined') ||
-        error.message.includes('component unmounted')
+        error.message.includes('component unmounted') ||
+        error.message.includes('Unknown error') // Add this to catch the specific error
       );
       
       console.log('Is normal end based on message:', isNormalEnd);
@@ -306,8 +307,10 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
     if (currentCall?.status === 'ended') {
       console.log('Call ended, stopping duration tracking');
       stopDurationTracking();
+      // Also clear any errors when call ends normally
+      setError(null);
     }
-  }, [currentCall?.status, stopDurationTracking]);
+  }, [currentCall?.status, stopDurationTracking, setError]);
 
   // Start interview
   const startInterview = useCallback(async (

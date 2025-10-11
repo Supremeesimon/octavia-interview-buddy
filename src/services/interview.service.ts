@@ -141,6 +141,7 @@ export class InterviewService {
   // Get interviews for a student
   async getStudentInterviews(studentId: string): Promise<Interview[]> {
     try {
+      console.log('Fetching interviews for student:', studentId);
       const q = query(
         collection(db, this.COLLECTIONS.interviews),
         where('studentId', '==', studentId),
@@ -148,10 +149,19 @@ export class InterviewService {
       );
       
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as any)
-      } as Interview));
+      console.log('Found', querySnapshot.size, 'interviews for student:', studentId);
+      
+      const interviews = querySnapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        console.log('Raw interview data:', doc.id, data);
+        return {
+          id: doc.id,
+          ...data
+        } as Interview;
+      });
+      
+      console.log('Processed interviews:', interviews);
+      return interviews;
     } catch (error) {
       console.error('Error getting student interviews:', error);
       throw new Error('Failed to get student interviews');
@@ -161,21 +171,28 @@ export class InterviewService {
   // Get interview feedback
   async getInterviewFeedback(interviewId: string): Promise<InterviewFeedback | null> {
     try {
+      console.log('Fetching feedback for interview:', interviewId);
       const q = query(
         collection(db, this.COLLECTIONS.feedback),
         where('interviewId', '==', interviewId)
       );
       
       const querySnapshot = await getDocs(q);
+      console.log('Found', querySnapshot.size, 'feedback records for interview:', interviewId);
       
       if (!querySnapshot.empty) {
         const doc = querySnapshot.docs[0];
-        return {
+        const data = doc.data() as any;
+        console.log('Raw feedback data:', doc.id, data);
+        const feedback = {
           id: doc.id,
-          ...(doc.data() as any)
+          ...data
         } as InterviewFeedback;
+        console.log('Processed feedback:', feedback);
+        return feedback;
       }
       
+      console.log('No feedback found for interview:', interviewId);
       return null;
     } catch (error) {
       console.error('Error getting interview feedback:', error);
@@ -186,6 +203,7 @@ export class InterviewService {
   // Get latest interview feedback for a student
   async getLatestStudentFeedback(studentId: string): Promise<InterviewFeedback | null> {
     try {
+      console.log('Fetching latest feedback for student:', studentId);
       // First, get the latest completed interview for the student
       const interviewsQuery = query(
         collection(db, this.COLLECTIONS.interviews),
@@ -196,8 +214,10 @@ export class InterviewService {
       );
       
       const interviewsSnapshot = await getDocs(interviewsQuery);
+      console.log('Found', interviewsSnapshot.size, 'completed interviews for student:', studentId);
       
       if (interviewsSnapshot.empty) {
+        console.log('No completed interviews found for student:', studentId);
         return null;
       }
       
@@ -206,8 +226,12 @@ export class InterviewService {
         ...(interviewsSnapshot.docs[0].data() as any)
       } as Interview;
       
+      console.log('Latest interview:', latestInterview);
+      
       // Then get the feedback for that interview
-      return await this.getInterviewFeedback(latestInterview.id);
+      const feedback = await this.getInterviewFeedback(latestInterview.id);
+      console.log('Retrieved feedback:', feedback);
+      return feedback;
     } catch (error) {
       console.error('Error getting latest student feedback:', error);
       throw new Error('Failed to get latest student feedback');

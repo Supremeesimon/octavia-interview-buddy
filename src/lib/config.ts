@@ -69,6 +69,12 @@ config.features.enablePerformanceMonitoring = config.app.environment === 'produc
 const validateConfig = () => {
   const errors: string[] = [];
   
+  console.log('Validating configuration...');
+  console.log('Environment:', config.app.environment);
+  console.log('VAPI Public Key:', config.vapi.publicKey ? config.vapi.publicKey.substring(0, 8) + '...' : 'MISSING');
+  console.log('VAPI Public Key Length:', config.vapi.publicKey ? config.vapi.publicKey.length : 0);
+  console.log('Contains "your_" placeholder:', config.vapi.publicKey ? config.vapi.publicKey.includes('your_') : false);
+  
   if (!config.vapi.publicKey) {
     errors.push('VITE_VAPI_PUBLIC_KEY is required');
   } else if (config.app.environment === 'production' && 
@@ -86,7 +92,11 @@ const validateConfig = () => {
     console.error('Configuration validation failed:', errors);
     if (config.app.environment === 'production') {
       throw new Error(`Configuration validation failed: ${errors.join(', ')}`);
+    } else {
+      console.warn('Configuration validation failed in development, continuing with warnings...');
     }
+  } else {
+    console.log('Configuration validation passed');
   }
 };
 

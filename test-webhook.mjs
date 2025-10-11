@@ -1,73 +1,52 @@
-#!/usr/bin/env node
-
-/**
- * Test script for VAPI webhook function
- * This script simulates a VAPI webhook call to test our Firebase Function
- */
-
 import fetch from 'node-fetch';
 
-// Replace with your actual Firebase Function URL after deployment
-const WEBHOOK_URL = process.env.WEBHOOK_URL || 'http://localhost:5001/octavia-interview-buddy/us-central1/vapiWebhook';
-
-// Sample end-of-call report data
-const sampleReport = {
-  message: {
-    type: 'end-of-call-report',
-    callId: 'test_call_12345',
-    startedAt: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-    endedAt: new Date().toISOString(),
-    endedReason: 'customer-ended-call',
-    cost: 0.05,
-    compliance: {
-      pii: { violations: [] },
-      pci: { violations: [] }
-    },
-    transcript: 'User: Hello, I\'m excited to be here for this interview.\nAssistant: Great! Let\'s start with a simple question. Can you tell me about yourself?',
-    recordingUrl: 'https://example.com/recording/test_call_12345.mp3',
-    summary: 'The candidate showed enthusiasm for the position and was able to provide a basic introduction about themselves.',
-    structuredData: {
-      categories: [
-        { name: 'Communication', score: 85, weight: 0.3 },
-        { name: 'Enthusiasm', score: 90, weight: 0.2 },
-        { name: 'Introduction', score: 75, weight: 0.5 }
-      ],
-      strengths: ['Enthusiasm', 'Clear communication'],
-      improvements: ['Provide more detailed introduction', 'Mention specific experiences'],
-      recommendations: ['Practice more detailed self-introductions', 'Prepare specific examples']
-    },
-    successEvaluation: {
-      score: 83,
-      passed: true
-    },
-    duration: 300, // 5 minutes
-    metadata: {
-      studentId: 'test_student_123',
-      departmentId: 'dept_cs_456',
-      institutionId: 'inst_university_789',
+// Test the Firebase Function webhook with sample data that includes studentId
+async function testWebhook() {
+  const testData = {
+    message: {
+      type: 'analysis',
+      callId: 'test-call-' + Date.now(),
+      analysis: {
+        summary: 'This is a test analysis summary for the webhook.',
+        structuredData: {
+          categories: [
+            { name: 'Communication', score: 85, weight: 0.3, description: 'Clear and articulate responses' },
+            { name: 'Technical Knowledge', score: 78, weight: 0.4, description: 'Good understanding of core concepts' },
+            { name: 'Problem Solving', score: 82, weight: 0.3, description: 'Approaches problems methodically' }
+          ],
+          strengths: ['Clear communication', 'Good technical foundation'],
+          improvements: ['Provide more specific examples', 'Speak more confidently'],
+          recommendations: ['Practice with the STAR method', 'Review technical concepts']
+        },
+        successEvaluation: {
+          score: 82
+        }
+      },
+      transcript: 'This is a test transcript of the interview conversation.',
+      recordingUrl: 'https://example.com/recording.mp3',
+      duration: 300,
+      studentId: 'xVoQq94Gk3YoBKnnt5TzDrlPtZ72', // This is the user ID for oluwaferanmionabanjo@gmail.com
+      departmentId: 'default-department',
+      institutionId: 'default-institution',
       interviewType: 'general'
     }
-  }
-};
+  };
 
-async function testWebhook() {
-  console.log('Testing VAPI webhook function...');
-  console.log('Webhook URL:', WEBHOOK_URL);
-  
   try {
-    const response = await fetch(WEBHOOK_URL, {
+    console.log('Sending test data to webhook...');
+    console.log('Test data:', JSON.stringify(testData, null, 2));
+    
+    const response = await fetch('https://us-central1-octavia-practice-interviewer.cloudfunctions.net/vapiWebhook', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(sampleReport)
+      body: JSON.stringify(testData)
     });
     
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers.raw());
-    
     const responseBody = await response.text();
-    console.log('Response body:', responseBody);
+    console.log('Webhook response status:', response.status);
+    console.log('Webhook response body:', responseBody);
     
     if (response.ok) {
       console.log('✅ Webhook test successful!');

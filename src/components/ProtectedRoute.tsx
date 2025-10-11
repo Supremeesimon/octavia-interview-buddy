@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { toast } from 'sonner';
@@ -23,7 +23,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2">Loading...</span>
+        <span className="ml-2">Loading authentication...</span>
       </div>
     );
   }
@@ -31,14 +31,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Handle authentication errors
   if (!isAuthenticated && !isLoading) {
     console.log('ProtectedRoute: User not authenticated');
-    toast.error('Please log in to access this page');
+    // Only show toast if we're not on the login page already
+    if (window.location.pathname !== '/login') {
+      toast.error('Please log in to access this page');
+    }
     return <Navigate to="/login" replace />;
   }
 
   // Redirect to login if not authenticated
   if (!user) {
     console.log('ProtectedRoute: No user found');
-    toast.error('Please log in to access this page');
+    // Only show toast if we're not on the login page already
+    if (window.location.pathname !== '/login') {
+      toast.error('Please log in to access this page');
+    }
     return <Navigate to="/login" replace />;
   }
 

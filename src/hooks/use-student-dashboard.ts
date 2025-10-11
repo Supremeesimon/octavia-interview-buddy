@@ -92,18 +92,23 @@ export const useStudentDashboard = (): StudentDashboardData => {
   }, [user, listUserFiles, isAuthLoading]);
 
   useEffect(() => {
+    console.log('useStudentDashboard useEffect triggered, user:', user);
     if (!user) {
+      console.log('No user, setting isLoading to false');
       setData(prev => ({ ...prev, isLoading: false }));
       return;
     }
 
     const fetchData = async () => {
       try {
+        console.log('Fetching data for user ID:', user.id);
         // Fetch student stats
         const statsDoc = await getDoc(doc(db, 'student-stats', user.id));
         const stats = statsDoc.exists() ? statsDoc.data() as StudentStats : null;
+        console.log('Stats:', stats);
 
         // Set up real-time listener for interviews
+        console.log('Setting up interviews query for user ID:', user.id);
         const interviewsQuery = query(
           collection(db, 'interviews'),
           where('studentId', '==', user.id),
@@ -113,10 +118,26 @@ export const useStudentDashboard = (): StudentDashboardData => {
 
         const unsubscribe = onSnapshot(interviewsQuery, (snapshot) => {
           try {
-            const interviews = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...(doc.data() as any)
-            } as Interview));
+            console.log('Interviews snapshot received, doc count:', snapshot.docs.length);
+            const interviews = snapshot.docs.map(doc => {
+              const data = doc.data() as any;
+              console.log('.getRaw data for interview:', doc.id, data);
+              
+              // Ensure createdAt and updatedAt are proper Date objects
+              const processedData = {
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt ? new Date(data.createdAt._seconds * 1000) : new Date(),
+                updatedAt: data.updatedAt ? new Date(data.updatedAt._seconds * 1000) : new Date(),
+                scheduledAt: data.scheduledAt ? new Date(data.scheduledAt._seconds * 1000) : new Date(),
+                startedAt: data.startedAt ? new Date(data.startedAt._seconds * 1000) : undefined,
+                endedAt: data.endedAt ? new Date(data.endedAt._seconds * 1000) : undefined
+              };
+              
+              return processedData as Interview;
+            });
+
+            console.log('Processed interviews:', interviews);
 
             // Find scheduled interview (next upcoming)
             const now = new Date();
@@ -145,6 +166,12 @@ export const useStudentDashboard = (): StudentDashboardData => {
               .filter(i => i.status === 'completed' && i.score)
               .reduce((sum, interview) => sum + (interview.score || 0), 0);
             const averageScore = completedInterviews > 0 ? totalScore / completedInterviews : 0;
+
+            console.log('Dashboard data:', {
+              completedInterviews,
+              averageScore,
+              hasScheduledInterviews
+            });
 
             setData(prev => ({
               ...prev,
