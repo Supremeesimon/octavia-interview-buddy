@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building, 
   Plus, 
@@ -17,55 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-// Mock data for institutions
-const mockInstitutions = [
-  { 
-    id: 1, 
-    name: 'Harvard University', 
-    adminName: 'John Smith', 
-    adminEmail: 'john.smith@harvard.edu', 
-    studentsCount: 1245, 
-    plan: 'Enterprise', 
-    status: 'Active' 
-  },
-  { 
-    id: 2, 
-    name: 'Stanford University', 
-    adminName: 'Sarah Johnson', 
-    adminEmail: 'sarah.j@stanford.edu', 
-    studentsCount: 958, 
-    plan: 'Scale', 
-    status: 'Active' 
-  },
-  { 
-    id: 3, 
-    name: 'MIT', 
-    adminName: 'Michael Brown', 
-    adminEmail: 'm.brown@mit.edu', 
-    studentsCount: 872, 
-    plan: 'Ship', 
-    status: 'Active' 
-  },
-  { 
-    id: 4, 
-    name: 'Yale University', 
-    adminName: 'Emma Wilson', 
-    adminEmail: 'e.wilson@yale.edu', 
-    studentsCount: 756, 
-    plan: 'Scale', 
-    status: 'Inactive' 
-  },
-  { 
-    id: 5, 
-    name: 'Princeton University', 
-    adminName: 'David Lee', 
-    adminEmail: 'd.lee@princeton.edu', 
-    studentsCount: 612, 
-    plan: 'Build', 
-    status: 'Active' 
-  },
-];
+import { InstitutionService } from '@/services/institution.service';
+import { Institution } from '@/types';
 
 const InstitutionManagement = () => {
   const isMobile = useIsMobile();
@@ -76,8 +29,40 @@ const InstitutionManagement = () => {
   const [selectedInstitution, setSelectedInstitution] = useState<any>(null);
   const [generatedLink, setGeneratedLink] = useState('');
   const [copied, setCopied] = useState(false);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  const filteredInstitutions = mockInstitutions.filter(
+  // Fetch real institution data
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const data = await InstitutionService.getAllInstitutions();
+        setInstitutions(data);
+      } catch (error) {
+        console.error('Error fetching institutions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchInstitutions();
+  }, []);
+  
+  // Convert institutions to the format expected by the component
+  const formattedInstitutions = institutions.map(inst => ({
+    id: inst.id,
+    name: inst.name,
+    adminName: inst.adminId || 'Not assigned', // Placeholder
+    adminEmail: inst.adminId ? `${inst.adminId}@example.com` : 'Not assigned', // Placeholder
+    studentsCount: inst.stats?.totalStudents || 0,
+    plan: inst.settings?.allowedBookingsPerMonth ? 
+      inst.settings.allowedBookingsPerMonth > 1000 ? 'Enterprise' : 
+      inst.settings.allowedBookingsPerMonth > 500 ? 'Scale' : 
+      inst.settings.allowedBookingsPerMonth > 100 ? 'Ship' : 'Build' : 'Build',
+    status: inst.isActive ? 'Active' : 'Inactive'
+  }));
+  
+  const filteredInstitutions = formattedInstitutions.filter(
     institution => institution.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
@@ -154,7 +139,13 @@ const InstitutionManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInstitutions.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Loading institutions...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredInstitutions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No institutions found matching your search.

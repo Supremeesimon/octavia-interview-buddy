@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -32,17 +31,18 @@ import {
   Filter
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { InstitutionService } from '@/services/institution.service';
+import { Institution } from '@/types';
 
-// Mock data for the component
-const mockInstitutions = [
-  { id: 1, name: 'Harvard University', students: 1200, licenseRevenue: 23952, sessionRevenue: 4500, status: 'active' },
-  { id: 2, name: 'Stanford University', students: 950, licenseRevenue: 18962, sessionRevenue: 3800, status: 'active' },
-  { id: 3, name: 'MIT', students: 800, licenseRevenue: 15968, sessionRevenue: 2250, status: 'active' },
-  { id: 4, name: 'Princeton University', students: 600, licenseRevenue: 11976, sessionRevenue: 1800, status: 'active' },
-  { id: 5, name: 'Yale University', students: 750, licenseRevenue: 14970, sessionRevenue: 2100, status: 'active' },
-  { id: 6, name: 'Columbia University', students: 850, licenseRevenue: 16966, sessionRevenue: 2700, status: 'pending' },
-  { id: 7, name: 'University of Pennsylvania', students: 920, licenseRevenue: 18363, sessionRevenue: 3300, status: 'active' }
-];
+// Interface for financial institution data
+interface FinancialInstitution {
+  id: string;
+  name: string;
+  students: number;
+  licenseRevenue: number;
+  sessionRevenue: number;
+  status: 'active' | 'pending';
+}
 
 const FinancialManagement = () => {
   const { toast } = useToast();
@@ -51,18 +51,50 @@ const FinancialManagement = () => {
   const [markupPercentage, setMarkupPercentage] = useState(36.36); // Default markup percentage
   const [licenseCost, setLicenseCost] = useState(19.96); // Default annual license cost
   const [selectedInstitution, setSelectedInstitution] = useState<string>('all');
+  const [institutions, setInstitutions] = useState<FinancialInstitution[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Fetch real institution data
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const data = await InstitutionService.getAllInstitutions();
+        // Convert to the format expected by the component
+        const formattedData: FinancialInstitution[] = data.map((inst) => ({
+          id: inst.id,
+          name: inst.name,
+          students: inst.stats?.totalStudents || 0,
+          licenseRevenue: (inst.stats?.totalStudents || 0) * (licenseCost / 4), // Estimate based on students
+          sessionRevenue: (inst.stats?.totalInterviews || 0) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)), // Estimate
+          status: inst.isActive ? 'active' : 'pending'
+        }));
+        setInstitutions(formattedData);
+      } catch (error) {
+        console.error('Error fetching institutions:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load institution data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchInstitutions();
+  }, [licenseCost, vapiCost, markupPercentage]);
   
   // Quick calculate derived values
   const calculatedSessionPrice = Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2));
-  const totalInstitutions = mockInstitutions.length;
-  const activeInstitutions = mockInstitutions.filter(i => i.status === 'active').length;
-  const totalStudents = mockInstitutions.reduce((acc, inst) => acc + inst.students, 0);
-  const totalLicenseRevenue = mockInstitutions.reduce((acc, inst) => acc + inst.licenseRevenue, 0);
-  const totalSessionRevenue = mockInstitutions.reduce((acc, inst) => acc + inst.sessionRevenue, 0);
+  const totalInstitutions = institutions.length;
+  const activeInstitutions = institutions.filter(i => i.status === 'active').length;
+  const totalStudents = institutions.reduce((acc, inst) => acc + inst.students, 0);
+  const totalLicenseRevenue = institutions.reduce((acc, inst) => acc + inst.licenseRevenue, 0);
+  const totalSessionRevenue = institutions.reduce((acc, inst) => acc + inst.sessionRevenue, 0);
   const totalRevenue = totalLicenseRevenue + totalSessionRevenue;
   const estimatedVapiCost = totalSessionRevenue * (vapiCost / calculatedSessionPrice);
   const estimatedProfit = totalRevenue - estimatedVapiCost;
-  const estimatedMargin = (estimatedProfit / totalRevenue * 100).toFixed(1);
+  const estimatedMargin = totalRevenue > 0 ? (estimatedProfit / totalRevenue * 100).toFixed(1) : '0';
   
   const handleVapiCostChange = (value: number[]) => {
     setVapiCost(value[0]);
@@ -73,7 +105,7 @@ const FinancialManagement = () => {
   };
   
   const handleLicenseCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLicenseCost(parseFloat(e.target.value));
+    setLicenseCost(parseFloat(e.target.value) || 0);
   };
   
   const applyGlobalPricing = () => {
@@ -89,6 +121,14 @@ const FinancialManagement = () => {
       description: "New prices will take effect on June 1, 2025",
     });
   };
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
@@ -186,11 +226,11 @@ const FinancialManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockInstitutions.map((institution) => {
+                    {institutions.map((institution) => {
                       const totalInst = institution.licenseRevenue + institution.sessionRevenue;
-                      const estVapiCost = institution.sessionRevenue * (vapiCost / calculatedSessionPrice);
+                      const estVapiCost = totalSessionRevenue > 0 ? totalInst * (vapiCost / calculatedSessionPrice) : 0;
                       const estProfit = totalInst - estVapiCost;
-                      const estMargin = (estProfit / totalInst * 100).toFixed(1);
+                      const estMargin = totalInst > 0 ? (estProfit / totalInst * 100).toFixed(1) : '0';
                       
                       return (
                         <TableRow key={institution.id}>
@@ -420,7 +460,7 @@ const FinancialManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockInstitutions.map((institution) => (
+                    {institutions.map((institution) => (
                       <TableRow key={institution.id}>
                         <TableCell className="font-medium">{institution.name}</TableCell>
                         <TableCell>
@@ -698,7 +738,7 @@ const FinancialManagement = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Institutions</SelectItem>
-                      {mockInstitutions.map(institution => (
+                      {institutions.map(institution => (
                         <SelectItem key={institution.id} value={institution.id.toString()}>
                           {institution.name}
                         </SelectItem>
@@ -826,7 +866,7 @@ const FinancialManagement = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Institutions</SelectItem>
-                          {mockInstitutions.map(institution => (
+                          {institutions.map(institution => (
                             <SelectItem key={institution.id} value={institution.id.toString()}>
                               {institution.name}
                             </SelectItem>
@@ -919,7 +959,7 @@ const FinancialManagement = () => {
                     <div className="flex justify-between items-center">
                       <span>Margin percentage:</span>
                       <span className="font-bold text-lg">
-                        {((calculatedSessionPrice - vapiCost) / calculatedSessionPrice * 100).toFixed(1)}%
+                        {calculatedSessionPrice > 0 ? ((calculatedSessionPrice - vapiCost) / calculatedSessionPrice * 100).toFixed(1) : '0'}%
                       </span>
                     </div>
                   </div>
@@ -928,7 +968,7 @@ const FinancialManagement = () => {
                     <div className="text-sm text-muted-foreground mb-2">
                       {selectedInstitution === 'all' 
                         ? 'This will update pricing for all institutions' 
-                        : `This will update pricing for ${mockInstitutions.find(i => i.id.toString() === selectedInstitution)?.name}`}
+                        : `This will update pricing for ${institutions.find(i => i.id.toString() === selectedInstitution)?.name}`}
                     </div>
                     <Button className="w-full">
                       <Save className="h-4 w-4 mr-2" />
@@ -981,7 +1021,7 @@ const FinancialManagement = () => {
                 </div>
                 
                 <div className="border rounded-md p-2 max-h-48 overflow-y-auto">
-                  {mockInstitutions.map(institution => (
+                  {institutions.map(institution => (
                     <div key={institution.id} className="flex items-center space-x-2 py-1">
                       <input type="checkbox" id={`inst-${institution.id}`} defaultChecked />
                       <Label htmlFor={`inst-${institution.id}`} className="text-sm cursor-pointer">
@@ -994,13 +1034,14 @@ const FinancialManagement = () => {
               
               <div className="bg-primary/5 p-4 rounded-md flex items-center justify-between">
                 <div>
-                  <h3 className="font-medium">7 institutions selected</h3>
+                  <h3 className="font-medium">{institutions.length} institutions selected</h3>
                   <p className="text-sm text-muted-foreground">
                     Changes will apply to all selected institutions
                   </p>
                 </div>
                 <Button>
-                  Apply Batch Changes
+                  <Save className="h-4 w-4 mr-2" />
+                  Apply Changes
                 </Button>
               </div>
             </CardContent>

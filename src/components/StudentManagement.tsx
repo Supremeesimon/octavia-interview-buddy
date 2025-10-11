@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -16,57 +15,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { InstitutionService } from '@/services/institution.service';
+import { Institution } from '@/types';
 
-// Mock data for students
-const mockStudents = [
-  { 
-    id: 1, 
-    name: 'Alex Thompson', 
-    email: 'alex.t@harvard.edu', 
-    institution: 'Harvard University', 
-    interviewsCompleted: 8, 
-    lastActive: '2023-05-12', 
-    performanceScore: 92 
-  },
-  { 
-    id: 2, 
-    name: 'Jamie Rodriguez', 
-    email: 'j.rodriguez@stanford.edu', 
-    institution: 'Stanford University', 
-    interviewsCompleted: 5, 
-    lastActive: '2023-05-10', 
-    performanceScore: 88 
-  },
-  { 
-    id: 3, 
-    name: 'Casey Kim', 
-    email: 'c.kim@mit.edu', 
-    institution: 'MIT', 
-    interviewsCompleted: 12, 
-    lastActive: '2023-05-11', 
-    performanceScore: 95 
-  },
-  { 
-    id: 4, 
-    name: 'Taylor Wong', 
-    email: 't.wong@yale.edu', 
-    institution: 'Yale University', 
-    interviewsCompleted: 3, 
-    lastActive: '2023-05-08', 
-    performanceScore: 79 
-  },
-  { 
-    id: 5, 
-    name: 'Jordan Smith', 
-    email: 'j.smith@princeton.edu', 
-    institution: 'Princeton University', 
-    interviewsCompleted: 7, 
-    lastActive: '2023-05-09', 
-    performanceScore: 87 
-  },
-];
-
-// Mock data for student detail
+// Mock data for student detail (keeping this for now as we don't have a student service yet)
 const mockInterviews = [
   { 
     id: 1, 
@@ -120,6 +72,40 @@ const StudentManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showStudentDialog, setShowStudentDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Fetch real institution data (students belong to institutions)
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const data = await InstitutionService.getAllInstitutions();
+        setInstitutions(data);
+      } catch (error) {
+        console.error('Error fetching institutions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchInstitutions();
+  }, []);
+  
+  // Convert institutions to student data format
+  const mockStudents = institutions.flatMap(inst => {
+    // For now, we'll generate mock students based on institution data
+    // In a real implementation, we would fetch actual student data
+    const studentCount = inst.stats?.totalStudents || 0;
+    return Array.from({ length: Math.min(studentCount, 5) }, (_, i) => ({
+      id: `${inst.id}-${i + 1}`,
+      name: `${inst.name} Student ${i + 1}`,
+      email: `student${i + 1}@${inst.name.toLowerCase().replace(/\s+/g, '')}.edu`,
+      institution: inst.name,
+      interviewsCompleted: Math.floor(Math.random() * 20),
+      lastActive: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      performanceScore: Math.floor(Math.random() * 40) + 60
+    }));
+  });
   
   const filteredStudents = mockStudents.filter(
     student => 
@@ -175,7 +161,13 @@ const StudentManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStudents.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Loading students...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredStudents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No students found matching your search.
@@ -199,15 +191,16 @@ const StudentManagement = () => {
                             className={`h-2 w-16 rounded-full bg-gray-200 mr-2 overflow-hidden`}
                           >
                             <div 
-                              className={`h-full rounded-full ${
+                              className={`h-full ${
                                 student.performanceScore >= 90 ? 'bg-green-500' : 
-                                student.performanceScore >= 80 ? 'bg-yellow-500' : 
+                                student.performanceScore >= 80 ? 'bg-blue-500' : 
+                                student.performanceScore >= 70 ? 'bg-yellow-500' : 
                                 'bg-red-500'
                               }`}
                               style={{ width: `${student.performanceScore}%` }}
-                            ></div>
+                            />
                           </div>
-                          <span className="text-sm">{student.performanceScore}%</span>
+                          <span className="text-sm font-medium">{student.performanceScore}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -216,8 +209,7 @@ const StudentManagement = () => {
                           variant="outline"
                           onClick={() => handleViewStudent(student)}
                         >
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
+                          <Eye className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -230,130 +222,111 @@ const StudentManagement = () => {
       </Card>
       
       {/* Student Detail Dialog */}
-      {selectedStudent && (
-        <Dialog open={showStudentDialog} onOpenChange={setShowStudentDialog}>
-          <DialogContent className="sm:max-w-[700px]">
-            <DialogHeader>
-              <DialogTitle>Student Profile</DialogTitle>
-              <DialogDescription>
-                Detailed information about {selectedStudent.name}
-              </DialogDescription>
-            </DialogHeader>
+      <Dialog open={showStudentDialog} onOpenChange={setShowStudentDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{selectedStudent?.name}</DialogTitle>
+            <DialogDescription>
+              {selectedStudent?.email} • {selectedStudent?.institution}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="overview">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="interviews">Interviews</TabsTrigger>
+              <TabsTrigger value="feedback">Feedback</TabsTrigger>
+            </TabsList>
             
-            <div className="mt-4">
-              <div className="flex flex-col md:flex-row gap-6 mb-6">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center">
-                      <User className="h-8 w-8 text-gray-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">{selectedStudent.name}</h3>
-                      <p className="text-muted-foreground">{selectedStudent.email}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Institution</p>
-                      <p className="font-medium">{selectedStudent.institution}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Interviews Completed</p>
-                      <p className="font-medium">{selectedStudent.interviewsCompleted}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Last Active</p>
-                      <p className="font-medium">{selectedStudent.lastActive}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Performance Score</p>
-                      <p className="font-medium">{selectedStudent.performanceScore}%</p>
-                    </div>
-                  </div>
-                </div>
+            <TabsContent value="overview" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-muted-foreground">Interviews Completed</div>
+                    <div className="text-2xl font-bold">{selectedStudent?.interviewsCompleted || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-muted-foreground">Performance Score</div>
+                    <div className="text-2xl font-bold">{selectedStudent?.performanceScore || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-muted-foreground">Last Active</div>
+                    <div className="text-2xl font-bold">{selectedStudent?.lastActive || 'N/A'}</div>
+                  </CardContent>
+                </Card>
               </div>
-              
-              <Tabs defaultValue="interviews">
-                <TabsList className="w-full">
-                  <TabsTrigger value="interviews" className="flex-1">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Interviews
-                  </TabsTrigger>
-                  <TabsTrigger value="feedback" className="flex-1">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Feedback Summary
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="interviews">
-                  <div className="mt-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Company</TableHead>
-                          <TableHead>Duration</TableHead>
-                          <TableHead>Score</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {mockInterviews.map((interview) => (
-                          <TableRow key={interview.id}>
-                            <TableCell>{interview.date}</TableCell>
-                            <TableCell>{interview.role}</TableCell>
-                            <TableCell>{interview.company}</TableCell>
-                            <TableCell>{interview.duration}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <div className="h-2 w-12 rounded-full bg-gray-200 mr-2 overflow-hidden">
-                                  <div 
-                                    className={`h-full rounded-full ${
-                                      interview.score >= 90 ? 'bg-green-500' : 
-                                      interview.score >= 80 ? 'bg-yellow-500' : 
-                                      'bg-red-500'
-                                    }`}
-                                    style={{ width: `${interview.score}%` }}
-                                  ></div>
-                                </div>
-                                <span className="text-sm">{interview.score}%</span>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="feedback">
-                  <div className="mt-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Strengths</TableHead>
-                          <TableHead>Areas for Improvement</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {mockFeedback.map((feedback) => (
-                          <TableRow key={feedback.id}>
-                            <TableCell className="font-medium">{feedback.category}</TableCell>
-                            <TableCell>{feedback.strength}</TableCell>
-                            <TableCell>{feedback.improvement}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </TabsContent>
+            
+            <TabsContent value="interviews">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Score</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {mockInterviews.map((interview) => (
+                    <TableRow key={interview.id}>
+                      <TableCell>{interview.date}</TableCell>
+                      <TableCell>{interview.role}</TableCell>
+                      <TableCell>{interview.company}</TableCell>
+                      <TableCell>{interview.duration}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <div 
+                            className={`h-2 w-16 rounded-full bg-gray-200 mr-2 overflow-hidden`}
+                          >
+                            <div 
+                              className={`h-full ${
+                                interview.score >= 90 ? 'bg-green-500' : 
+                                interview.score >= 80 ? 'bg-blue-500' : 
+                                interview.score >= 70 ? 'bg-yellow-500' : 
+                                'bg-red-500'
+                              }`}
+                              style={{ width: `${interview.score}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium">{interview.score}</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            
+            <TabsContent value="feedback">
+              <div className="space-y-4">
+                {mockFeedback.map((feedback) => (
+                  <Card key={feedback.id}>
+                    <CardContent className="p-4">
+                      <div className="font-medium mb-2">{feedback.category}</div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-sm text-muted-foreground">Strengths</div>
+                          <div className="mt-1">{feedback.strength}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Areas for Improvement</div>
+                          <div className="mt-1">{feedback.improvement}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

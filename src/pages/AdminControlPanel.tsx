@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -10,6 +9,8 @@ import ResourceManagement from '@/components/ResourceManagement';
 import BroadcastSystem from '@/components/BroadcastSystem';
 import AIAnalytics from '@/components/AIAnalytics';
 import FinancialManagement from '@/components/FinancialManagement';
+import GeminiTest from '@/components/GeminiTest';
+import { aiAnalyticsService } from '@/services/ai-analytics.service';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
@@ -29,6 +30,15 @@ const AdminControlPanel = () => {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('dashboard');
   
+  // Initialize AI analytics service with Gemini API key
+  useEffect(() => {
+    // Use the provided Gemini API key
+    const geminiApiKey = "AIzaSyAmJ09DcqFRO4x8oYeRaEjgFyKWMfXYD94";
+    if (geminiApiKey) {
+      aiAnalyticsService.setGeminiApiKey(geminiApiKey);
+    }
+  }, []);
+  
   return (
     <div className="min-h-screen flex flex-col overflow-hidden w-full">
       <Header />
@@ -43,7 +53,7 @@ const AdminControlPanel = () => {
               onValueChange={setActiveTab}
               value={activeTab}
             >
-              <TabsList className={`${isMobile ? 'grid-cols-2 gap-2 mb-4' : 'w-full grid-cols-7'} grid overflow-x-auto`}>
+              <TabsList className={`${isMobile ? 'grid-cols-2 gap-2 mb-4' : 'w-full grid-cols-8'} grid overflow-x-auto`}>
                 <TabsTrigger 
                   value="dashboard" 
                   tooltip="Platform overview, metrics, and performance statistics"
@@ -93,6 +103,13 @@ const AdminControlPanel = () => {
                 >
                   Financial
                 </TabsTrigger>
+                <TabsTrigger 
+                  value="gemini-test" 
+                  tooltip="Test Gemini API integration"
+                  className={activeTab === "gemini-test" ? "border-b-2 border-primary" : ""}
+                >
+                  Gemini Test
+                </TabsTrigger>
               </TabsList>
               
               <div className="overflow-hidden">
@@ -116,6 +133,9 @@ const AdminControlPanel = () => {
                 </TabsContent>
                 <TabsContent value="financial">
                   <FinancialManagement />
+                </TabsContent>
+                <TabsContent value="gemini-test">
+                  <GeminiTest />
                 </TabsContent>
               </div>
             </Tabs>
