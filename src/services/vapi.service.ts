@@ -28,6 +28,7 @@ export class VapiService {
   private currentCall: VapiCall | null = null;
   private callbacks: VapiCallbacks = {};
   private assistantId: string = 'a1218d48-1102-4890-a0a6-d0ed2d207410'; // Default Octavia assistant ID
+  private callMetadata: any = {}; // Add this to store metadata separately
 
   private constructor() {
     this.initializeVapi();
@@ -179,7 +180,7 @@ export class VapiService {
         id: call.id,
         status: 'ended',
         duration: call.duration,
-        metadata: call.metadata,
+        metadata: call.metadata || this.callMetadata, // Use stored metadata if not in call
       };
       
       // Handle end-of-call analysis data
@@ -200,6 +201,9 @@ export class VapiService {
       // Also call onInterviewEnd to ensure consistent behavior
       console.log('Calling onInterviewEnd callback');
       this.callbacks.onInterviewEnd?.();
+      
+      // Clear stored metadata after call ends
+      this.callMetadata = {};
     });
 
     this.vapi.on('speech-start', () => {
@@ -294,7 +298,7 @@ export class VapiService {
         const mockCall = {
           id: `call_${Date.now()}`, // This will be replaced if we have a current call
           analysis: analysis,
-          metadata: this.currentCall?.metadata || {},
+          metadata: this.currentCall?.metadata || this.callMetadata || {}, // Use stored metadata as fallback
           transcript: '', // Transcript is handled separately
           recordingUrl: '',
           duration: 0
@@ -304,12 +308,17 @@ export class VapiService {
         if (this.currentCall) {
           console.log('🔗 VAPI Service: Using current call data:', {
             currentCallId: this.currentCall.id,
-            hasMetadata: !!this.currentCall.metadata
+            hasMetadata: !!(this.currentCall.metadata || this.callMetadata)
           });
           mockCall.id = this.currentCall.id;
-          mockCall.metadata = this.currentCall.metadata || mockCall.metadata;
+          mockCall.metadata = this.currentCall.metadata || this.callMetadata || mockCall.metadata;
         } else {
-          console.log('⚠️ VAPI Service: No current call data available');
+          console.log('⚠️ VAPI Service: No current call data available, using stored metadata');
+          // Use stored metadata if available
+          if (Object.keys(this.callMetadata).length > 0) {
+            mockCall.metadata = this.callMetadata;
+            console.log('🔗 VAPI Service: Using stored metadata');
+          }
         }
         
         console.log('📥 VAPI Service: Calling handleEndOfCallAnalysis with mock call data');
@@ -505,13 +514,15 @@ export class VapiService {
     this.callbacks = callbacks;
 
     // Prepare metadata for the assistant with hierarchical information
-    const metadata = {
-      resumeData: resumeData || {},
-      interviewType,
-      startTime: new Date().toISOString(),
-      studentId,
-      departmentId,
-      institutionId
+    const assistantOverrides = {
+      variableValues: {
+        studentId: studentId || '',
+        departmentId: departmentId || '',
+        institutionId: institutionId || '',
+        interviewType: interviewType || 'general',
+        resumeId: resumeData ? 'provided' : '',
+        sessionId: 'session-' + Date.now()
+      }
     };
 
     try {
@@ -519,7 +530,7 @@ export class VapiService {
       console.log('Starting VAPI call with assistant ID:', assistantId);
       console.log('VAPI instance available:', !!this.vapi);
       console.log('VAPI start method available:', !!this.vapi?.start);
-      console.log('Metadata being sent:', metadata);
+      console.log('Assistant overrides being sent:', assistantOverrides);
       
       // Test assistant before starting call
       const isAssistantValid = await this.testAssistant();
@@ -532,7 +543,7 @@ export class VapiService {
       // Add additional debugging
       console.log('Calling vapi.start with:', {
         assistantId,
-        overrides: { metadata }
+        assistantOverrides
       });
       
       // Check if the VAPI instance has the start method
@@ -540,10 +551,9 @@ export class VapiService {
         throw new Error('VAPI instance is not properly initialized or missing start method.');
       }
       
-      // Start the call with the assistant ID and metadata
+      // Start the call with the assistant ID and assistant overrides
       console.log('Executing vapi.start...');
-      // The correct format according to VAPI documentation is to pass metadata in the overrides object
-      const call = await this.vapi.start(assistantId, { metadata });
+      const call = await this.vapi.start(assistantId, assistantOverrides);
       
       console.log('VAPI start response received:', call);
       console.log('Response type:', typeof call);
@@ -575,7 +585,20 @@ export class VapiService {
       this.currentCall = {
         id: call.id,
         status: 'connecting',
-        metadata,
+        metadata: {
+          studentId: studentId || '',
+          departmentId: departmentId || '',
+          institutionId: institutionId || '',
+          interviewType: interviewType || 'general'
+        },
+      };
+      
+      // Store metadata separately to ensure it's available for events
+      this.callMetadata = {
+        studentId: studentId || '',
+        departmentId: departmentId || '',
+        institutionId: institutionId || '',
+        interviewType: interviewType || 'general'
       };
       
       console.log('Interview call started successfully:', this.currentCall);

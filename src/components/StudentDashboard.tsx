@@ -28,6 +28,7 @@ import { useStudentDashboard } from '@/hooks/use-student-dashboard';
 import { useInterviewFeedback } from '@/hooks/use-interview-feedback';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
+import DebugDashboard from './DebugDashboard';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -72,16 +73,18 @@ const StudentDashboard = () => {
   
   // Process interview history from Firebase data
   console.log('Raw interviews data:', interviews);
-  const interviewHistory = interviews.map(interview => ({
-    id: interview.id,
-    date: interview.createdAt ? interview.createdAt.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' }
-    ) : 'Unknown Date',
-    title: `${interview.type.charAt(0).toUpperCase() + interview.type.slice(1)} Interview`,
-    score: interview.score || 0
-  }));
+  const interviewHistory = interviews
+    .filter(interview => interview.createdAt instanceof Date && !isNaN(interview.createdAt.getTime()))
+    .map(interview => ({
+      id: interview.id,
+      date: interview.createdAt.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      }),
+      title: `${interview.type.charAt(0).toUpperCase() + interview.type.slice(1)} Interview`,
+      score: interview.score || 0
+    }));
   console.log('Processed interviewHistory:', interviewHistory);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -436,31 +439,65 @@ const StudentDashboard = () => {
           <TabsTrigger value="history">Interview History</TabsTrigger>
           <TabsTrigger value="feedback">Latest Feedback</TabsTrigger>
           <TabsTrigger value="performance">Performance Analysis</TabsTrigger>
+          <TabsTrigger value="debug">Debug Info</TabsTrigger>
         </TabsList>
         
         <TabsContent value="history">
           <Card>
             <CardContent className="p-6">
-              {interviewHistory.length > 0 ? (
+              {interviews && interviews.length > 0 ? (
                 <div className="divide-y">
-                  {interviewHistory.map(interview => (
-                    <div key={interview.id} className="py-4 first:pt-0 last:pb-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <div className="font-medium">{interview.title}</div>
-                          <div className="text-sm text-muted-foreground">{interview.date}</div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className="text-sm text-muted-foreground">Score</div>
-                            <div className="font-medium">{interview.score}/100</div>
+                  {interviews.map(interview => {
+                    // Format date safely
+                    let formattedDate = 'Unknown Date';
+                    if (interview.createdAt) {
+                      // Handle different date formats
+                      let dateObj: Date;
+                      if (interview.createdAt instanceof Date) {
+                        dateObj = interview.createdAt;
+                      } else if (typeof interview.createdAt === 'object' && (interview.createdAt as any)?._seconds) {
+                        dateObj = new Date((interview.createdAt as any)._seconds * 1000);
+                      } else if (typeof interview.createdAt === 'string') {
+                        dateObj = new Date(interview.createdAt);
+                      } else {
+                        dateObj = new Date();
+                      }
+                      
+                      if (!isNaN(dateObj.getTime())) {
+                        formattedDate = dateObj.toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        });
+                      }
+                    }
+                    
+                    // Get interview type with fallback
+                    const interviewType = interview.type || interview.interviewType || 'General';
+                    const displayType = `${interviewType.charAt(0).toUpperCase() + interviewType.slice(1)} Interview`;
+                    
+                    // Get score with fallback
+                    const score = typeof interview.score === 'number' ? interview.score : 0;
+                    
+                    return (
+                      <div key={interview.id} className="py-4 first:pt-0 last:pb-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="font-medium">{displayType}</div>
+                            <div className="text-sm text-muted-foreground">{formattedDate}</div>
                           </div>
-                          <Button variant="outline" size="sm">View Feedback</Button>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-sm text-muted-foreground">Score</div>
+                              <div className="font-medium">{score}/100</div>
+                            </div>
+                            <Button variant="outline" size="sm">View Feedback</Button>
+                          </div>
                         </div>
+                        <Progress value={score} className="h-2" />
                       </div>
-                      <Progress value={interview.score} className="h-2" />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center text-center h-40">
@@ -477,48 +514,81 @@ const StudentDashboard = () => {
             {feedback ? (
               <>
                 <CardHeader>
-                  <CardTitle>{feedback.categories.length > 0 ? "Interview Feedback" : "Behavioral Interview Practice"}</CardTitle>
+                  <CardTitle>{(feedback.categories && feedback.categories.length > 0) || (feedback as any).structuredData?.categories ? "Interview Feedback" : "Behavioral Interview Practice"}</CardTitle>
                   <CardDescription>
-                    Completed on {feedback.createdAt.toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
+                    {feedback.createdAt ? 
+                      (() => {
+                        // Handle different date formats
+                        let dateObj: Date;
+                        if (feedback.createdAt instanceof Date) {
+                          dateObj = feedback.createdAt;
+                        } else if (typeof feedback.createdAt === 'object' && (feedback.createdAt as any)?._seconds) {
+                          dateObj = new Date((feedback.createdAt as any)._seconds * 1000);
+                        } else if (typeof feedback.createdAt === 'string') {
+                          dateObj = new Date(feedback.createdAt);
+                        } else {
+                          dateObj = new Date();
+                        }
+                        
+                        if (!isNaN(dateObj.getTime())) {
+                          return `Completed on ${dateObj.toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}`;
+                        }
+                        return 'Feedback details';
+                      })() : 
+                      'Feedback details'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 pt-0">
                   <div className="mb-6">
                     <h3 className="font-medium mb-3">Score Breakdown</h3>
                     <div className="space-y-4">
-                      {feedback.categories.map(category => (
-                        <div key={category.name}>
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm">{category.name}</span>
-                            <span className="text-sm font-medium">{category.score}/100</span>
+                      {feedback.categories && feedback.categories.length > 0 ? (
+                        feedback.categories.map((category: any, index: number) => (
+                          <div key={`${category.name || index}`}>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-sm">{category.name || 'Category'}</span>
+                              <span className="text-sm font-medium">{typeof category.score === 'number' ? category.score : 'N/A'}/100</span>
+                            </div>
+                            <Progress value={typeof category.score === 'number' ? category.score : 0} className="h-2" />
                           </div>
-                          <Progress value={category.score} className="h-2" />
-                        </div>
-                      ))}
+                        ))
+                      ) : (feedback as any).structuredData?.categories && (feedback as any).structuredData.categories.length > 0 ? (
+                        (feedback as any).structuredData.categories.map((category: any, index: number) => (
+                          <div key={`${category.name || index}`}>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-sm">{category.name || 'Category'}</span>
+                              <span className="text-sm font-medium">{typeof category.score === 'number' ? category.score : 'N/A'}/100</span>
+                            </div>
+                            <Progress value={typeof category.score === 'number' ? category.score : 0} className="h-2" />
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">No category scores available</p>
+                      )}
                     </div>
                   </div>
                   
                   <div className="mb-6">
                     <h3 className="font-medium mb-2">Strengths</h3>
                     <div className="bg-green-50 border border-green-100 rounded-md p-3 text-sm text-green-800">
-                      <p>{feedback.strengths.join(', ') || "No specific strengths identified"}</p>
+                      <p>{(feedback.strengths && feedback.strengths.length > 0) ? feedback.strengths.join(', ') : (feedback as any).structuredData?.strengths?.join(', ') || "No specific strengths identified"}</p>
                     </div>
                   </div>
                   
                   <div className="mb-6">
                     <h3 className="font-medium mb-2">Areas for Improvement</h3>
                     <div className="bg-amber-50 border border-amber-100 rounded-md p-3 text-sm text-amber-800">
-                      <p>{feedback.improvements.join(', ') || "No specific improvements identified"}</p>
+                      <p>{(feedback.improvements && feedback.improvements.length > 0) ? feedback.improvements.join(', ') : (feedback as any).structuredData?.improvements?.join(', ') || "No specific improvements identified"}</p>
                     </div>
                   </div>
                   
                   <div>
                     <h3 className="font-medium mb-2">Overall Assessment</h3>
-                    <p className="text-sm text-muted-foreground">{feedback.detailedAnalysis || "No detailed analysis available"}</p>
+                    <p className="text-sm text-muted-foreground">{(feedback as any).detailedAnalysis || (feedback as any).summary || "No detailed analysis available"}</p>
                   </div>
                 </CardContent>
                 <CardFooter className="px-6 pt-0">
@@ -573,6 +643,10 @@ const StudentDashboard = () => {
               </div>
             )}
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="debug">
+          <DebugDashboard />
         </TabsContent>
       </Tabs>
     </div>

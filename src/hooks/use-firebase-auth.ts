@@ -10,7 +10,7 @@ interface UseFirebaseAuthReturn {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ user: UserProfile; token: string }>;
-  register: (data: { name: string; email: string; password: string; institutionDomain?: string }) => Promise<{ user: UserProfile; token: string }>;
+  register: (data: { name: string; email: string; password: string; institutionDomain?: string; role?: string; department?: string; yearOfStudy?: string; }) => Promise<{ user: UserProfile; token: string }>;
   loginWithGoogle: () => Promise<{ user: UserProfile; token: string }>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
@@ -73,7 +73,7 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     }
   };
 
-  const register = async (data: { name: string; email: string; password: string; institutionDomain?: string }) => {
+  const register = async (data: { name: string; email: string; password: string; institutionDomain?: string; role?: string; department?: string; yearOfStudy?: string; }) => {
     setIsLoading(true);
     try {
       const result = await firebaseAuthService.register(data);

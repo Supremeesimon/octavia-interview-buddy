@@ -1,30 +1,37 @@
-import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { config } from 'dotenv';
 
-// Read the service account key file
-const serviceAccount = JSON.parse(
-  readFileSync(resolve('./firebase-service-account.json'), 'utf8')
-);
+// Load environment variables
+config({ path: '.env.local' });
 
-// Initialize Firebase Admin with service account credentials
-const app = initializeApp({
-  credential: cert(serviceAccount),
-  projectId: 'octavia-practice-interviewer',
-});
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID,
+  measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID
+};
 
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-async function checkCollectionsSimple() {
+async function checkCollections() {
   try {
-    console.log('🔍 Checking all Firestore collections with Admin SDK (simple query)...\n');
+    console.log('🔍 Checking Firestore collections...\n');
 
     // Check end-of-call-analysis collection
     console.log('=== END-OF-CALL-ANALYSIS COLLECTION ===');
-    const analysisCollection = db.collection('end-of-call-analysis');
-    const analysisSnapshot = await analysisCollection.limit(5).get();
-    
+    const analysisQuery = query(
+      collection(db, 'end-of-call-analysis'),
+      orderBy('timestamp', 'desc'),
+      limit(5)
+    );
+    const analysisSnapshot = await getDocs(analysisQuery);
     console.log(`Found ${analysisSnapshot.size} documents`);
     
     if (analysisSnapshot.empty) {
@@ -35,7 +42,7 @@ async function checkCollectionsSimple() {
         console.log(`\nDocument ${index + 1}: ${doc.id}`);
         console.log(`  Call ID: ${data.callId || 'N/A'}`);
         console.log(`  Student ID: ${data.studentId || 'N/A'}`);
-        console.log(`  Timestamp: ${data.createdAt ? new Date(data.createdAt._seconds * 1000).toISOString() : 'N/A'}`);
+        console.log(`  Timestamp: ${data.timestamp ? new Date(data.timestamp._seconds * 1000).toISOString() : 'N/A'}`);
         console.log(`  Interview Type: ${data.interviewType || 'N/A'}`);
         console.log(`  Has Summary: ${!!data.summary}`);
         console.log(`  Has Transcript: ${!!data.transcript}`);
@@ -46,9 +53,12 @@ async function checkCollectionsSimple() {
 
     // Check interviews collection
     console.log('=== INTERVIEWS COLLECTION ===');
-    const interviewsCollection = db.collection('interviews');
-    const interviewsSnapshot = await interviewsCollection.limit(5).get();
-    
+    const interviewsQuery = query(
+      collection(db, 'interviews'),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+    const interviewsSnapshot = await getDocs(interviewsQuery);
     console.log(`Found ${interviewsSnapshot.size} documents`);
     
     if (interviewsSnapshot.empty) {
@@ -69,9 +79,12 @@ async function checkCollectionsSimple() {
 
     // Check interview-feedback collection
     console.log('=== INTERVIEW-FEEDBACK COLLECTION ===');
-    const feedbackCollection = db.collection('interview-feedback');
-    const feedbackSnapshot = await feedbackCollection.limit(5).get();
-    
+    const feedbackQuery = query(
+      collection(db, 'interview-feedback'),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+    const feedbackSnapshot = await getDocs(feedbackQuery);
     console.log(`Found ${feedbackSnapshot.size} documents`);
     
     if (feedbackSnapshot.empty) {
@@ -91,11 +104,11 @@ async function checkCollectionsSimple() {
       console.log('\n');
     }
 
-    console.log('✅ Firestore collection check completed with Admin SDK');
+    console.log('✅ Firestore collection check completed');
   } catch (error) {
     console.error('❌ Error checking Firestore collections:', error);
   }
 }
 
 // Run the check
-checkCollectionsSimple();
+checkCollections();

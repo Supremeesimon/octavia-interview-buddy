@@ -27,6 +27,8 @@ export interface UserProfile extends User {
   emailVerified: boolean;
   sessionCount: number;
   profileCompleted: boolean;
+  department?: string;
+  yearOfStudy?: string;
 }
 
 export interface Student extends User {
@@ -347,6 +349,8 @@ export interface SignupRequest {
   password: string;
   institutionDomain?: string;
   role?: UserRole;
+  department?: string;
+  yearOfStudy?: string;
 }
 
 export interface ResumeUploadRequest {
@@ -385,6 +389,22 @@ export type PlatformPermission =
   | 'manage_pricing'
   | 'manage_system_settings'
   | 'access_support_tools';
+
+// =============================================================================
+// INSTITUTION INTEREST TYPES
+// =============================================================================
+
+export interface InstitutionInterest {
+  id?: string;
+  institutionName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  studentCapacity: string;
+  message?: string;
+  createdAt: Date;
+  status: 'pending' | 'processed' | 'contacted';
+}
 
 // =============================================================================
 // UTILITY TYPES

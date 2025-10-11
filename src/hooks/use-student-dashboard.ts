@@ -3,6 +3,7 @@ import { onSnapshot, query, collection, where, orderBy, limit, doc, getDoc, getD
 import { db } from '@/lib/firebase';
 import { useFirebaseAuth } from './use-firebase-auth';
 import { useFirebaseStorage } from './use-firebase-storage';
+import { interviewService } from '@/services/interview.service';
 import type { Interview, StudentStats } from '@/types';
 
 interface StudentDashboardData {
@@ -103,9 +104,13 @@ export const useStudentDashboard = (): StudentDashboardData => {
       try {
         console.log('Fetching data for user ID:', user.id);
         // Fetch student stats
-        const statsDoc = await getDoc(doc(db, 'student-stats', user.id));
-        const stats = statsDoc.exists() ? statsDoc.data() as StudentStats : null;
-        console.log('Stats:', stats);
+        let stats = null;
+        try {
+          stats = await interviewService.getStudentStats(user.id);
+          console.log('Stats:', stats);
+        } catch (error) {
+          console.log('Error fetching student stats (continuing anyway):', error);
+        }
 
         // Set up real-time listener for interviews
         console.log('Setting up interviews query for user ID:', user.id);
@@ -116,7 +121,7 @@ export const useStudentDashboard = (): StudentDashboardData => {
           limit(10)
         );
 
-        const unsubscribe = onSnapshot(interviewsQuery, (snapshot) => {
+        const unsubscribe = onSnapshot(interviewsQuery, async (snapshot) => {
           try {
             console.log('Interviews snapshot received, doc count:', snapshot.docs.length);
             const interviews = snapshot.docs.map(doc => {
@@ -124,58 +129,154 @@ export const useStudentDashboard = (): StudentDashboardData => {
               console.log('.getRaw data for interview:', doc.id, data);
               
               // Ensure createdAt and updatedAt are proper Date objects
+              const processDate = (dateValue: any): Date => {
+                if (!dateValue) return new Date();
+                if (dateValue instanceof Date) return dateValue;
+                if (typeof dateValue === 'object' && dateValue?._seconds) {
+                  return new Date(dateValue._seconds * 1000);
+                }
+                if (typeof dateValue === 'string') {
+                  return new Date(dateValue);
+                }
+                return new Date();
+              };
+              
               const processedData = {
                 id: doc.id,
                 ...data,
-                createdAt: data.createdAt ? new Date(data.createdAt._seconds * 1000) : new Date(),
-                updatedAt: data.updatedAt ? new Date(data.updatedAt._seconds * 1000) : new Date(),
-                scheduledAt: data.scheduledAt ? new Date(data.scheduledAt._seconds * 1000) : new Date(),
-                startedAt: data.startedAt ? new Date(data.startedAt._seconds * 1000) : undefined,
-                endedAt: data.endedAt ? new Date(data.endedAt._seconds * 1000) : undefined
+                createdAt: processDate(data.createdAt),
+                updatedAt: processDate(data.updatedAt),
+                scheduledAt: data.scheduledAt ? processDate(data.scheduledAt) : new Date(),
+                startedAt: data.startedAt ? processDate(data.startedAt) : undefined,
+                endedAt: data.endedAt ? processDate(data.endedAt) : undefined
               };
+              
+              // Additional debugging for date issues
+              console.log('Interview date processing:', {
+                id: doc.id,
+                rawCreatedAt: data.createdAt,
+                processedCreatedAt: processedData.createdAt,
+                isDateValid: processedData.createdAt instanceof Date && !isNaN(processedData.createdAt.getTime())
+              });
               
               return processedData as Interview;
             });
 
-            console.log('Processed interviews:', interviews);
+            // Also fetch end-of-call analysis data and convert to interview format
+            console.log('Fetching end-of-call analysis for user ID:', user.id);
+            let analysisData = [];
+            try {
+              analysisData = await interviewService.getStudentAnalyses(user.id);
+              console.log('End-of-call analysis count:', analysisData.length);
+              console.log('End-of-call analysis data:', analysisData);
+            } catch (error) {
+              console.log('Error fetching end-of-call analysis (continuing anyway):', error);
+            }
+            
+            // Convert analysis data to interview format
+            const analysisAsInterviews = analysisData.map((analysis, index) => {
+              console.log(`Processing analysis ${index}:`, analysis);
+              
+              // Extract score from successEvaluation if available
+              const score = analysis.successEvaluation?.score || 
+                           analysis.overallScore || 
+                           (analysis.evaluation ? Math.round((analysis.evaluation.communicationSkills + analysis.evaluation.technicalKnowledge + analysis.evaluation.problemSolving) / 3) : 0);
+              
+              // Create a date from timestamp
+              const processDate = (dateValue: any): Date => {
+                if (!dateValue) return new Date();
+                if (dateValue instanceof Date) return dateValue;
+                if (typeof dateValue === 'object' && dateValue?._seconds) {
+                  return new Date(dateValue._seconds * 1000);
+                }
+                if (typeof dateValue === 'string') {
+                  return new Date(dateValue);
+                }
+                return new Date();
+              };
+              
+              const createdAt = processDate(analysis.timestamp || analysis.createdAt);
+              
+              const result = {
+                id: analysis.id,
+                studentId: analysis.studentId || user.id,
+                type: analysis.interviewType || analysis.type || 'general',
+                status: 'completed',
+                score: score,
+                createdAt: createdAt,
+                updatedAt: createdAt,
+                scheduledAt: createdAt,
+                // Add other fields from analysis data
+                transcript: analysis.transcript || '',
+                recordingUrl: analysis.recordingUrl || '',
+                duration: analysis.duration || 0,
+                sessionId: analysis.sessionId || 'analysis-' + analysis.id,
+                resumeId: analysis.resumeId || '',
+                summary: analysis.summary || '',
+                successEvaluation: analysis.successEvaluation || {},
+                structuredData: analysis.structuredData || {},
+                interviewType: analysis.interviewType || analysis.type || 'general'
+              } as Interview;
+              
+              console.log(`Converted analysis ${index} to interview:`, result);
+              return result;
+            });
+
+            // Combine both interview sources
+            const allInterviews = [...interviews, ...analysisAsInterviews]
+              .sort((a, b) => {
+                // Handle case where one or both dates might be invalid
+                const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+                const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+                return dateB - dateA;
+              })
+              .slice(0, 10); // Limit to 10 most recent
+
+            console.log('Combined interviews:', allInterviews);
+            console.log('Total interviews count:', allInterviews.length);
 
             // Find scheduled interview (next upcoming)
             const now = new Date();
-            const scheduledInterview = interviews.find(interview => 
+            const scheduledInterview = allInterviews.find(interview => 
               interview.status === 'scheduled' && 
               interview.scheduledAt && 
-              new Date(interview.scheduledAt) > now
+              interview.scheduledAt instanceof Date &&
+              interview.scheduledAt > now
             ) || null;
 
             // Check for scheduled interviews
-            const hasScheduledInterviews = interviews.some(interview => 
+            const hasScheduledInterviews = allInterviews.some(interview => 
               interview.status === 'scheduled' && 
               interview.scheduledAt && 
-              new Date(interview.scheduledAt) > now
+              interview.scheduledAt instanceof Date &&
+              interview.scheduledAt > now
             );
 
             // Check for LinkedIn profile (simplified check - in a real implementation, 
             // you would check for actual LinkedIn URLs in the resume data)
-            const hasLinkedIn = interviews.some(interview => 
+            const hasLinkedIn = allInterviews.some(interview => 
               interview.resumeId && interview.resumeId.includes('linkedin')
             );
 
             // Calculate completed interviews and average score
-            const completedInterviews = interviews.filter(i => i.status === 'completed').length;
-            const totalScore = interviews
-              .filter(i => i.status === 'completed' && i.score)
+            const completedInterviews = allInterviews.filter(i => i.status === 'completed').length;
+            const validScores = allInterviews
+              .filter(i => i.status === 'completed' && typeof i.score === 'number' && !isNaN(i.score));
+            const totalScore = validScores
               .reduce((sum, interview) => sum + (interview.score || 0), 0);
-            const averageScore = completedInterviews > 0 ? totalScore / completedInterviews : 0;
+            const averageScore = validScores.length > 0 ? totalScore / validScores.length : 0;
 
             console.log('Dashboard data:', {
               completedInterviews,
               averageScore,
-              hasScheduledInterviews
+              hasScheduledInterviews,
+              validScores: validScores.length,
+              totalInterviews: allInterviews.length
             });
 
             setData(prev => ({
               ...prev,
-              interviews,
+              interviews: allInterviews,
               stats,
               scheduledInterview,
               completedInterviews,

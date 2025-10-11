@@ -59,7 +59,7 @@ const Header = () => {
 
   const authLinks = [
     { name: 'Login', path: '/login', tooltip: 'Sign in to your account' },
-    { name: 'Signup', path: '/signup', tooltip: 'Create a new account' },
+    { name: 'Signup', path: '/signup-external', tooltip: 'Create a new account' },
   ];
   
   return (
@@ -115,7 +115,7 @@ const Header = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link 
-                    to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : '/dashboard'}
+                    to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : user.role === 'institution_admin' ? '/teacher' : '/dashboard'}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                   >
                     Dashboard
@@ -199,7 +199,7 @@ const Header = () => {
                 // Authenticated user mobile menu
                 <>
                   <DropdownMenuItem asChild>
-                    <Link to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : '/dashboard'}>
+                    <Link to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : user.role === 'institution_admin' ? '/teacher' : '/dashboard'}>
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
@@ -225,7 +225,7 @@ const Header = () => {
                     <Link to="/login">Login</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/signup">Signup</Link>
+                    <Link to="/signup-external">Signup</Link>
                   </DropdownMenuItem>
                 </>
               )}

@@ -24,7 +24,7 @@ import type { SignupRequest, LoginRequest, UserProfile, UserRole } from '@/types
 
 export class FirebaseAuthService {
   // Register new user
-  async register(data: SignupRequest & { role?: UserRole }): Promise<{ user: UserProfile; token: string }> {
+  async register(data: SignupRequest & { role?: UserRole, department?: string, yearOfStudy?: string }): Promise<{ user: UserProfile; token: string }> {
     try {
       // Create user with email and password
       const userCredential: UserCredential = await createUserWithEmailAndPassword(
@@ -62,6 +62,8 @@ export class FirebaseAuthService {
         institutionDomain: data.institutionDomain,
         emailVerified: user.emailVerified,
         isEmailVerified: user.emailVerified,
+        department: data.department,
+        yearOfStudy: data.yearOfStudy,
         createdAt: new Date(),
         updatedAt: new Date(),
         lastLoginAt: new Date(),
@@ -123,7 +125,7 @@ export class FirebaseAuthService {
   }
 
   // OAuth login with Google
-  async loginWithGoogle(): Promise<{ user: UserProfile; token: string }> {
+  async loginWithGoogle(data?: { department?: string, yearOfStudy?: string }): Promise<{ user: UserProfile; token: string }> {
     try {
       const provider = new GoogleAuthProvider();
       
@@ -152,6 +154,8 @@ export class FirebaseAuthService {
           institutionDomain: user.email?.split('@')[1],
           emailVerified: user.emailVerified,
           isEmailVerified: user.emailVerified,
+          department: data?.department,
+          yearOfStudy: data?.yearOfStudy,
           createdAt: new Date(),
           updatedAt: new Date(),
           lastLoginAt: new Date(),

@@ -265,8 +265,8 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const handleScheduleMore = () => {
     // Check if user is authenticated with either system
     if (user) {
-      // Navigate to the student dashboard with the history tab active (default)
-      navigate('/student');
+      // Navigate to the student dashboard with the interviews tab active
+      navigate('/student?tab=interviews');
       toast.success("Redirecting to your dashboard");
     } else {
       // If not authenticated, redirect to login

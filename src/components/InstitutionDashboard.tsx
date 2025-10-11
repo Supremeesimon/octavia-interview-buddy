@@ -44,14 +44,15 @@ const InstitutionDashboard = () => {
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState('resume');
   
   // Generate a unique signup link for the institution
-  const generateSignupLink = () => {
+  const generateSignupLink = (userType: 'student' | 'teacher' = 'student') => {
     // In a real implementation, this would be based on the actual institution ID
     const institutionId = "institution-xyz"; // This would come from user context
     const timestamp = Date.now().toString(36);
-    return `https://octavia.ai/signup/${institutionId}?t=${timestamp}`;
+    return `https://octavia.ai/signup/${institutionId}?type=${userType}&t=${timestamp}`;
   };
   
   const [signupLink, setSignupLink] = useState(generateSignupLink());
+  const [teacherSignupLink, setTeacherSignupLink] = useState(generateSignupLink('teacher'));
   
   const totalLicenses = 1000;
   const usedLicenses = 368;
@@ -203,10 +204,21 @@ const InstitutionDashboard = () => {
     toast.success(`Student #${studentId} rejected`);
   };
   
-  const regenerateLink = () => {
-    const newLink = generateSignupLink();
-    setSignupLink(newLink);
-    toast.success("New signup link generated successfully!");
+  const regenerateLink = (userType: 'student' | 'teacher' = 'student') => {
+    const newLink = generateSignupLink(userType);
+    if (userType === 'student') {
+      setSignupLink(newLink);
+    } else {
+      setTeacherSignupLink(newLink);
+    }
+    toast.success(`New ${userType} signup link generated successfully!`);
+  };
+  
+  const copyTeacherSignupLink = () => {
+    navigator.clipboard.writeText(teacherSignupLink);
+    setCopiedLink(true);
+    toast.success("Teacher link copied to clipboard!");
+    setTimeout(() => setCopiedLink(false), 2000);
   };
   
   const exportData = () => {
@@ -282,32 +294,72 @@ const InstitutionDashboard = () => {
         
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium">Student Signup Link</h3>
+            <h3 className="font-medium">Signup Links</h3>
             <LinkIcon className="text-primary h-5 w-5" />
           </div>
-          <div className="flex items-center gap-2 bg-muted p-2 rounded-md mb-4 overflow-hidden">
-            <div className="text-sm truncate flex-1">{signupLink}</div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="shrink-0" 
-              onClick={copySignupLink}
-              tooltip="Copy signup link to clipboard"
-            >
-              {copiedLink ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            </Button>
-          </div>
-          <div className="flex justify-between">
-            <p className="text-xs text-muted-foreground">Share this link with your students</p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-auto p-0 text-xs" 
-              onClick={regenerateLink}
-              tooltip="Generate a new signup link (invalidates the current link)"
-            >
-              Regenerate
-            </Button>
+          
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+                <UserCheck className="h-4 w-4 text-primary" />
+                Student Signup Link
+              </h4>
+              <div className="flex items-center gap-2 bg-muted p-2 rounded-md mb-2 overflow-hidden">
+                <div className="text-sm truncate flex-1">{signupLink}</div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="shrink-0" 
+                  onClick={copySignupLink}
+                  tooltip="Copy student signup link to clipboard"
+                >
+                  {copiedLink ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-xs text-muted-foreground">Share this link with your students</p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-auto p-0 text-xs" 
+                  onClick={() => regenerateLink('student')}
+                  tooltip="Generate a new student signup link (invalidates the current link)"
+                >
+                  Regenerate
+                </Button>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+                <Users className="h-4 w-4 text-primary" />
+                Teacher Signup Link
+              </h4>
+              <div className="flex items-center gap-2 bg-muted p-2 rounded-md mb-2 overflow-hidden">
+                <div className="text-sm truncate flex-1">{teacherSignupLink}</div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="shrink-0" 
+                  onClick={copyTeacherSignupLink}
+                  tooltip="Copy teacher signup link to clipboard"
+                >
+                  {copiedLink ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-xs text-muted-foreground">Share this link with your teachers</p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-auto p-0 text-xs" 
+                  onClick={() => regenerateLink('teacher')}
+                  tooltip="Generate a new teacher signup link (invalidates the current link)"
+                >
+                  Regenerate
+                </Button>
+              </div>
+            </div>
           </div>
         </Card>
       </div>

@@ -170,6 +170,9 @@ service cloud.firestore {
       // Platform admins can read/write all interviews
       allow read, write: if isAuthenticated() && isPlatformAdmin();
       
+      // Students can read/write their own interviews
+      allow read, write: if isAuthenticated() && isOwner(resource.data.studentId);
+      
       // Allow read for development/testing
       allow read: if true; // TODO: Restrict in production
       
@@ -181,6 +184,18 @@ service cloud.firestore {
       
       // Allow Firebase Functions to write data (for webhook integration)
       allow create, write: if isServerProcess();
+    }
+
+    // Institution interests collection
+    match /institution_interests/{interestId} {
+      // Anyone can create institution interests (for contact form submissions)
+      allow create: if true;
+      
+      // Platform admins can read/write all institution interests
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+      
+      // Users cannot update or delete institution interests once created
+      allow update, delete: if false;
     }
 
     // System configuration (platform admins only)

@@ -7,7 +7,9 @@ import {
   Search, 
   UserPlus, 
   ChevronDown, 
-  Filter 
+  Filter,
+  Link as LinkIcon,
+  Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,7 +72,10 @@ const InstitutionManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState<any>(null);
+  const [generatedLink, setGeneratedLink] = useState('');
+  const [copied, setCopied] = useState(false);
   
   const filteredInstitutions = mockInstitutions.filter(
     institution => institution.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -84,6 +89,20 @@ const InstitutionManagement = () => {
   const handleAssignAdmin = () => {
     setShowAssignDialog(false);
     // Handle assign admin logic
+  };
+  
+  const handleGenerateLink = (institution: any) => {
+    setSelectedInstitution(institution);
+    // Generate a custom signup link for the institution
+    const link = `${window.location.origin}/signup?institutionId=${institution.id}&institutionName=${encodeURIComponent(institution.name)}`;
+    setGeneratedLink(link);
+    setShowLinkDialog(true);
+  };
+  
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
   
   const handleEditInstitution = (institution: any) => {
@@ -171,6 +190,14 @@ const InstitutionManagement = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            tooltip={`Generate signup link for ${institution.name}`}
+                            onClick={() => handleGenerateLink(institution)}
+                          >
+                            <LinkIcon className="h-4 w-4" />
+                          </Button>
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -339,6 +366,48 @@ const InstitutionManagement = () => {
               onClick={handleAssignAdmin}
             >
               Assign Administrator
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Generate Link Dialog */}
+      <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Custom Signup Link</DialogTitle>
+            <DialogDescription>
+              {selectedInstitution ? 
+                `Share this link with ${selectedInstitution.name} for easy signup.` : 
+                'Share this link for easy signup.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex items-center gap-2">
+              <Input
+                value={generatedLink}
+                readOnly
+                className="flex-1"
+              />
+              <Button 
+                onClick={copyToClipboard}
+                variant="outline"
+                tooltip="Copy link to clipboard"
+              >
+                {copied ? <span className="text-green-500">Copied!</span> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This link will automatically assign users to {selectedInstitution?.name} when they sign up.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              tooltip="Close dialog"
+              onClick={() => setShowLinkDialog(false)}
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

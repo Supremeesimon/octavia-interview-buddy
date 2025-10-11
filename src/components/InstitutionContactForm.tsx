@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { InstitutionInterestService } from '@/services/institution-interest.service';
 
 const formSchema = z.object({
   institutionName: z.string().min(2, "Institution name is required"),
@@ -25,6 +25,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const InstitutionContactForm = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -38,11 +39,19 @@ const InstitutionContactForm = () => {
     },
   });
 
-  const onSubmit = (data: FormValues) => {
-    console.log("Form submitted:", data);
-    // Here you would typically send this data to your backend
-    setIsOpen(true);
-    form.reset();
+  const onSubmit = async (data: FormValues) => {
+    setIsSubmitting(true);
+    try {
+      await InstitutionInterestService.submitInterest(data);
+      setIsOpen(true);
+      form.reset();
+      toast.success("Inquiry submitted successfully! Our team will contact you soon.");
+    } catch (error) {
+      toast.error("Failed to submit inquiry. Please try again.");
+      console.error("Error submitting institution interest:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -161,8 +170,9 @@ const InstitutionContactForm = () => {
                     type="submit" 
                     className="w-full md:w-auto"
                     tooltip="Submit your partnership inquiry"
+                    disabled={isSubmitting}
                   >
-                    Submit Inquiry
+                    {isSubmitting ? "Submitting..." : "Submit Inquiry"}
                   </Button>
                 </div>
               </form>
@@ -182,7 +192,6 @@ const InstitutionContactForm = () => {
               <AlertDialogAction 
                 onClick={() => {
                   setIsOpen(false);
-                  toast.success("Inquiry submitted successfully!");
                 }}
                 tooltip="Close this message"
               >

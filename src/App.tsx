@@ -26,6 +26,8 @@ import VapiTestPage from "./pages/VapiTestPage";
 import AnonymousDataPage from "./pages/AnonymousDataPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import InstitutionalSignup from "./pages/InstitutionalSignup";
+import ExternalSignup from "./pages/ExternalSignup";
+import TeacherDashboardPage from "./pages/TeacherDashboardPage";
 import { useEffect } from "react";
 
 const queryClient = new QueryClient();
@@ -44,6 +46,8 @@ const App = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/signup/:institutionId" element={<InstitutionalSignup />} />
+            <Route path="/signup-external" element={<ExternalSignup />} />
+            <Route path="/teacher" element={<ProtectedRoute requiredRole="institution_admin"><TeacherDashboardPage /></ProtectedRoute>} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/interview" element={<Interview />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from 'react-router-dom';
+import InstitutionInterests from '@/components/InstitutionInterests';
 
 const userActivityData = [
   { name: 'Jan', value: 2500 },
@@ -166,6 +167,9 @@ const AdminDashboard = () => {
         
         <TabsContent value="overview" className="space-y-6">
           <h2 className="text-2xl font-bold">Platform Overview</h2>
+          
+          {/* Institution Interests Section */}
+          <InstitutionInterests />
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-6 lg:grid-cols-4'}`}>
             <Card tooltip="View total users across the platform">

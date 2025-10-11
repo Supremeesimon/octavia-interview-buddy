@@ -21,14 +21,18 @@ const Signup = () => {
   const [studentForm, setStudentForm] = useState({
     fullName: '',
     email: '',
-    password: ''
+    password: '',
+    department: '',
+    yearOfStudy: ''
   });
 
   // Teacher/Institution Admin form state
   const [teacherForm, setTeacherForm] = useState({
     fullName: '',
     email: '',
-    password: ''
+    password: '',
+    department: '',
+    yearOfStudy: ''
   });
 
   // Platform Admin form state
@@ -71,7 +75,9 @@ const Signup = () => {
         name: studentForm.fullName,
         email: studentForm.email,
         password: studentForm.password,
-        institutionDomain: studentForm.email.split('@')[1]
+        institutionDomain: studentForm.email.split('@')[1],
+        department: studentForm.department,
+        yearOfStudy: studentForm.yearOfStudy
       });
       
       navigate('/student');
@@ -95,7 +101,9 @@ const Signup = () => {
         name: teacherForm.fullName,
         email: teacherForm.email,
         password: teacherForm.password,
-        role: 'institution_admin' // Teachers are institution admins in our system
+        role: 'institution_admin', // Teachers are institution admins in our system
+        department: teacherForm.department,
+        yearOfStudy: teacherForm.yearOfStudy
       });
       
       // For now, we'll navigate to dashboard, but we should enhance this to properly handle teacher roles
@@ -242,29 +250,40 @@ const Signup = () => {
                     />
                   </div>
 
+                  <div>
+                    <Label htmlFor="student-department">Department</Label>
+                    <Input
+                      id="student-department"
+                      value={studentForm.department}
+                      onChange={(e) => setStudentForm({...studentForm, department: e.target.value})}
+                      required
+                      placeholder="Enter your department"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="student-year">Year of Study</Label>
+                    <select
+                      id="student-year"
+                      value={studentForm.yearOfStudy}
+                      onChange={(e) => setStudentForm({...studentForm, yearOfStudy: e.target.value})}
+                      required
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select Year</option>
+                      {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Processing..." : "Sign Up as Student"}
                   </Button>
                 </form>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={handleGoogleSignup}
-                  disabled={isLoading}
-                >
-                  <Chrome className="h-4 w-4 mr-2" />
-                  Sign up with Google
-                </Button>
+                {/* Google signup removed for student signup as they should use institutional emails */}
 
                 <p className="text-xs text-center text-muted-foreground">
                   By signing up, you agree to our{' '}
@@ -320,29 +339,40 @@ const Signup = () => {
                     />
                   </div>
 
+                  <div>
+                    <Label htmlFor="teacher-department">Department</Label>
+                    <Input
+                      id="teacher-department"
+                      value={teacherForm.department}
+                      onChange={(e) => setTeacherForm({...teacherForm, department: e.target.value})}
+                      required
+                      placeholder="Enter your department"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="teacher-year">Years of Teaching Experience</Label>
+                    <select
+                      id="teacher-year"
+                      value={teacherForm.yearOfStudy}
+                      onChange={(e) => setTeacherForm({...teacherForm, yearOfStudy: e.target.value})}
+                      required
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select Year</option>
+                      {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Processing..." : "Sign Up as Teacher"}
                   </Button>
                 </form>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={handleGoogleSignup}
-                  disabled={isLoading}
-                >
-                  <Chrome className="h-4 w-4 mr-2" />
-                  Sign up with Google
-                </Button>
+                {/* Google signup removed for teacher signup as they should use institutional emails */}
 
                 <p className="text-xs text-center text-muted-foreground">
                   By signing up, you agree to our{' '}

@@ -154,10 +154,32 @@ export class InterviewService {
       const interviews = querySnapshot.docs.map(doc => {
         const data = doc.data() as any;
         console.log('Raw interview data:', doc.id, data);
-        return {
+        
+        // Process dates properly
+        const processDate = (dateValue: any): Date => {
+          if (!dateValue) return new Date();
+          if (dateValue instanceof Date) return dateValue;
+          if (typeof dateValue === 'object' && dateValue._seconds) {
+            return new Date(dateValue._seconds * 1000);
+          }
+          if (typeof dateValue === 'string') {
+            return new Date(dateValue);
+          }
+          return new Date();
+        };
+        
+        const processedData = {
           id: doc.id,
-          ...data
-        } as Interview;
+          ...data,
+          createdAt: processDate(data.createdAt),
+          updatedAt: processDate(data.updatedAt),
+          scheduledAt: data.scheduledAt ? processDate(data.scheduledAt) : new Date(),
+          startedAt: data.startedAt ? processDate(data.startedAt) : undefined,
+          endedAt: data.endedAt ? processDate(data.endedAt) : undefined
+        };
+        
+        console.log('Processed interview data:', processedData);
+        return processedData as Interview;
       });
       
       console.log('Processed interviews:', interviews);
@@ -196,7 +218,8 @@ export class InterviewService {
       return null;
     } catch (error) {
       console.error('Error getting interview feedback:', error);
-      throw new Error('Failed to get interview feedback');
+      // Return null instead of throwing error to prevent UI crash
+      return null;
     }
   }
 
@@ -216,25 +239,78 @@ export class InterviewService {
       const interviewsSnapshot = await getDocs(interviewsQuery);
       console.log('Found', interviewsSnapshot.size, 'completed interviews for student:', studentId);
       
-      if (interviewsSnapshot.empty) {
-        console.log('No completed interviews found for student:', studentId);
-        return null;
+      if (!interviewsSnapshot.empty) {
+        const latestInterview = {
+          id: interviewsSnapshot.docs[0].id,
+          ...(interviewsSnapshot.docs[0].data() as any)
+        } as Interview;
+        
+        console.log('Latest interview:', latestInterview);
+        
+        // Then get the feedback for that interview
+        const feedback = await this.getInterviewFeedback(latestInterview.id);
+        console.log('Retrieved feedback:', feedback);
+        if (feedback) {
+          return feedback;
+        }
       }
       
-      const latestInterview = {
-        id: interviewsSnapshot.docs[0].id,
-        ...(interviewsSnapshot.docs[0].data() as any)
-      } as Interview;
+      // If no feedback found in interviews collection, check end-of-call analysis
+      console.log('Checking end-of-call analysis for feedback');
+      const analyses = await this.getStudentAnalyses(studentId);
+      if (analyses && analyses.length > 0) {
+        // Get the most recent analysis
+        const latestAnalysis = analyses[0];
+        console.log('Latest analysis:', latestAnalysis);
+        
+        // Process date properly
+        const processDate = (dateValue: any): Date => {
+          if (!dateValue) return new Date();
+          if (dateValue instanceof Date) return dateValue;
+          if (typeof dateValue === 'object' && dateValue?._seconds) {
+            return new Date(dateValue._seconds * 1000);
+          }
+          if (typeof dateValue === 'string') {
+            return new Date(dateValue);
+          }
+          return new Date();
+        };
+        
+        // Convert analysis to feedback format
+        const feedback: any = {
+          id: 'feedback-' + latestAnalysis.id,
+          interviewId: latestAnalysis.id,
+          overallScore: latestAnalysis.successEvaluation?.score || 
+                       latestAnalysis.overallScore || 
+                       (latestAnalysis.evaluation ? Math.round((latestAnalysis.evaluation.communicationSkills + latestAnalysis.evaluation.technicalKnowledge + latestAnalysis.evaluation.problemSolving) / 3) : 0),
+          categories: [],
+          strengths: latestAnalysis.structuredData?.strengths || [],
+          improvements: latestAnalysis.structuredData?.improvements || [],
+          recommendations: latestAnalysis.structuredData?.recommendations || [],
+          detailedAnalysis: latestAnalysis.summary || latestAnalysis.detailedAnalysis || '',
+          createdAt: processDate(latestAnalysis.timestamp || latestAnalysis.createdAt)
+        };
+        
+        // Add categories if they exist
+        if (latestAnalysis.structuredData?.categories && Array.isArray(latestAnalysis.structuredData.categories)) {
+          feedback.categories = latestAnalysis.structuredData.categories.map((cat: any) => ({
+            name: cat.name || 'Category',
+            score: cat.score || 0,
+            weight: cat.weight || 0,
+            description: cat.description || ''
+          }));
+        }
+        
+        console.log('Converted feedback from analysis:', feedback);
+        return feedback as InterviewFeedback;
+      }
       
-      console.log('Latest interview:', latestInterview);
-      
-      // Then get the feedback for that interview
-      const feedback = await this.getInterviewFeedback(latestInterview.id);
-      console.log('Retrieved feedback:', feedback);
-      return feedback;
+      console.log('No feedback found for student:', studentId);
+      return null;
     } catch (error) {
       console.error('Error getting latest student feedback:', error);
-      throw new Error('Failed to get latest student feedback');
+      // Return null instead of throwing error to prevent UI crash
+      return null;
     }
   }
 
@@ -271,10 +347,12 @@ export class InterviewService {
         } as StudentStats;
       }
       
+      // Return null instead of throwing error to prevent UI crash
       return null;
     } catch (error) {
       console.error('Error getting student stats:', error);
-      throw new Error('Failed to get student stats');
+      // Return null instead of throwing error to prevent UI crash
+      return null;
     }
   }
 
@@ -426,6 +504,7 @@ export class InterviewService {
   // Get all end-of-call analyses for a student (data isolation)
   async getStudentAnalyses(studentId: string): Promise<any[]> {
     try {
+      console.log('Interview Service: Getting student analyses for studentId:', studentId);
       const q = query(
         collection(db, this.COLLECTIONS.endOfCallAnalysis),
         where('studentId', '==', studentId),
@@ -433,13 +512,41 @@ export class InterviewService {
       );
       
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as any)
-      }));
+      console.log('Interview Service: Found', querySnapshot.size, 'analysis documents');
+      
+      const results = querySnapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        console.log('Interview Service: Raw analysis data for doc', doc.id, ':', JSON.stringify(data, null, 2));
+        
+        // Process timestamp properly
+        const processDate = (dateValue: any): Date => {
+          if (!dateValue) return new Date();
+          if (dateValue instanceof Date) return dateValue;
+          if (typeof dateValue === 'object' && dateValue?._seconds) {
+            return new Date(dateValue._seconds * 1000);
+          }
+          if (typeof dateValue === 'string') {
+            return new Date(dateValue);
+          }
+          return new Date();
+        };
+        
+        const processedData = {
+          id: doc.id,
+          ...data,
+          timestamp: processDate(data.timestamp || data.createdAt)
+        };
+        
+        console.log('Interview Service: Processed analysis data for doc', doc.id, ':', processedData);
+        return processedData;
+      });
+      
+      console.log('Interview Service: Returning', results.length, 'analyses');
+      return results;
     } catch (error) {
       console.error('Error getting student analyses:', error);
-      throw new Error('Failed to get student analyses');
+      // Return empty array instead of throwing error to prevent UI crash
+      return [];
     }
   }
 

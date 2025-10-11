@@ -59,12 +59,13 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
         duration: message.duration || 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         // Add metadata fields that might be useful for data isolation
-        studentId: message.studentId || message.metadata?.studentId || '',
-        departmentId: message.departmentId || message.metadata?.departmentId || '',
-        institutionId: message.institutionId || message.metadata?.institutionId || '',
-        interviewType: message.interviewType || message.metadata?.interviewType || 'general',
-        resumeId: message.resumeId || message.metadata?.resumeId || '',
-        sessionId: message.sessionId || message.metadata?.sessionId || ''
+        // Updated to check for metadata in variableValues as well
+        studentId: message.studentId || message.metadata?.studentId || message.variableValues?.studentId || '',
+        departmentId: message.departmentId || message.metadata?.departmentId || message.variableValues?.departmentId || '',
+        institutionId: message.institutionId || message.metadata?.institutionId || message.variableValues?.institutionId || '',
+        interviewType: message.interviewType || message.metadata?.interviewType || message.variableValues?.interviewType || 'general',
+        resumeId: message.resumeId || message.metadata?.resumeId || message.variableValues?.resumeId || '',
+        sessionId: message.sessionId || message.metadata?.sessionId || message.variableValues?.sessionId || ''
       };
 
       // Save to Firestore in the end-of-call-analysis collection
@@ -151,12 +152,13 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
         duration: message.duration || 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         // Add metadata fields that might be useful for data isolation
-        studentId: message.studentId || message.metadata?.studentId || '',
-        departmentId: message.departmentId || message.metadata?.departmentId || '',
-        institutionId: message.institutionId || message.metadata?.institutionId || '',
-        interviewType: message.interviewType || message.metadata?.interviewType || 'general',
-        resumeId: message.resumeId || message.metadata?.resumeId || '',
-        sessionId: message.sessionId || message.metadata?.sessionId || ''
+        // Updated to check for metadata in variableValues as well
+        studentId: message.studentId || message.metadata?.studentId || message.variableValues?.studentId || '',
+        departmentId: message.departmentId || message.metadata?.departmentId || message.variableValues?.departmentId || '',
+        institutionId: message.institutionId || message.metadata?.institutionId || message.variableValues?.institutionId || '',
+        interviewType: message.interviewType || message.metadata?.interviewType || message.variableValues?.interviewType || 'general',
+        resumeId: message.resumeId || message.metadata?.resumeId || message.variableValues?.resumeId || '',
+        sessionId: message.sessionId || message.metadata?.sessionId || message.variableValues?.sessionId || ''
       };
 
       // Save to Firestore in the end-of-call-analysis collection

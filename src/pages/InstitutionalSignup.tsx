@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Card } from '@/components/ui/card';
@@ -13,14 +13,20 @@ import type { SignupRequest } from '@/types';
 
 const InstitutionalSignup = () => {
   const { institutionId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { register, isLoading } = useFirebaseAuth();
   const [form, setForm] = useState({
     fullName: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    department: '',
+    yearOfStudy: '',
+    experience: ''
   });
+  
+  const userType = searchParams.get('type') || 'student';
 
   // In a real implementation, you would fetch institution details from the backend
   const institutionName = institutionId ? `Institution ${institutionId}` : 'Unknown Institution';
@@ -79,7 +85,9 @@ const InstitutionalSignup = () => {
         email: form.email,
         password: form.password,
         institutionDomain: form.email.split('@')[1],
-        role: 'student' // Students signing up through institutional links are students
+        role: userType === 'teacher' ? 'institution_admin' : 'student', // Teachers are institution admins
+        department: form.department,
+        yearOfStudy: userType === 'teacher' ? form.experience : form.yearOfStudy
       });
       
       navigate('/student');
@@ -98,7 +106,7 @@ const InstitutionalSignup = () => {
             <div className="text-center mb-8">
               <GraduationCap className="h-12 w-12 mx-auto text-primary mb-4" />
               <h1 className="text-2xl font-bold mb-2">Join {institutionName}</h1>
-              <p className="text-muted-foreground">Create your student account</p>
+              <p className="text-muted-foreground">Create your {userType === 'teacher' ? 'teacher' : 'student'} account</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -129,6 +137,70 @@ const InstitutionalSignup = () => {
                   Please use your institutional email (.edu domain)
                 </p>
               </div>
+              
+              {userType === 'teacher' && (
+                <>
+                  <div>
+                    <Label htmlFor="department">Department</Label>
+                    <Input
+                      id="department"
+                      value={form.department || ''}
+                      onChange={(e) => setForm({...form, department: e.target.value})}
+                      required
+                      placeholder="Enter your department"
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="experience">Years of Teaching Experience</Label>
+                    <select
+                      id="experience"
+                      value={form.experience || ''}
+                      onChange={(e) => setForm({...form, experience: e.target.value})}
+                      required
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select Year</option>
+                      {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+              
+              {userType === 'student' && (
+                <>
+                  <div>
+                    <Label htmlFor="department">Department</Label>
+                    <Input
+                      id="department"
+                      value={form.department || ''}
+                      onChange={(e) => setForm({...form, department: e.target.value})}
+                      required
+                      placeholder="Enter your department"
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="yearOfStudy">Year of Study</Label>
+                    <select
+                      id="yearOfStudy"
+                      value={form.yearOfStudy || ''}
+                      onChange={(e) => setForm({...form, yearOfStudy: e.target.value})}
+                      required
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select Year</option>
+                      {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
 
               <div>
                 <Label htmlFor="password">Password</Label>

@@ -16,14 +16,17 @@ const app = initializeApp({
 
 const db = getFirestore(app);
 
-async function checkCollectionsSimple() {
+async function checkAllCollections() {
   try {
-    console.log('🔍 Checking all Firestore collections with Admin SDK (simple query)...\n');
+    console.log('🔍 Checking all Firestore collections with Admin SDK...\n');
 
     // Check end-of-call-analysis collection
     console.log('=== END-OF-CALL-ANALYSIS COLLECTION ===');
     const analysisCollection = db.collection('end-of-call-analysis');
-    const analysisSnapshot = await analysisCollection.limit(5).get();
+    const analysisSnapshot = await analysisCollection
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .get();
     
     console.log(`Found ${analysisSnapshot.size} documents`);
     
@@ -47,7 +50,10 @@ async function checkCollectionsSimple() {
     // Check interviews collection
     console.log('=== INTERVIEWS COLLECTION ===');
     const interviewsCollection = db.collection('interviews');
-    const interviewsSnapshot = await interviewsCollection.limit(5).get();
+    const interviewsSnapshot = await interviewsCollection
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .get();
     
     console.log(`Found ${interviewsSnapshot.size} documents`);
     
@@ -70,7 +76,10 @@ async function checkCollectionsSimple() {
     // Check interview-feedback collection
     console.log('=== INTERVIEW-FEEDBACK COLLECTION ===');
     const feedbackCollection = db.collection('interview-feedback');
-    const feedbackSnapshot = await feedbackCollection.limit(5).get();
+    const feedbackSnapshot = await feedbackCollection
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .get();
     
     console.log(`Found ${feedbackSnapshot.size} documents`);
     
@@ -98,4 +107,4 @@ async function checkCollectionsSimple() {
 }
 
 // Run the check
-checkCollectionsSimple();
+checkAllCollections();
