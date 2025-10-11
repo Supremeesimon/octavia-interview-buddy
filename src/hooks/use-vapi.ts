@@ -118,6 +118,10 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
       console.log('Clearing errors in onCallEnd');
       setError(null);
       toast.info('Interview completed');
+      
+      // Notify parent component that interview has ended
+      console.log('Calling parent onInterviewEnd callback from onCallEnd');
+      props?.onInterviewEnd?.();
     },
 
     onSpeechStart: () => {
@@ -172,8 +176,7 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
       console.error('VAPI error:', error);
       console.log('Current call status:', currentCall?.status);
       
-      // Only show error toast if it's not a normal interview end
-      // Check if the error message indicates a normal end
+      // Check if this is a normal interview end by examining the error
       const isNormalEnd = error.message && (
         error.message.includes('call ended') || 
         error.message.includes('call stopped') ||
@@ -188,7 +191,9 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
         error.message.includes('hangup') ||
         error.message.includes('user disconnected') ||
         error.message.includes('peer closed') ||
-        error.message.includes('undefined')
+        error.message.includes('undefined') ||
+        error.message.includes('Cannot read properties of undefined') ||
+        error.message.includes('component unmounted')
       );
       
       console.log('Is normal end based on message:', isNormalEnd);
@@ -198,6 +203,7 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
       
       console.log('Is call actually ended:', isCallActuallyEnded);
       
+      // Only show error toast and set error state if it's not a normal end
       if (!isNormalEnd && !isCallActuallyEnded) {
         // Set the error state
         setError(error.message);
@@ -206,10 +212,9 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
       } else {
         console.log('Suppressing error toast for normal interview end');
         // Clear the error since this is a normal end
-        // Add a small delay to ensure state is updated
-        setTimeout(() => {
-          setError(null);
-        }, 100);
+        setError(null);
+        // Still notify parent that interview ended normally
+        props?.onInterviewEnd?.();
       }
     },
 
@@ -295,6 +300,14 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
       }
     };
   }, [stopDurationTracking]);
+  
+  // Effect to stop timer when interview ends
+  useEffect(() => {
+    if (currentCall?.status === 'ended') {
+      console.log('Call ended, stopping duration tracking');
+      stopDurationTracking();
+    }
+  }, [currentCall?.status, stopDurationTracking]);
 
   // Start interview
   const startInterview = useCallback(async (

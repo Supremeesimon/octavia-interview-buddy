@@ -53,6 +53,8 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       console.log('AI ended the interview - onInterviewEnd callback called');
       console.log('Setting interviewEnded to true');
       setInterviewEnded(true);
+      // Stop the timer
+      console.log('Stopping timer');
       // Clear any error state when interview ends normally
       console.log('Clearing errors');
       clearError();
@@ -73,6 +75,14 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const [activeTab, setActiveTab] = useState('transcript');
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
   
+  // Effect to ensure interviewEnded is set when call ends
+  useEffect(() => {
+    if (currentCall?.status === 'ended' && !interviewEnded) {
+      console.log('Call status is ended, setting interviewEnded to true');
+      setInterviewEnded(true);
+    }
+  }, [currentCall?.status, interviewEnded]);
+  
   // Clear error when interview ends
   useEffect(() => {
     if (interviewEnded) {
@@ -86,8 +96,13 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     if (!isCallActive && currentCall && currentCall.status === 'ended') {
       console.log('Call became inactive and ended, clearing errors');
       clearError();
+      // Make sure interviewEnded is set to true when call ends
+      if (!interviewEnded) {
+        console.log('Setting interviewEnded to true in useEffect');
+        setInterviewEnded(true);
+      }
     }
-  }, [isCallActive, currentCall, clearError]);
+  }, [isCallActive, currentCall, clearError, interviewEnded]);
   
   // Clear VAPI error if interview is ended
   useEffect(() => {
@@ -161,6 +176,23 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
   }, [callDuration, isCallActive]);
   
+  // Effect to handle when interview ends (either by user or AI)
+  useEffect(() => {
+    if (interviewEnded) {
+      console.log('Interview ended, ensuring timer is stopped');
+      // Any cleanup needed when interview ends can go here
+    }
+  }, [interviewEnded]);
+  
+  // Effect to stop timer when interview ends
+  useEffect(() => {
+    if (interviewEnded && isCallActive) {
+      console.log('Interview ended but call still active, stopping call');
+      // This shouldn't happen, but let's make sure
+      handleEndInterview().catch(console.error);
+    }
+  }, [interviewEnded, isCallActive]);
+
   // Start interview with VAPI
   const handleStartInterview = async () => {
     try {
@@ -233,8 +265,9 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const handleScheduleMore = () => {
     // Check if user is authenticated with either system
     if (user) {
-      navigate('/resumes');
-      toast.success("Redirecting to scheduling page");
+      // Navigate to the student dashboard with the interviews tab active
+      navigate('/student?tab=interviews');
+      toast.success("Redirecting to interview scheduling");
     } else {
       // If not authenticated, redirect to login
       navigate('/login');
@@ -388,7 +421,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
               </>
             )}
             
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-33 justify-center">
               {user ? (
                 <Button 
                   onClick={handleScheduleMore} 

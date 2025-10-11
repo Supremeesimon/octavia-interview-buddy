@@ -4,7 +4,7 @@ const admin = require('firebase-admin');
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
-// VAPI Webhook Function
+// VAPI Webhook Function (1st Gen)
 exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
   try {
     // Log the incoming request for debugging
@@ -59,10 +59,12 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
         duration: message.duration || 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         // Add metadata fields that might be useful for data isolation
-        studentId: message.metadata?.studentId || '',
-        departmentId: message.metadata?.departmentId || '',
-        institutionId: message.metadata?.institutionId || '',
-        interviewType: message.metadata?.interviewType || 'general'
+        studentId: message.studentId || message.metadata?.studentId || '',
+        departmentId: message.departmentId || message.metadata?.departmentId || '',
+        institutionId: message.institutionId || message.metadata?.institutionId || '',
+        interviewType: message.interviewType || message.metadata?.interviewType || 'general',
+        resumeId: message.resumeId || message.metadata?.resumeId || '',
+        sessionId: message.sessionId || message.metadata?.sessionId || ''
       };
 
       // Save to Firestore in the end-of-call-analysis collection
@@ -86,10 +88,12 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
         duration: message.duration || 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         // Add metadata fields that might be useful for data isolation
-        studentId: message.metadata?.studentId || '',
-        departmentId: message.metadata?.departmentId || '',
-        institutionId: message.metadata?.institutionId || '',
-        interviewType: message.metadata?.interviewType || 'general'
+        studentId: message.studentId || message.metadata?.studentId || '',
+        departmentId: message.departmentId || message.metadata?.departmentId || '',
+        institutionId: message.institutionId || message.metadata?.institutionId || '',
+        interviewType: message.interviewType || message.metadata?.interviewType || 'general',
+        resumeId: message.resumeId || message.metadata?.resumeId || '',
+        sessionId: message.sessionId || message.metadata?.sessionId || ''
       };
 
       // Save to Firestore in the end-of-call-analysis collection
