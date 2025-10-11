@@ -89,11 +89,37 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
   }, [interviewEnded, vapiError, clearError]);
   
-  // Sample job data
-  const jobData = {
-    title: "(SAMPLE) Customer Support Specialist @ Slack",
-    resumeName: "Default Resume"
+  // Process resume data for display
+  const getDisplayJobData = () => {
+    if (!resumeData) {
+      return {
+        title: "(SAMPLE) Customer Support Specialist @ Slack",
+        resumeName: "Default Resume"
+      };
+    }
+    
+    // Determine resume name based on type
+    let resumeName = "Uploaded Resume";
+    if (resumeData.type === 'linkedin' && typeof resumeData.content === 'string') {
+      try {
+        const url = new URL(resumeData.content);
+        resumeName = `LinkedIn: ${url.hostname}${url.pathname}`;
+      } catch {
+        resumeName = "LinkedIn Profile";
+      }
+    } else if (resumeData.type === 'file' && resumeData.fileName) {
+      resumeName = resumeData.fileName;
+    } else if (resumeData.type === 'voice') {
+      resumeName = "Voice Description";
+    }
+    
+    return {
+      title: "(CUSTOM) AI Interview Based on Your Resume",
+      resumeName: resumeName
+    };
   };
+  
+  const displayJobData = getDisplayJobData();
 
   // Format time helper
   const formatTime = (seconds: number) => {
@@ -401,8 +427,8 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
               <div className="space-y-4">
                 <div className="p-4 border rounded-lg">
                   <h3 className="font-medium mb-2">Interview Details</h3>
-                  <p className="text-sm text-muted-foreground mb-2">{jobData.title}</p>
-                  <p className="text-sm text-muted-foreground">Resume: {jobData.resumeName}</p>
+                  <p className="text-sm text-muted-foreground mb-2">{displayJobData.title}</p>
+                  <p className="text-sm text-muted-foreground">Resume: {displayJobData.resumeName}</p>
                 </div>
                 
                 <div className="p-4 bg-primary/5 rounded-lg">
