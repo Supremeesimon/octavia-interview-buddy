@@ -525,7 +525,7 @@ export class VapiService {
       console.log('Assistant validation result:', isAssistantValid);
       
       if (!isAssistantValid) {
-        throw new Error('Assistant configuration is invalid. Please check your assistant ID.');
+        throw new Error('Assistant configuration is invalid. Please check your assistant ID in the VAPI dashboard.');
       }
       
       // Add additional debugging
@@ -550,7 +550,7 @@ export class VapiService {
       
       // Check if call is null or undefined
       if (call === null) {
-        throw new Error('VAPI returned null response. This typically means the assistant ID is invalid or the assistant is not properly configured in VAPI. Please verify that your VAPI assistant is correctly set up in the VAPI dashboard.');
+        throw new Error('VAPI returned null response. This typically means the assistant ID is invalid or the assistant is not properly configured in VAPI. Please verify that your VAPI assistant is correctly set up in the VAPI dashboard and that the assistant ID is correct.');
       }
       
       if (call === undefined) {

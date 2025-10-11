@@ -8,19 +8,27 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import useVapi from '@/hooks/use-vapi';
 import { useAuth } from '@/hooks/use-auth';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import type { InterviewFeedback } from '@/types';
 
 interface InterviewInterfaceProps {
   resumeData?: {
-    type: 'linkedin' | 'file' | 'text';
+    type: 'linkedin' | 'file' | 'text' | 'voice';
     content: string | File;
+    fileName?: string;
+    downloadURL?: string;
+    parsedContent?: any;
   };
 }
 
 const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user: customUser } = useAuth();
+  const { user: firebaseUser } = useFirebaseAuth();
+  
+  // Use Firebase user for consistency with the rest of the app
+  const user = firebaseUser || customUser;
   
   // VAPI integration for voice interviews
   const {
@@ -223,8 +231,15 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   }, [endInterview, clearError]);
 
   const handleScheduleMore = () => {
-    navigate('/resumes');
-    toast.success("Redirecting to scheduling page");
+    // Check if user is authenticated with either system
+    if (user) {
+      navigate('/resumes');
+      toast.success("Redirecting to scheduling page");
+    } else {
+      // If not authenticated, redirect to login
+      navigate('/login');
+      toast.info("Please log in to schedule more interviews");
+    }
   };
   
   // Update audio visualization based on actual volume levels

@@ -40,7 +40,7 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
       hasTranscript: !!message.transcript
     });
 
-    // Only handle end-of-call reports
+    // Handle different message types
     if (message.type === 'end-of-call-report') {
       console.log('✅ Processing end-of-call report for call:', message.callId);
       
@@ -70,9 +70,36 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
       console.log('💾 Saved end-of-call report to Firestore with ID:', docRef.id);
 
       res.status(200).send('Report processed successfully');
+    } else if (message.type === 'analysis') {
+      // Handle analysis data (this is the main source of end-of-call analysis)
+      console.log('✅ Processing analysis data for call:', message.callId);
+      
+      const analysis = message.analysis || {};
+      
+      const report = {
+        callId: message.callId || null,
+        summary: analysis.summary || '',
+        structuredData: analysis.structuredData || {},
+        successEvaluation: analysis.successEvaluation || {},
+        transcript: message.transcript || '',
+        recordingUrl: message.recordingUrl || null,
+        duration: message.duration || 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Add metadata fields that might be useful for data isolation
+        studentId: message.metadata?.studentId || '',
+        departmentId: message.metadata?.departmentId || '',
+        institutionId: message.metadata?.institutionId || '',
+        interviewType: message.metadata?.interviewType || 'general'
+      };
+
+      // Save to Firestore in the end-of-call-analysis collection
+      const docRef = await admin.firestore().collection('end-of-call-analysis').add(report);
+      console.log('💾 Saved analysis data to Firestore with ID:', docRef.id);
+
+      res.status(200).send('Analysis processed successfully');
     } else {
-      console.log('ℹ️ Non end-of-call-report message type received:', message.type);
-      res.status(200).send('Message received but not processed (not an end-of-call report)');
+      console.log('ℹ️ Non end-of-call-report/analysis message type received:', message.type);
+      res.status(200).send('Message received but not processed (not an end-of-call report or analysis)');
     }
   } catch (error) {
     console.error('💥 Error processing VAPI webhook:', error);
