@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { File, FileText, Upload, Calendar, Clock, Download, Eye, Pencil, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { File, FileText, Upload, Calendar, Clock, Download, Eye, Pencil, Trash2, Plus, Loader2, AlertCircle, Search, Filter } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
 const ResumesList = () => {
@@ -17,9 +18,13 @@ const ResumesList = () => {
   const { uploadResume, listUserFiles, deleteFile, isUploading, uploadProgress, error, clearError } = useFirebaseStorage();
   
   const [resumes, setResumes] = useState<any[]>([]);
+  const [filteredResumes, setFilteredResumes] = useState<any[]>([]);
   const [isLoadingResumes, setIsLoadingResumes] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [fileInputKey, setFileInputKey] = useState(0); // Add this for resetting file input
+  const [searchTerm, setSearchTerm] = useState('');
+  const [fileTypeFilter, setFileTypeFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('date'); // date, name, size
   
   // Add ref for file input
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -48,15 +53,21 @@ const ResumesList = () => {
       try {
         const userFiles = await listUserFiles(user.id, 'resumes');
         if (isMounted) {
-          setResumes(userFiles.map(file => ({
+          const processedResumes = userFiles.map(file => ({
             id: file.name.split('.')[0],
             name: file.name,
             lastUpdated: new Date(file.updated).toLocaleDateString(),
             format: file.contentType.includes('pdf') ? 'PDF' : file.contentType.includes('word') ? 'DOCX' : 'Unknown',
             size: formatFileSize(file.size),
             downloadURL: file.downloadURL,
-            isDefault: false
-          })));
+            isDefault: false,
+            updated: file.updated,
+            contentType: file.contentType,
+            originalName: file.name
+          }));
+          
+          setResumes(processedResumes);
+          setFilteredResumes(processedResumes);
         }
       } catch (error) {
         console.error('Error loading resumes:', error);
@@ -76,6 +87,47 @@ const ResumesList = () => {
       isMounted = false;
     };
   }, [user, isAuthLoading, listUserFiles, clearError]);
+  
+  // Filter and sort resumes
+  useEffect(() => {
+    let result = [...resumes];
+    
+    // Apply search filter
+    if (searchTerm) {
+      result = result.filter(resume => 
+        resume.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply file type filter
+    if (fileTypeFilter !== 'all') {
+      result = result.filter(resume => {
+        if (fileTypeFilter === 'pdf') {
+          return resume.contentType.includes('pdf');
+        } else if (fileTypeFilter === 'doc') {
+          return resume.contentType.includes('word') || resume.contentType.includes('document');
+        }
+        return true;
+      });
+    }
+    
+    // Apply sorting
+    result.sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'size') {
+        // Convert size strings back to numbers for comparison
+        const sizeA = parseFloat(a.size);
+        const sizeB = parseFloat(b.size);
+        return sizeB - sizeA; // Descending by size
+      } else {
+        // Sort by date (default) - newest first
+        return new Date(b.updated).getTime() - new Date(a.updated).getTime();
+      }
+    });
+    
+    setFilteredResumes(result);
+  }, [resumes, searchTerm, fileTypeFilter, sortBy]);
   
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -98,15 +150,21 @@ const ResumesList = () => {
     if (result) {
       // Refresh the resumes list
       const userFiles = await listUserFiles(user.id, 'resumes');
-      setResumes(userFiles.map(file => ({
+      const processedResumes = userFiles.map(file => ({
         id: file.name.split('.')[0],
         name: file.name,
         lastUpdated: new Date(file.updated).toLocaleDateString(),
         format: file.contentType.includes('pdf') ? 'PDF' : file.contentType.includes('word') ? 'DOCX' : 'Unknown',
         size: formatFileSize(file.size),
         downloadURL: file.downloadURL,
-        isDefault: false
-      })));
+        isDefault: false,
+        updated: file.updated,
+        contentType: file.contentType,
+        originalName: file.name
+      }));
+      
+      setResumes(processedResumes);
+      setFilteredResumes(processedResumes);
       setShowUploadDialog(false);
     }
   };
@@ -137,7 +195,9 @@ const ResumesList = () => {
     const success = await deleteFile(filePath);
     
     if (success) {
-      setResumes(resumes.filter(resume => resume.id !== resumeId));
+      const updatedResumes = resumes.filter(resume => resume.id !== resumeId);
+      setResumes(updatedResumes);
+      setFilteredResumes(updatedResumes);
     }
   };
   
@@ -160,6 +220,44 @@ const ResumesList = () => {
             </>
           )}
         </Button>
+      </div>
+      
+      {/* Search and Filter Controls */}
+      <div className="mb-6 flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search resumes..."
+            className="pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex gap-2">
+          <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
+            <SelectTrigger className="w-[120px]">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="pdf">PDF</SelectItem>
+              <SelectItem value="doc">DOC/DOCX</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date">Date</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="size">Size</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       
       {error && (
@@ -191,9 +289,9 @@ const ResumesList = () => {
           <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground mb-4" />
           <p className="text-muted-foreground">Loading your resumes...</p>
         </div>
-      ) : resumes.length > 0 ? (
+      ) : filteredResumes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {resumes.map(resume => (
+          {filteredResumes.map(resume => (
             <Card key={resume.id} className={resume.isDefault ? 'border-primary/30' : ''}>
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
@@ -245,7 +343,7 @@ const ResumesList = () => {
                     variant="outline" 
                     size="sm" 
                     className="gap-1 text-destructive hover:text-destructive"
-                    onClick={() => handleDeleteResume(resume.id, resume.name)}
+                    onClick={() => handleDeleteResume(resume.id, resume.originalName)}
                   >
                     <Trash2 className="h-4 w-4" />
                     {!isMobile && "Delete"}
@@ -267,18 +365,24 @@ const ResumesList = () => {
       ) : (
         <div className="text-center py-10">
           <FileText className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
-          <h3 className="text-lg font-medium mb-2">No resumes uploaded yet</h3>
+          <h3 className="text-lg font-medium mb-2">
+            {resumes.length === 0 ? "No resumes uploaded yet" : "No matching resumes found"}
+          </h3>
           <p className="text-muted-foreground mb-4">
-            Upload your resume to apply for jobs and prepare for interviews
+            {resumes.length === 0 
+              ? "Upload your resume to apply for jobs and prepare for interviews" 
+              : "Try adjusting your search or filter criteria"}
           </p>
-          <Button 
-            className="gap-2" 
-            onClick={() => setShowUploadDialog(true)}
-            disabled={isAuthLoading || !user}
-          >
-            <Upload className="h-4 w-4" />
-            Upload Resume
-          </Button>
+          {resumes.length === 0 && (
+            <Button 
+              className="gap-2" 
+              onClick={() => setShowUploadDialog(true)}
+              disabled={isAuthLoading || !user}
+            >
+              <Upload className="h-4 w-4" />
+              Upload Resume
+            </Button>
+          )}
         </div>
       )}
       

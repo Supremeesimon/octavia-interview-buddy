@@ -17,13 +17,27 @@ const StudentDashboardPage = () => {
   const { user, isLoading } = useFirebaseAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   
+  // Set initial tab based on URL hash or query parameter
+  useEffect(() => {
+    const hash = location.hash.replace('#', '');
+    const searchParams = new URLSearchParams(location.search);
+    const tabParam = searchParams.get('tab');
+    
+    if (hash && ['dashboard', 'interviews', 'resumes'].includes(hash)) {
+      setActiveTab(hash);
+    } else if (tabParam && ['dashboard', 'interviews', 'resumes'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location]);
+  
   useEffect(() => {
     console.log('StudentDashboardPage rendered with user:', user, 'isLoading:', isLoading);
   }, [user, isLoading]);
   
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    // Keep everything within this page - no navigation
+    // Update URL to reflect current tab
+    navigate(`${location.pathname}?tab=${value}`, { replace: true });
   };
   
   // Show loading state while auth is checking
