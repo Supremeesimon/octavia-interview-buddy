@@ -119,6 +119,7 @@ export class AIAnalyticsService {
     }
   }
 
+  
   /**
    * Fetch real trend data from Firebase
    */
@@ -176,11 +177,12 @@ export class AIAnalyticsService {
       // Fetch all institutions
       const institutions = await InstitutionService.getAllInstitutions();
       
-      // Convert to percentage format (this would be based on actual usage in a real system)
-      return institutions.map((inst, index) => ({
-        name: inst.name,
-        value: Math.max(5, Math.round(100 / institutions.length)) // Distribute evenly for now
-      }));
+      // Since the interview data is anonymous, we should indicate this
+      // Return a single entry indicating anonymous data
+      return [{
+        name: "Anonymous Users",
+        value: 100
+      }];
     } catch (error) {
       console.error('Error fetching institution data:', error);
       return [];
@@ -192,14 +194,12 @@ export class AIAnalyticsService {
    */
   async getInstitutionPerformanceData(): Promise<any[]> {
     try {
-      // Fetch all institutions
-      const institutions = await InstitutionService.getAllInstitutions();
-      
-      // Get performance data for each institution
-      return institutions.map(inst => ({
-        name: inst.name,
-        score: inst.stats?.averageScore || 0
-      }));
+      // Since the interview data is anonymous, we should indicate this
+      // Return a single entry indicating anonymous data
+      return [{
+        name: "Anonymous Users",
+        score: 0 // We'll calculate this based on actual performance data
+      }];
     } catch (error) {
       console.error('Error fetching institution performance data:', error);
       return [];

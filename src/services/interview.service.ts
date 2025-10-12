@@ -599,7 +599,7 @@ export class InterviewService {
       
       const q = query(
         collection(db, this.COLLECTIONS.endOfCallAnalysis),
-        orderBy('timestamp', 'desc'),
+        orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
       

@@ -8,6 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   BarChart3, 
   DollarSign, 
@@ -28,7 +29,8 @@ import {
   PieChart,
   Check,
   Download,
-  Filter
+  Filter,
+  Edit
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstitutionService } from '@/services/institution.service';
@@ -44,6 +46,15 @@ interface FinancialInstitution {
   status: 'active' | 'pending';
 }
 
+// Interface for institution pricing override
+interface InstitutionPricingOverride {
+  institutionId: string;
+  customVapiCost: number;
+  customMarkupPercentage: number;
+  customLicenseCost: number;
+  isEnabled: boolean;
+}
+
 const FinancialManagement = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
@@ -53,6 +64,16 @@ const FinancialManagement = () => {
   const [selectedInstitution, setSelectedInstitution] = useState<string>('all');
   const [institutions, setInstitutions] = useState<FinancialInstitution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingInstitution, setEditingInstitution] = useState<FinancialInstitution | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [institutionPricingOverrides, setInstitutionPricingOverrides] = useState<InstitutionPricingOverride[]>([]);
+  const [currentOverride, setCurrentOverride] = useState<InstitutionPricingOverride>({
+    institutionId: '',
+    customVapiCost: 0.11,
+    customMarkupPercentage: 36.36,
+    customLicenseCost: 19.96,
+    isEnabled: false
+  });
   
   // Fetch real institution data
   useEffect(() => {
@@ -120,6 +141,96 @@ const FinancialManagement = () => {
       title: "Price change scheduled",
       description: "New prices will take effect on June 1, 2025",
     });
+  };
+  
+  // Handle edit institution pricing
+  const handleEditInstitution = (institution: FinancialInstitution) => {
+    setEditingInstitution(institution);
+    
+    // Check if this institution already has an override
+    const existingOverride = institutionPricingOverrides.find(override => override.institutionId === institution.id);
+    
+    if (existingOverride) {
+      setCurrentOverride(existingOverride);
+    } else {
+      // Set default values based on global settings
+      setCurrentOverride({
+        institutionId: institution.id,
+        customVapiCost: vapiCost,
+        customMarkupPercentage: markupPercentage,
+        customLicenseCost: licenseCost,
+        isEnabled: false
+      });
+    }
+    
+    setIsEditDialogOpen(true);
+  };
+  
+  // Handle save institution pricing override
+  const handleSaveOverride = () => {
+    // Update or add the override
+    const updatedOverrides = [...institutionPricingOverrides];
+    const existingIndex = updatedOverrides.findIndex(override => override.institutionId === currentOverride.institutionId);
+    
+    if (existingIndex >= 0) {
+      updatedOverrides[existingIndex] = currentOverride;
+    } else {
+      updatedOverrides.push(currentOverride);
+    }
+    
+    setInstitutionPricingOverrides(updatedOverrides);
+    setIsEditDialogOpen(false);
+    
+    toast({
+      title: "Pricing override saved",
+      description: `Custom pricing for ${editingInstitution?.name} has been saved.`,
+    });
+  };
+  
+  // Handle custom pricing toggle
+  const handleCustomPricingToggle = (institutionId: string, checked: boolean) => {
+    setInstitutionPricingOverrides(prev => {
+      const updated = [...prev];
+      const index = updated.findIndex(override => override.institutionId === institutionId);
+      
+      if (index >= 0) {
+        updated[index] = { ...updated[index], isEnabled: checked };
+      } else if (checked) {
+        // Add a new override if enabling and none exists
+        const institution = institutions.find(inst => inst.id === institutionId);
+        if (institution) {
+          updated.push({
+            institutionId,
+            customVapiCost: vapiCost,
+            customMarkupPercentage: markupPercentage,
+            customLicenseCost: licenseCost,
+            isEnabled: true
+          });
+        }
+      }
+      
+      return updated;
+    });
+  };
+  
+  // Get pricing for an institution (either override or global)
+  const getInstitutionPricing = (institutionId: string) => {
+    const override = institutionPricingOverrides.find(override => override.institutionId === institutionId);
+    
+    if (override && override.isEnabled) {
+      return {
+        vapiCost: override.customVapiCost,
+        markupPercentage: override.customMarkupPercentage,
+        licenseCost: override.customLicenseCost
+      };
+    }
+    
+    // Return global pricing if no override or not enabled
+    return {
+      vapiCost,
+      markupPercentage,
+      licenseCost
+    };
   };
   
   if (loading) {
@@ -460,32 +571,48 @@ const FinancialManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {institutions.map((institution) => (
-                      <TableRow key={institution.id}>
-                        <TableCell className="font-medium">{institution.name}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            institution.status === 'active' 
-                              ? 'bg-green-50 text-green-700'
-                              : 'bg-yellow-50 text-yellow-700'
-                          }`}>
-                            {institution.status.charAt(0).toUpperCase() + institution.status.slice(1)}
-                          </span>
-                        </TableCell>
-                        <TableCell>{institution.students}</TableCell>
-                        <TableCell>
-                          <Switch id={`custom-${institution.id}`} />
-                        </TableCell>
-                        <TableCell>{markupPercentage.toFixed(1)}%</TableCell>
-                        <TableCell>${calculatedSessionPrice.toFixed(2)}/min</TableCell>
-                        <TableCell>${licenseCost.toFixed(2)}/year</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm">
-                            Edit
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {institutions.map((institution) => {
+                      const pricing = getInstitutionPricing(institution.id);
+                      const sessionPrice = Number((pricing.vapiCost * (1 + pricing.markupPercentage / 100)).toFixed(2));
+                      const override = institutionPricingOverrides.find(override => override.institutionId === institution.id);
+                      const hasCustomPricing = override?.isEnabled || false;
+                      
+                      return (
+                        <TableRow key={institution.id}>
+                          <TableCell className="font-medium">{institution.name}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                              institution.status === 'active' 
+                                ? 'bg-green-50 text-green-700'
+                                : 'bg-yellow-50 text-yellow-700'
+                            }`}>
+                              {institution.status.charAt(0).toUpperCase() + institution.status.slice(1)}
+                            </span>
+                          </TableCell>
+                          <TableCell>{institution.students}</TableCell>
+                          <TableCell>
+                            <Switch 
+                              id={`custom-${institution.id}`} 
+                              checked={hasCustomPricing}
+                              onCheckedChange={(checked) => handleCustomPricingToggle(institution.id, checked)}
+                            />
+                          </TableCell>
+                          <TableCell>{pricing.markupPercentage.toFixed(1)}%</TableCell>
+                          <TableCell>${sessionPrice.toFixed(2)}/min</TableCell>
+                          <TableCell>${pricing.licenseCost.toFixed(2)}/year</TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditInstitution(institution)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -1047,6 +1174,137 @@ const FinancialManagement = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {/* Edit Institution Pricing Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Institution Pricing</DialogTitle>
+              <DialogDescription>
+                Set custom pricing for {editingInstitution?.name}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {editingInstitution && (
+              <div className="space-y-6 py-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="custom-vapi-cost">VAPI Cost Per Minute</Label>
+                    <div className="flex">
+                      <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                        $
+                      </span>
+                      <Input
+                        id="custom-vapi-cost"
+                        type="number"
+                        step="0.01"
+                        min="0.05"
+                        max="0.25"
+                        value={currentOverride.customVapiCost}
+                        onChange={(e) => setCurrentOverride({
+                          ...currentOverride,
+                          customVapiCost: parseFloat(e.target.value) || 0
+                        })}
+                        className="rounded-l-none"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Base cost paid to VAPI provider per minute
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="custom-markup">Markup Percentage</Label>
+                    <div className="flex">
+                      <Input
+                        id="custom-markup"
+                        type="number"
+                        step="0.1"
+                        min="10"
+                        max="100"
+                        value={currentOverride.customMarkupPercentage}
+                        onChange={(e) => setCurrentOverride({
+                          ...currentOverride,
+                          customMarkupPercentage: parseFloat(e.target.value) || 0
+                        })}
+                      />
+                      <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-input bg-muted text-muted-foreground text-sm">
+                        %
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Markup percentage applied to the base VAPI cost
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="custom-license-cost">Annual License Cost</Label>
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                      $
+                    </span>
+                    <Input
+                      id="custom-license-cost"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={currentOverride.customLicenseCost}
+                      onChange={(e) => setCurrentOverride({
+                        ...currentOverride,
+                        customLicenseCost: parseFloat(e.target.value) || 0
+                      })}
+                      className="rounded-l-none"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Annual cost per student license
+                  </p>
+                </div>
+                
+                <div className="bg-muted p-4 rounded-md">
+                  <h3 className="font-medium mb-2">Calculated Pricing</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Session Minute Price</div>
+                      <div className="text-lg font-bold">
+                        ${Number((currentOverride.customVapiCost * (1 + currentOverride.customMarkupPercentage / 100)).toFixed(2))}/minute
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        For a 15-minute session: ${Number((currentOverride.customVapiCost * (1 + currentOverride.customMarkupPercentage / 100) * 15).toFixed(2))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Quarterly License</div>
+                      <div className="text-lg font-bold">${(currentOverride.customLicenseCost / 4).toFixed(2)}/quarter</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Billed quarterly per student
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Margin per Minute</div>
+                      <div className="text-lg font-bold">
+                        ${Number((currentOverride.customVapiCost * (currentOverride.customMarkupPercentage / 100)).toFixed(2))}/minute
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {currentOverride.customMarkupPercentage.toFixed(1)}% of session price
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveOverride}>
+                Save Pricing Override
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Tabs>
     </div>
   );

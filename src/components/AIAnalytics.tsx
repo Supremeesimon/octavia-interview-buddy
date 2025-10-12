@@ -17,6 +17,7 @@ import { LineChart, Line, XAxis, YAxis, BarChart, Bar, Tooltip, PieChart as ReCh
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { aiAnalyticsService } from '@/services/ai-analytics.service';
+import { interviewService } from '@/services/interview.service';
 
 const AIAnalytics = () => {
   const isMobile = useIsMobile();
@@ -35,6 +36,27 @@ const AIAnalytics = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  // Debugging effect to monitor skillGapsData changes
+  useEffect(() => {
+    console.log('skillGapsData updated:', skillGapsData);
+    console.log('skillGapsData length:', skillGapsData.length);
+  }, [skillGapsData]);
+
+  // Debugging effect to monitor all state changes
+  useEffect(() => {
+    console.log('Component state updated:', {
+      performanceData: performanceData.length,
+      trendData: trendData.length,
+      institutionData: institutionData.length,
+      institutionPerformanceData: institutionPerformanceData.length,
+      skillGapsData: skillGapsData.length,
+      loading
+    });
+  }, [performanceData, trendData, institutionData, institutionPerformanceData, skillGapsData, loading]);
+  
+  // State to track the actual number of interview analyses
+  const [interviewAnalysesCount, setInterviewAnalysesCount] = useState<number>(0);
+
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   useEffect(() => {
@@ -52,7 +74,14 @@ const AIAnalytics = () => {
           aiAnalyticsService.getSkillGapsData()
         ]);
         
+        // Get the actual count of interview analyses
+        const analyses = await interviewService.getAllAnalyses(1000);
+        console.log('Actual interview analyses count:', analyses.length);
+        setInterviewAnalysesCount(analyses.length);
+        
         console.log('Fetched data:', { perfData, trendData, instData, instPerfData, gapsData });
+        console.log('Skill gaps data length:', gapsData.length);
+        console.log('Performance data length:', perfData.length);
         
         // Log the actual data being sent to AI for debugging
         const insightsData = {
@@ -92,6 +121,7 @@ const AIAnalytics = () => {
       } catch (error) {
         console.error('Error fetching analytics data:', error);
       } finally {
+        console.log('Finished fetching data, setting loading to false');
         setLoading(false);
       }
     };
@@ -132,12 +162,21 @@ const AIAnalytics = () => {
   };
   
   if (loading) {
+    console.log('Component is loading...');
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
+  
+  console.log('Rendering component with data:', {
+    performanceData: performanceData.length,
+    trendData: trendData.length,
+    institutionData: institutionData.length,
+    institutionPerformanceData: institutionPerformanceData.length,
+    skillGapsData: skillGapsData.length
+  });
   
   return (
     <div className="space-y-6">
@@ -162,7 +201,7 @@ const AIAnalytics = () => {
           </TabsTrigger>
           <TabsTrigger value="institutions">
             <Building className="mr-2 h-4 w-4" />
-            Institutions
+            Anonymous Data
           </TabsTrigger>
           <TabsTrigger value="insights">
             <Brain className="mr-2 h-4 w-4" />
@@ -341,7 +380,6 @@ const AIAnalytics = () => {
                 <CardDescription>Areas where students are struggling the most</CardDescription>
               </CardHeader>
               <CardContent>
-                {console.log('Rendering Top Skill Gaps - skillGapsData.length:', skillGapsData.length, 'skillGapsData:', skillGapsData)}
                 {skillGapsData.length > 0 ? (
                   <ChartContainer
                     config={{
@@ -386,7 +424,6 @@ const AIAnalytics = () => {
                 <CardDescription>AI-suggested areas for improvement</CardDescription>
               </CardHeader>
               <CardContent>
-                {console.log('Rendering Recommended Focus Areas - skillGapsData.length:', skillGapsData.length)}
                 <div className="space-y-4">
                   <div className="flex items-start gap-3 pb-4 border-b">
                     <div className="bg-red-100 p-2 rounded-md">
@@ -395,7 +432,6 @@ const AIAnalytics = () => {
                     <div>
                       <h4 className="font-medium">Technical Interview Preparation</h4>
                       <p className="text-sm text-muted-foreground">
-                        {console.log('Technical Interview Preparation check - skillGapsData.length > 0:', skillGapsData.length > 0)}
                         {skillGapsData.length > 0 
                           ? `Focus on areas with highest skill gaps like ${skillGapsData.slice(0, 2).map(s => s.name).join(' and ')}.`
                           : 'No specific recommendations available.'}
@@ -410,7 +446,6 @@ const AIAnalytics = () => {
                     <div>
                       <h4 className="font-medium">Behavioral Question Workshops</h4>
                       <p className="text-sm text-muted-foreground">
-                        {console.log('Behavioral Question Workshops check - skillGapsData.length > 1:', skillGapsData.length > 1)}
                         {skillGapsData.length > 1 
                           ? `Address behavioral skill gaps identified in ${skillGapsData[1]?.name || 'key areas'}.`
                           : 'No behavioral skill gap data available.'}
@@ -425,7 +460,6 @@ const AIAnalytics = () => {
                     <div>
                       <h4 className="font-medium">Targeted Intervention</h4>
                       <p className="text-sm text-muted-foreground">
-                        {console.log('Targeted Intervention check - skillGapsData.length > 0:', skillGapsData.length > 0)}
                         {skillGapsData.length > 0 
                           ? `Prioritize interventions for the top ${Math.min(3, skillGapsData.length)} skill gaps.`
                           : 'No targeted intervention data available.'}
@@ -479,7 +513,17 @@ const AIAnalytics = () => {
                 <CardDescription>Overall platform usage distribution</CardDescription>
               </CardHeader>
               <CardContent>
-                {renderPieChart()}
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <Building className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground mb-2">Data from anonymous users</p>
+                    <p className="text-sm text-muted-foreground">
+                      {interviewAnalysesCount > 0 
+                        ? `${interviewAnalysesCount} interview ${interviewAnalysesCount === 1 ? 'analysis' : 'analyses'} collected today` 
+                        : 'No interview analyses available'}
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             
@@ -489,31 +533,38 @@ const AIAnalytics = () => {
                 <CardDescription>Average scores across platform</CardDescription>
               </CardHeader>
               <CardContent>
-                {institutionPerformanceData.length > 0 ? (
+                {performanceData.length > 0 ? (
                   <div className="space-y-4">
-                    {institutionPerformanceData.map((inst, index) => (
-                      <div key={inst.name} className="flex justify-between items-center">
-                        <div className="flex items-center">
-                          <div 
-                            className="w-3 h-3 rounded-full mr-2" 
-                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                          ></div>
-                          <span>{inst.name}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-24 h-2 bg-gray-200 rounded-full mr-2 overflow-hidden">
-                            <div 
-                              className="h-full rounded-full" 
-                              style={{ 
-                                width: `${inst.score}%`,
-                                backgroundColor: COLORS[index % COLORS.length]
-                              }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{inst.score}%</span>
-                        </div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full mr-2 bg-blue-500"></div>
+                        <span>Anonymous Users</span>
                       </div>
-                    ))}
+                      <div className="flex items-center">
+                        <div className="w-24 h-2 bg-gray-200 rounded-full mr-2 overflow-hidden">
+                          <div 
+                            className="h-full rounded-full bg-blue-500" 
+                            style={{ 
+                              width: `${Math.round(performanceData.reduce((sum, item) => sum + item.score, 0) / performanceData.length)}%`
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium">
+                          {Math.round(performanceData.reduce((sum, item) => sum + item.score, 0) / performanceData.length)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="pt-4 border-t">
+                      <h4 className="text-sm font-medium mb-2">Performance by Category</h4>
+                      <div className="space-y-2">
+                        {performanceData.map((item, index) => (
+                          <div key={index} className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">{item.category}</span>
+                            <span>{item.score}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-64">
@@ -531,31 +582,33 @@ const AIAnalytics = () => {
                 <CardDescription>AI-Generated recommendations from anonymous user data</CardDescription>
               </CardHeader>
               <CardContent>
-                {institutionData.length > 0 ? (
-                  <div className="space-y-5">
-                    {institutionData.map((inst, index) => (
-                      <div 
-                        key={inst.name} 
-                        className={index < institutionData.length - 1 ? "pb-4 border-b" : ""}
-                      >
-                        <div className="flex items-center mb-2">
-                          <div 
-                            className="w-3 h-3 rounded-full mr-2" 
-                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                          ></div>
-                          <h4 className="font-medium">{inst.name}</h4>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {skillGapsData.length > 0 
-                            ? `Focus on addressing skill gaps in ${skillGapsData.slice(0, 2).map(s => s.name).join(' and ')} to improve overall performance.`
-                            : 'No specific recommendations available at this time.'}
-                        </p>
+                {skillGapsData.length > 0 ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Top Skill Gaps Identified</h4>
+                      <div className="space-y-3">
+                        {skillGapsData.slice(0, 3).map((skill, index) => (
+                          <div key={index} className="flex items-center justify-between">
+                            <span className="text-sm">{skill.name}</span>
+                            <span className="text-sm font-medium text-red-500">{skill.gap}%</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                    <div className="pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Based on {interviewAnalysesCount} interview {interviewAnalysesCount === 1 ? 'analysis' : 'analyses'} from anonymous users. 
+                        Focus on addressing these skill gaps to improve overall performance.
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-64">
-                    <p className="text-muted-foreground">No general insights available</p>
+                  <div className="flex items-center justify-center h-32">
+                    <div className="text-center">
+                      <Target className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground mb-2">Insights based on anonymous interview data</p>
+                      <p className="text-sm text-muted-foreground">Focus on addressing skill gaps to improve overall performance</p>
+                    </div>
                   </div>
                 )}
               </CardContent>
