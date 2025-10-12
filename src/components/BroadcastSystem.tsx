@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, 
   Bell, 
@@ -21,30 +21,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
+import { MessagingService } from '@/services/messaging.service';
+import { Message, MessageTemplate } from '@/types';
 
-// Mock data for institutions
-const mockInstitutions = [
-  { id: '1', name: 'Harvard University' },
-  { id: '2', name: 'Stanford University' },
-  { id: '3', name: 'MIT' },
-  { id: '4', name: 'Yale University' },
-  { id: '5', name: 'Princeton University' }
-];
-
-// Mock data for templates
-const mockTemplates = [
-  { 
-    id: 1, 
-    title: 'Welcome Message', 
-    description: 'Sent to new users upon registration',
-    content: 'Welcome to Octavia AI! We\'re excited to have you join our platform. Let\'s get started with your first interview...'
-  },
-  { 
-    id: 2, 
-    title: 'Interview Reminder', 
-    description: 'Sent 24 hours before scheduled interview',
-    content: 'Your interview is scheduled for tomorrow. Here are some tips to help you prepare and make the most of your session...'
-  }
+// Actual institution data from Firestore
+const actualInstitutions = [
+  { id: 'WxD3cWTybNsqkpj7OwW4', name: 'Lethbridge Polytechnic' }
 ];
 
 const BroadcastSystem = () => {
@@ -55,85 +37,42 @@ const BroadcastSystem = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [templates, setTemplates] = useState<any[]>(mockTemplates);
-  const [selectedMessage, setSelectedMessage] = useState<any>(null);
-  const [messageToDelete, setMessageToDelete] = useState<any>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [recipientType, setRecipientType] = useState<'all' | 'specific' | 'students' | 'inactive'>('all');
+  const [selectedInstitutions, setSelectedInstitutions] = useState<string[]>([]);
   
   // Form refs
-  const messageTitleRef = React.useRef<HTMLInputElement>(null);
-  const messageTypeRef = React.useRef<HTMLSelectElement>(null);
-  const messageContentRef = React.useRef<HTMLTextAreaElement>(null);
-  const scheduleDateRef = React.useRef<HTMLInputElement>(null);
-  const scheduleTimeRef = React.useRef<HTMLInputElement>(time);
+  const messageTitleRef = useRef<HTMLInputElement>(null);
+  const messageTypeRef = useRef<HTMLSelectElement>(null);
+  const messageContentRef = useRef<HTMLTextAreaElement>(null);
+  const scheduleDateRef = useRef<HTMLInputElement>(null);
+  const scheduleTimeRef = useRef<HTMLInputElement>(null);
+  const templateSelectRef = useRef<HTMLSelectElement>(null);
   
-  // Fetch messages (simulating API call)
+  // Fetch messages and templates from Firebase
   useEffect(() => {
-    const fetchMessages = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Fetch messages
+        const messagesData = await MessagingService.getAllMessages();
+        setMessages(messagesData);
         
-        // Mock data for messages
-        const mockMessages = [
-          { 
-            id: 1, 
-            title: 'End of Semester Interviews', 
-            type: 'Announcement',
-            target: 'All Institutions',
-            status: 'Sent',
-            date: '2023-05-10',
-            deliveryRate: 98
-          },
-          { 
-            id: 2, 
-            title: 'New Feature: AI Feedback', 
-            type: 'Product Update',
-            target: 'Harvard University, MIT',
-            status: 'Sent',
-            date: '2023-05-08',
-            deliveryRate: 97
-          },
-          { 
-            id: 3, 
-            title: 'Interview Week Coming Soon', 
-            type: 'Event',
-            target: 'Stanford University',
-            status: 'Scheduled',
-            date: '2023-05-15',
-            deliveryRate: null
-          },
-          { 
-            id: 4, 
-            title: 'System Maintenance Notice', 
-            type: 'System',
-            target: 'All Institutions',
-            status: 'Draft',
-            date: null,
-            deliveryRate: null
-          },
-          { 
-            id: 5, 
-            title: 'Inactive User Reminder', 
-            type: 'Engagement',
-            target: 'Inactive Users (45)',
-            status: 'Sent',
-            date: '2023-05-01',
-            deliveryRate: 92
-          },
-        ];
-        
-        setMessages(mockMessages);
+        // Fetch templates
+        const templatesData = await MessagingService.getAllTemplates();
+        setTemplates(templatesData);
       } catch (error) {
-        console.error('Error fetching messages:', error);
+        console.error('Error fetching data:', error);
         toast({
           title: "Error",
-          description: "Failed to load messages.",
+          description: "Failed to load messages and templates.",
           variant: "destructive",
         });
       } finally {
@@ -141,8 +80,21 @@ const BroadcastSystem = () => {
       }
     };
     
-    fetchMessages();
+    fetchData();
   }, []);
+  
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (showComposeDialog) {
+      // Reset form fields
+      if (messageTitleRef.current) messageTitleRef.current.value = '';
+      if (messageContentRef.current) messageContentRef.current.value = '';
+      if (scheduleDateRef.current) scheduleDateRef.current.value = '';
+      if (scheduleTimeRef.current) scheduleTimeRef.current.value = '';
+      setRecipientType('all');
+      setSelectedInstitutions([]);
+    }
+  }, [showComposeDialog]);
   
   const handleComposeMessage = async () => {
     setSending(true);
@@ -154,31 +106,104 @@ const BroadcastSystem = () => {
       const scheduleDate = scheduleDateRef.current?.value || '';
       const scheduleTime = scheduleTimeRef.current?.value || '';
       
-      if (!title.trim() || !content.trim()) {
+      // Form validation
+      if (!title.trim()) {
         toast({
-          title: "Error",
-          description: "Please fill in all required fields.",
+          title: "Validation Error",
+          description: "Please enter a message title.",
           variant: "destructive",
         });
         setSending(false);
         return;
       }
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!content.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter message content.",
+          variant: "destructive",
+        });
+        setSending(false);
+        return;
+      }
       
-      // Add new message to state
+      // Validate recipient selection for specific institutions
+      if (recipientType === 'specific' && selectedInstitutions.length === 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please select at least one institution.",
+          variant: "destructive",
+        });
+        setSending(false);
+        return;
+      }
+      
+      // Validate schedule date if scheduling
+      if (scheduleDate) {
+        const scheduleDateTime = new Date(`${scheduleDate}T${scheduleTime || '00:00'}`);
+        const now = new Date();
+        if (scheduleDateTime < now) {
+          toast({
+            title: "Validation Error",
+            description: "Scheduled date must be in the future.",
+            variant: "destructive",
+          });
+          setSending(false);
+          return;
+        }
+      }
+      
+      // Determine target based on recipient type
+      let target = '';
+      switch (recipientType) {
+        case 'all':
+          target = 'All Institutions';
+          break;
+        case 'specific':
+          target = selectedInstitutions.map(id => {
+            const inst = actualInstitutions.find(i => i.id === id);
+            return inst ? inst.name : id;
+          }).join(', ');
+          break;
+        case 'students':
+          target = 'All Students';
+          break;
+        case 'inactive':
+          target = 'Inactive Students (30+ days)';
+          break;
+      }
+      
+      // Create message object
       const newMessage = {
-        id: messages.length + 1,
         title,
-        type,
-        target: 'All Institutions', // This would be dynamic in a real app
-        status: scheduleDate ? 'Scheduled' : 'Sent',
-        date: scheduleDate || new Date().toISOString().split('T')[0],
-        deliveryRate: scheduleDate ? null : 100
+        type: type as Message['type'],
+        target,
+        status: scheduleDate ? 'Scheduled' : 'Sent' as Message['status'],
+        content,
+        dateCreated: new Date().toISOString().split('T')[0],
+        dateScheduled: scheduleDate ? `${scheduleDate}${scheduleTime ? `T${scheduleTime}` : ''}` : undefined,
+        createdBy: 'current_user_id', // This would be the actual user ID
       };
       
-      setMessages([newMessage, ...messages]);
+      // Save to Firebase
+      const messageId = await MessagingService.createMessage(newMessage);
+      console.log('Message created with ID:', messageId);
+      
+      // Create broadcast history record
+      const historyRecord = {
+        messageId,
+        title,
+        recipients: recipientType === 'specific' ? selectedInstitutions : [recipientType],
+        status: 'Success' as const,
+        deliveryCount: recipientType === 'all' || recipientType === 'students' ? 100 : selectedInstitutions.length,
+        totalCount: recipientType === 'all' || recipientType === 'students' ? 100 : selectedInstitutions.length,
+      };
+      
+      await MessagingService.createBroadcastHistory(historyRecord);
+      
+      // Refresh messages
+      const updatedMessages = await MessagingService.getAllMessages();
+      setMessages(updatedMessages);
       
       toast({
         title: "Message Sent",
@@ -190,7 +215,7 @@ const BroadcastSystem = () => {
       console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: `Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -198,7 +223,7 @@ const BroadcastSystem = () => {
     }
   };
   
-  const handleEditMessage = (message: any) => {
+  const handleEditMessage = (message: Message) => {
     setSelectedMessage(message);
     setShowEditDialog(true);
   };
@@ -206,36 +231,46 @@ const BroadcastSystem = () => {
   const handleSaveEditedMessage = async () => {
     setSaving(true);
     try {
+      if (!selectedMessage) return;
+      
       // Get form data
       const title = document.getElementById('edit-message-title') as HTMLInputElement;
       const type = document.getElementById('edit-message-type') as HTMLSelectElement;
       const content = document.getElementById('edit-message-content') as HTMLTextAreaElement;
       
-      if (!title?.value.trim() || !content?.value.trim()) {
+      if (!title?.value.trim()) {
         toast({
-          title: "Error",
-          description: "Please fill in all required fields.",
+          title: "Validation Error",
+          description: "Please enter a message title.",
           variant: "destructive",
         });
         setSaving(false);
         return;
       }
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!content?.value.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter message content.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
       
-      // Update message in state
-      const updatedMessages = messages.map(msg => 
-        msg.id === selectedMessage.id 
-          ? { 
-              ...msg, 
-              title: title.value,
-              type: type.value,
-              // In a real app, you would update other fields as well
-            } 
-          : msg
-      );
+      // Update message object
+      const updatedMessage = {
+        title: title.value,
+        type: type.value as Message['type'],
+        content: content.value,
+        updatedAt: new Date()
+      };
       
+      // Update in Firebase
+      await MessagingService.updateMessage(selectedMessage.id, updatedMessage);
+      
+      // Refresh messages
+      const updatedMessages = await MessagingService.getAllMessages();
       setMessages(updatedMessages);
       setSelectedMessage(null);
       
@@ -249,7 +284,7 @@ const BroadcastSystem = () => {
       console.error('Error updating message:', error);
       toast({
         title: "Error",
-        description: "Failed to update message. Please try again.",
+        description: `Failed to update message: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -257,7 +292,7 @@ const BroadcastSystem = () => {
     }
   };
   
-  const confirmDeleteMessage = (message: any) => {
+  const confirmDeleteMessage = (message: Message) => {
     setMessageToDelete(message);
     setShowDeleteDialog(true);
   };
@@ -265,11 +300,13 @@ const BroadcastSystem = () => {
   const handleDeleteMessage = async () => {
     setDeleting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!messageToDelete) return;
       
-      // Remove message from state
-      const updatedMessages = messages.filter(msg => msg.id !== messageToDelete.id);
+      // Delete from Firebase
+      await MessagingService.deleteMessage(messageToDelete.id);
+      
+      // Refresh messages
+      const updatedMessages = await MessagingService.getAllMessages();
       setMessages(updatedMessages);
       setMessageToDelete(null);
       
@@ -283,7 +320,7 @@ const BroadcastSystem = () => {
       console.error('Error deleting message:', error);
       toast({
         title: "Error",
-        description: "Failed to delete message. Please try again.",
+        description: `Failed to delete message: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -302,29 +339,44 @@ const BroadcastSystem = () => {
       const title = document.getElementById('template-title') as HTMLInputElement;
       const description = document.getElementById('template-description') as HTMLInputElement;
       const content = document.getElementById('template-content') as HTMLTextAreaElement;
+      const type = document.getElementById('template-type') as HTMLSelectElement;
       
-      if (!title?.value.trim() || !content?.value.trim()) {
+      if (!title?.value.trim()) {
         toast({
-          title: "Error",
-          description: "Please fill in all required fields.",
+          title: "Validation Error",
+          description: "Please enter a template title.",
           variant: "destructive",
         });
         setSaving(false);
         return;
       }
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!content?.value.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter template content.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
       
-      // Add new template to state
+      // Create template object
       const newTemplate = {
-        id: templates.length + 1,
         title: title.value,
         description: description?.value || '',
-        content: content.value
+        content: content.value,
+        type: type?.value as MessageTemplate['type'] || 'Announcement',
+        createdBy: 'current_user_id', // This would be the actual user ID
       };
       
-      setTemplates([...templates, newTemplate]);
+      // Save to Firebase
+      const templateId = await MessagingService.createTemplate(newTemplate);
+      console.log('Template created with ID:', templateId);
+      
+      // Refresh templates
+      const updatedTemplates = await MessagingService.getAllTemplates();
+      setTemplates(updatedTemplates);
       
       toast({
         title: "Template Saved",
@@ -336,7 +388,7 @@ const BroadcastSystem = () => {
       console.error('Error saving template:', error);
       toast({
         title: "Error",
-        description: "Failed to save template. Please try again.",
+        description: `Failed to save template: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -344,12 +396,40 @@ const BroadcastSystem = () => {
     }
   };
   
-  const handleEditTemplate = (template: any) => {
+  const handleEditTemplate = async (template: MessageTemplate) => {
     // In a real implementation, this would open an edit dialog for the template
     toast({
       title: "Edit Template",
       description: "Template editing functionality would be implemented here.",
     });
+  };
+  
+  const handleTemplateChange = () => {
+    const selectedTemplateId = templateSelectRef.current?.value;
+    if (selectedTemplateId && selectedTemplateId !== '') {
+      const template = templates.find(t => t.id === selectedTemplateId);
+      if (template) {
+        if (messageTitleRef.current) messageTitleRef.current.value = template.title;
+        if (messageTypeRef.current) messageTypeRef.current.value = template.type;
+        if (messageContentRef.current) messageContentRef.current.value = template.content;
+      }
+    }
+  };
+  
+  const toggleInstitutionSelection = (institutionId: string) => {
+    setSelectedInstitutions(prev => 
+      prev.includes(institutionId)
+        ? prev.filter(id => id !== institutionId)
+        : [...prev, institutionId]
+    );
+  };
+  
+  const selectAllInstitutions = () => {
+    setSelectedInstitutions(actualInstitutions.map(inst => inst.id));
+  };
+  
+  const clearInstitutionSelection = () => {
+    setSelectedInstitutions([]);
   };
   
   return (
@@ -438,7 +518,7 @@ const BroadcastSystem = () => {
                               {message.status}
                             </div>
                           </TableCell>
-                          <TableCell>{message.date || '-'}</TableCell>
+                          <TableCell>{message.dateCreated || '-'}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end space-x-2">
                               <Button 
@@ -513,7 +593,7 @@ const BroadcastSystem = () => {
                         <p className="text-sm text-muted-foreground">To: {message.target}</p>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-medium">{message.date}</div>
+                        <div className="text-sm font-medium">{message.dateScheduled || message.dateCreated}</div>
                         <div className="text-xs text-muted-foreground">9:00 AM PST</div>
                       </div>
                     </div>
@@ -530,7 +610,7 @@ const BroadcastSystem = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Compose Message Dialog */}
+      {/* Compose Message Dialog - With actual institution data */}
       <Dialog open={showComposeDialog} onOpenChange={setShowComposeDialog}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -541,6 +621,23 @@ const BroadcastSystem = () => {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="message-template" className="text-sm font-medium">Template (Optional)</label>
+              <select 
+                id="message-template" 
+                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                ref={templateSelectRef}
+                onChange={handleTemplateChange}
+              >
+                <option value="">Select a template...</option>
+                {templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
             <div className="space-y-2">
               <label htmlFor="message-title" className="text-sm font-medium">Message Title</label>
               <Input
@@ -574,7 +671,8 @@ const BroadcastSystem = () => {
                     id="all-institutions"
                     name="recipients"
                     className="h-4 w-4 border-gray-300 focus:ring-primary"
-                    defaultChecked
+                    checked={recipientType === 'all'}
+                    onChange={() => setRecipientType('all')}
                   />
                   <label htmlFor="all-institutions" className="ml-2 flex items-center text-sm">
                     <Building className="mr-2 h-4 w-4" />
@@ -588,6 +686,8 @@ const BroadcastSystem = () => {
                     id="specific-institutions"
                     name="recipients"
                     className="h-4 w-4 border-gray-300 focus:ring-primary"
+                    checked={recipientType === 'specific'}
+                    onChange={() => setRecipientType('specific')}
                   />
                   <label htmlFor="specific-institutions" className="ml-2 flex items-center text-sm">
                     <Building className="mr-2 h-4 w-4" />
@@ -595,12 +695,59 @@ const BroadcastSystem = () => {
                   </label>
                 </div>
                 
+                {recipientType === 'specific' && (
+                  <div className="ml-6 mt-2 p-3 border rounded-md bg-muted/50">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-medium">Select Institutions</span>
+                      <div className="space-x-2">
+                        <Button 
+                          type="button" 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={selectAllInstitutions}
+                        >
+                          Select All
+                        </Button>
+                        <Button 
+                          type="button" 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={clearInstitutionSelection}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      {actualInstitutions.map(institution => (
+                        <div key={institution.id} className="flex items-center mb-2">
+                          <input
+                            type="checkbox"
+                            id={`institution-${institution.id}`}
+                            className="h-4 w-4 rounded border-gray-300 focus:ring-primary"
+                            checked={selectedInstitutions.includes(institution.id)}
+                            onChange={() => toggleInstitutionSelection(institution.id)}
+                          />
+                          <label htmlFor={`institution-${institution.id}`} className="ml-2 text-sm">
+                            {institution.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {selectedInstitutions.length} institution(s) selected
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-center">
                   <input
                     type="radio"
                     id="all-students"
                     name="recipients"
                     className="h-4 w-4 border-gray-300 focus:ring-primary"
+                    checked={recipientType === 'students'}
+                    onChange={() => setRecipientType('students')}
                   />
                   <label htmlFor="all-students" className="ml-2 flex items-center text-sm">
                     <Users className="mr-2 h-4 w-4" />
@@ -614,6 +761,8 @@ const BroadcastSystem = () => {
                     id="inactive-students"
                     name="recipients"
                     className="h-4 w-4 border-gray-300 focus:ring-primary"
+                    checked={recipientType === 'inactive'}
+                    onChange={() => setRecipientType('inactive')}
                   />
                   <label htmlFor="inactive-students" className="ml-2 flex items-center text-sm">
                     <Users className="mr-2 h-4 w-4" />
@@ -659,6 +808,7 @@ const BroadcastSystem = () => {
                   className="w-auto inline-flex"
                   ref={scheduleDateRef}
                   disabled
+                  min={new Date().toISOString().split('T')[0]}
                 />
                 <Input
                   type="time"
@@ -735,7 +885,7 @@ const BroadcastSystem = () => {
                   id="edit-message-content"
                   placeholder="Enter your message here..."
                   rows={6}
-                  defaultValue={selectedMessage.content || "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl."}
+                  defaultValue={selectedMessage.content}
                 />
               </div>
               
@@ -746,12 +896,12 @@ const BroadcastSystem = () => {
                     <Input
                       type="date"
                       className="w-auto inline-flex"
-                      defaultValue={selectedMessage.date || ""}
+                      defaultValue={selectedMessage.dateScheduled?.split('T')[0] || ""}
                     />
                     <Input
                       type="time"
                       className="w-auto inline-flex"
-                      defaultValue="09:00"
+                      defaultValue={selectedMessage.dateScheduled?.split('T')[1] || "09:00"}
                     />
                   </div>
                 </div>
@@ -839,6 +989,20 @@ const BroadcastSystem = () => {
                 id="template-description"
                 placeholder="Enter template description"
               />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="template-type" className="text-sm font-medium">Template Type</label>
+              <select 
+                id="template-type" 
+                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="Announcement">Announcement</option>
+                <option value="Event">Event</option>
+                <option value="System">System Update</option>
+                <option value="Product Update">Product Update</option>
+                <option value="Engagement">Engagement</option>
+              </select>
             </div>
             
             <div className="space-y-2">

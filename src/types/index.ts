@@ -386,3 +386,45 @@ export interface Resource {
   url?: string; // For Video type
   transcript?: string; // For Video type
 }
+
+// =============================================================================
+// MESSAGING TYPES
+// =============================================================================
+
+export interface Message {
+  id: string;
+  title: string;
+  type: 'Announcement' | 'Event' | 'System' | 'Product Update' | 'Engagement';
+  target: string; // Institution names or user groups
+  status: 'Draft' | 'Scheduled' | 'Sent';
+  content: string;
+  dateCreated: string; // YYYY-MM-DD format
+  dateScheduled?: string; // YYYY-MM-DD format for scheduled messages
+  deliveryRate?: number; // Percentage of successful deliveries
+  createdBy: string; // User ID of creator
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MessageTemplate {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  type: 'Announcement' | 'Event' | 'System' | 'Product Update' | 'Engagement';
+  createdBy: string; // User ID of creator
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BroadcastHistory {
+  id: string;
+  messageId: string;
+  title: string;
+  recipients: string[]; // List of recipient IDs
+  status: 'Success' | 'Partial' | 'Failed';
+  deliveryCount: number;
+  totalCount: number;
+  createdAt: Date;
+  completedAt: Date;
+}

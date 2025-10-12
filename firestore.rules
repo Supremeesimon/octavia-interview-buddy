@@ -230,6 +230,31 @@ service cloud.firestore {
       allow read: if isAuthenticated() && isStudent();
     }
 
+    // Messaging collections (platform admins only for now)
+    match /messages/{messageId} {
+      // Platform admins can read/write all messages
+      allow read, write, create, update, delete: if isAuthenticated() && isPlatformAdmin();
+      
+      // Institution admins can read messages
+      allow read: if isAuthenticated() && isInstitutionAdmin();
+    }
+    
+    match /message_templates/{templateId} {
+      // Platform admins can read/write all templates
+      allow read, write, create, update, delete: if isAuthenticated() && isPlatformAdmin();
+      
+      // Institution admins can read templates
+      allow read: if isAuthenticated() && isInstitutionAdmin();
+    }
+    
+    match /broadcast_history/{historyId} {
+      // Platform admins can read/write all broadcast history
+      allow read, write, create, update, delete: if isAuthenticated() && isPlatformAdmin();
+      
+      // Institution admins can read broadcast history
+      allow read: if isAuthenticated() && isInstitutionAdmin();
+    }
+
     // Default deny all other documents
     match /{document=**} {
       allow read, write: if false;
