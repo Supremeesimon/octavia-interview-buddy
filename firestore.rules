@@ -208,6 +208,11 @@ service cloud.firestore {
       allow read, write, create, update, delete: if isAuthenticated() && isPlatformAdmin();
     }
 
+    // Metadata collection (platform admins only)
+    match /metadata/{doc=**} {
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+    }
+
     // Default deny all other documents
     match /{document=**} {
       allow read, write: if false;

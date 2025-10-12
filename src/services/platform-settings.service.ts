@@ -1,4 +1,13 @@
-// Add interface for margin alert settings
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+export interface PlatformPricingSettings {
+  vapiCostPerMinute: number;
+  markupPercentage: number;
+  annualLicenseCost: number;
+  updatedAt: Date;
+}
+
 export interface PlatformMarginAlertSettings {
   lowMarginThreshold: number;
   highVapiCostThreshold: number;

@@ -5,9 +5,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { BarChart3, Calculator, AlertTriangle } from 'lucide-react';
-import { PlatformSettingsService } from '@/services/platform-settings.service';
+import { PlatformSettingsService, PlatformMarginAlertSettings } from '@/services/platform-settings.service';
 import { useToast } from '@/hooks/use-toast';
+// Import Recharts components
+import { 
+  LineChart, 
+  Line, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
+// MarginManagement component for managing financial margin alerts
 interface MarginManagementProps {
   vapiCost: number;
   markupPercentage: number;
@@ -27,7 +44,34 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
   const [lowMarginThreshold, setLowMarginThreshold] = useState<number>(25);
   const [autoPriceAdjustment, setAutoPriceAdjustment] = useState<boolean>(false);
   const [emailNotifications, setEmailNotifications] = useState<boolean>(true);
+  const [lowMarginAlertEnabled, setLowMarginAlertEnabled] = useState<boolean>(true);
+  const [highVapiCostAlertEnabled, setHighVapiCostAlertEnabled] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Sample data for margin analysis over time
+  const marginTrendData = [
+    { month: 'Jan', margin: 32 },
+    { month: 'Feb', margin: 35 },
+    { month: 'Mar', margin: 30 },
+    { month: 'Apr', margin: 38 },
+    { month: 'May', margin: 36 },
+    { month: 'Jun', margin: 40 },
+    { month: 'Jul', margin: 37 },
+    { month: 'Aug', margin: 42 },
+    { month: 'Sep', margin: 39 },
+    { month: 'Oct', margin: 41 },
+    { month: 'Nov', margin: 38 },
+    { month: 'Dec', margin: 43 },
+  ];
+
+  // Sample data for revenue breakdown
+  const revenueData = [
+    { name: 'Licenses', value: 45 },
+    { name: 'Interviews', value: 35 },
+    { name: 'Subscriptions', value: 20 },
+  ];
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28'];
 
   // Load margin alert settings from Firebase
   useEffect(() => {
@@ -40,6 +84,8 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
           setHighVapiCostThreshold(settings.highVapiCostThreshold.toString());
           setAutoPriceAdjustment(settings.autoPriceAdjustment);
           setEmailNotifications(settings.emailNotifications);
+          setLowMarginAlertEnabled(settings.lowMarginAlertEnabled);
+          setHighVapiCostAlertEnabled(settings.highVapiCostAlertEnabled);
         }
       } catch (error) {
         console.error('Failed to load margin alert settings:', error);
@@ -59,11 +105,14 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
   const handleSaveSettings = async () => {
     try {
       setLoading(true);
+      // Save margin alert settings to Firebase
       await PlatformSettingsService.updateMarginAlertSettings({
         lowMarginThreshold: lowMarginThreshold,
         highVapiCostThreshold: parseFloat(highVapiCostThreshold) || 0.15,
         autoPriceAdjustment: autoPriceAdjustment,
-        emailNotifications: emailNotifications
+        emailNotifications: emailNotifications,
+        lowMarginAlertEnabled: lowMarginAlertEnabled,
+        highVapiCostAlertEnabled: highVapiCostAlertEnabled
       });
       
       toast({
@@ -209,8 +258,8 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                 />
                 <span className="text-muted-foreground">%</span>
                 <Switch 
-                  checked={true} 
-                  onCheckedChange={() => {}} // TODO: Implement toggle state
+                  checked={lowMarginAlertEnabled} 
+                  onCheckedChange={setLowMarginAlertEnabled}
                   id="low-margin-alert" 
                 />
               </div>
@@ -233,8 +282,8 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                   step="0.01" 
                 />
                 <Switch 
-                  checked={true} 
-                  onCheckedChange={() => {}} // TODO: Implement toggle state
+                  checked={highVapiCostAlertEnabled} 
+                  onCheckedChange={setHighVapiCostAlertEnabled}
                   id="high-cost-alert" 
                 />
               </div>
