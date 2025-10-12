@@ -9,7 +9,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { Mail, GraduationCap, Users, Shield, Chrome } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
-import type { SignupRequest } from '@/types';
 
 const Signup = () => {
   const [activeTab, setActiveTab] = useState('student');
@@ -207,21 +206,21 @@ const Signup = () => {
                   <p className="text-sm text-muted-foreground">Sign up with your educational email</p>
                 </div>
 
-                <form onSubmit={handleStudentSignup} className="space-y-4">
-                  <div>
-                    <Label htmlFor="student-name">Full Name</Label>
+                <form onSubmit={handleStudentSignup} className="space-y-4 text-left">
+                  <div className="text-left">
+                    <Label htmlFor="student-name" className="text-left">Full Name</Label>
                     <Input
                       id="student-name"
                       value={studentForm.fullName}
                       onChange={(e) => setStudentForm({...studentForm, fullName: e.target.value})}
                       required
                       placeholder="Enter your full name"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="student-email">Email</Label>
+                  <div className="text-left">
+                    <Label htmlFor="student-email" className="text-left">Email</Label>
                     <Input
                       id="student-email"
                       type="email"
@@ -229,15 +228,15 @@ const Signup = () => {
                       onChange={(e) => setStudentForm({...studentForm, email: e.target.value})}
                       required
                       placeholder="your.name@university.edu"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-xs text-muted-foreground mt-2 text-left">
                       Please use your institutional email. Personal emails (e.g., Gmail, Yahoo) are not permitted for student accounts.
                     </p>
                   </div>
 
-                  <div>
-                    <Label htmlFor="student-password">Password</Label>
+                  <div className="text-left">
+                    <Label htmlFor="student-password" className="text-left">Password</Label>
                     <Input
                       id="student-password"
                       type="password"
@@ -245,30 +244,30 @@ const Signup = () => {
                       onChange={(e) => setStudentForm({...studentForm, password: e.target.value})}
                       required
                       placeholder="Create a secure password"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="student-department">Department</Label>
+                  <div className="text-left">
+                    <Label htmlFor="student-department" className="text-left">Department</Label>
                     <Input
                       id="student-department"
                       value={studentForm.department}
                       onChange={(e) => setStudentForm({...studentForm, department: e.target.value})}
                       required
                       placeholder="Enter your department"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="student-year">Year of Study</Label>
+                  <div className="text-left">
+                    <Label htmlFor="student-year" className="text-left">Year of Study</Label>
                     <select
                       id="student-year"
                       value={studentForm.yearOfStudy}
                       onChange={(e) => setStudentForm({...studentForm, yearOfStudy: e.target.value})}
                       required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
                     >
                       <option value="">Select Year</option>
                       {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
@@ -299,21 +298,21 @@ const Signup = () => {
                   <p className="text-sm text-muted-foreground">Sign up to manage your students</p>
                 </div>
 
-                <form onSubmit={handleTeacherSignup} className="space-y-4">
-                  <div>
-                    <Label htmlFor="teacher-name">Full Name</Label>
+                <form onSubmit={handleTeacherSignup} className="space-y-4 text-left">
+                  <div className="text-left">
+                    <Label htmlFor="teacher-name" className="text-left">Full Name</Label>
                     <Input
                       id="teacher-name"
                       value={teacherForm.fullName}
                       onChange={(e) => setTeacherForm({...teacherForm, fullName: e.target.value})}
                       required
                       placeholder="Enter your full name"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="teacher-email">Email</Label>
+                  <div className="text-left">
+                    <Label htmlFor="teacher-email" className="text-left">Email</Label>
                     <Input
                       id="teacher-email"
                       type="email"
@@ -321,12 +320,12 @@ const Signup = () => {
                       onChange={(e) => setTeacherForm({...teacherForm, email: e.target.value})}
                       required
                       placeholder="your.name@email.com"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="teacher-password">Password</Label>
+                  <div className="text-left">
+                    <Label htmlFor="teacher-password" className="text-left">Password</Label>
                     <Input
                       id="teacher-password"
                       type="password"
@@ -334,30 +333,30 @@ const Signup = () => {
                       onChange={(e) => setTeacherForm({...teacherForm, password: e.target.value})}
                       required
                       placeholder="Create a secure password"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="teacher-department">Department</Label>
+                  <div className="text-left">
+                    <Label htmlFor="teacher-department" className="text-left">Department</Label>
                     <Input
                       id="teacher-department"
                       value={teacherForm.department}
                       onChange={(e) => setTeacherForm({...teacherForm, department: e.target.value})}
                       required
                       placeholder="Enter your department"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="teacher-year">Years of Teaching Experience</Label>
+                  <div className="text-left">
+                    <Label htmlFor="teacher-year" className="text-left">Years of Teaching Experience</Label>
                     <select
                       id="teacher-year"
                       value={teacherForm.yearOfStudy}
                       onChange={(e) => setTeacherForm({...teacherForm, yearOfStudy: e.target.value})}
                       required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
                     >
                       <option value="">Select Year</option>
                       {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
@@ -388,21 +387,21 @@ const Signup = () => {
                   <p className="text-sm text-muted-foreground">Sign up to manage the institution</p>
                 </div>
 
-                <form onSubmit={handleAdminSignup} className="space-y-4">
-                  <div>
-                    <Label htmlFor="admin-name">Full Name</Label>
+                <form onSubmit={handleAdminSignup} className="space-y-4 text-left">
+                  <div className="text-left">
+                    <Label htmlFor="admin-name" className="text-left">Full Name</Label>
                     <Input
                       id="admin-name"
                       value={adminForm.fullName}
                       onChange={(e) => setAdminForm({...adminForm, fullName: e.target.value})}
                       required
                       placeholder="Enter your full name"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="admin-email">Email</Label>
+                  <div className="text-left">
+                    <Label htmlFor="admin-email" className="text-left">Email</Label>
                     <Input
                       id="admin-email"
                       type="email"
@@ -410,12 +409,12 @@ const Signup = () => {
                       onChange={(e) => setAdminForm({...adminForm, email: e.target.value})}
                       required
                       placeholder="your.name@email.com"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="admin-password">Password</Label>
+                  <div className="text-left">
+                    <Label htmlFor="admin-password" className="text-left">Password</Label>
                     <Input
                       id="admin-password"
                       type="password"
@@ -423,7 +422,7 @@ const Signup = () => {
                       onChange={(e) => setAdminForm({...adminForm, password: e.target.value})}
                       required
                       placeholder="Create a secure password"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
 

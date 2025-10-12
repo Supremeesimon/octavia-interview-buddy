@@ -108,21 +108,21 @@ const InstitutionalSignup = () => {
               <p className="text-muted-foreground">Create your {userType === 'teacher' ? 'teacher' : 'student'} account</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="full-name">Full Name</Label>
+            <form onSubmit={handleSubmit} className="space-y-4 text-left">
+              <div className="text-left">
+                <Label htmlFor="full-name" className="text-left">Full Name</Label>
                 <Input
                   id="full-name"
                   value={form.fullName}
                   onChange={(e) => setForm({...form, fullName: e.target.value})}
                   required
                   placeholder="Enter your full name"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="email">Email</Label>
+              <div className="text-left">
+                <Label htmlFor="email" className="text-left">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -130,35 +130,35 @@ const InstitutionalSignup = () => {
                   onChange={(e) => setForm({...form, email: e.target.value})}
                   required
                   placeholder="your.name@university.edu"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-muted-foreground mt-2 text-left">
                   Please use your institutional email (.edu domain)
                 </p>
               </div>
               
               {userType === 'teacher' && (
                 <>
-                  <div>
-                    <Label htmlFor="department">Department</Label>
+                  <div className="text-left">
+                    <Label htmlFor="department" className="text-left">Department</Label>
                     <Input
                       id="department"
                       value={form.department || ''}
                       onChange={(e) => setForm({...form, department: e.target.value})}
                       required
                       placeholder="Enter your department"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
                   
-                  <div>
-                    <Label htmlFor="experience">Years of Teaching Experience</Label>
+                  <div className="text-left">
+                    <Label htmlFor="experience" className="text-left">Years of Teaching Experience</Label>
                     <select
                       id="experience"
                       value={form.experience || ''}
                       onChange={(e) => setForm({...form, experience: e.target.value})}
                       required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
                     >
                       <option value="">Select Year</option>
                       {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
@@ -171,26 +171,26 @@ const InstitutionalSignup = () => {
               
               {userType === 'student' && (
                 <>
-                  <div>
-                    <Label htmlFor="department">Department</Label>
+                  <div className="text-left">
+                    <Label htmlFor="department" className="text-left">Department</Label>
                     <Input
                       id="department"
                       value={form.department || ''}
                       onChange={(e) => setForm({...form, department: e.target.value})}
                       required
                       placeholder="Enter your department"
-                      className="mt-1"
+                      className="mt-1 text-left"
                     />
                   </div>
                   
-                  <div>
-                    <Label htmlFor="yearOfStudy">Year of Study</Label>
+                  <div className="text-left">
+                    <Label htmlFor="yearOfStudy" className="text-left">Year of Study</Label>
                     <select
                       id="yearOfStudy"
                       value={form.yearOfStudy || ''}
                       onChange={(e) => setForm({...form, yearOfStudy: e.target.value})}
                       required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
                     >
                       <option value="">Select Year</option>
                       {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
@@ -201,8 +201,8 @@ const InstitutionalSignup = () => {
                 </>
               )}
 
-              <div>
-                <Label htmlFor="password">Password</Label>
+              <div className="text-left">
+                <Label htmlFor="password" className="text-left">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -210,12 +210,12 @@ const InstitutionalSignup = () => {
                   onChange={(e) => setForm({...form, password: e.target.value})}
                   required
                   placeholder="Create a secure password"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="confirm-password">Confirm Password</Label>
+              <div className="text-left">
+                <Label htmlFor="confirm-password" className="text-left">Confirm Password</Label>
                 <Input
                   id="confirm-password"
                   type="password"
@@ -223,7 +223,7 @@ const InstitutionalSignup = () => {
                   onChange={(e) => setForm({...form, confirmPassword: e.target.value})}
                   required
                   placeholder="Confirm your password"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
               </div>
 

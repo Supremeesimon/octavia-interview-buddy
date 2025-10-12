@@ -8,7 +8,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { Mail, User, Chrome } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
-import type { SignupRequest } from '@/types';
 
 const ExternalSignup = () => {
   const navigate = useNavigate();
@@ -113,21 +112,21 @@ const ExternalSignup = () => {
               <p className="text-muted-foreground">Create your account as an external student</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="full-name">Full Name</Label>
+            <form onSubmit={handleSubmit} className="space-y-4 text-left">
+              <div className="text-left">
+                <Label htmlFor="full-name" className="text-left">Full Name</Label>
                 <Input
                   id="full-name"
                   value={form.fullName}
                   onChange={(e) => setForm({...form, fullName: e.target.value})}
                   required
                   placeholder="Enter your full name"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="email">Email</Label>
+              <div className="text-left">
+                <Label htmlFor="email" className="text-left">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -135,12 +134,12 @@ const ExternalSignup = () => {
                   onChange={(e) => setForm({...form, email: e.target.value})}
                   required
                   placeholder="your.name@email.com"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="password">Password</Label>
+              <div className="text-left">
+                <Label htmlFor="password" className="text-left">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -148,12 +147,12 @@ const ExternalSignup = () => {
                   onChange={(e) => setForm({...form, password: e.target.value})}
                   required
                   placeholder="Create a secure password"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="confirm-password">Confirm Password</Label>
+              <div className="text-left">
+                <Label htmlFor="confirm-password" className="text-left">Confirm Password</Label>
                 <Input
                   id="confirm-password"
                   type="password"
@@ -161,28 +160,28 @@ const ExternalSignup = () => {
                   onChange={(e) => setForm({...form, confirmPassword: e.target.value})}
                   required
                   placeholder="Confirm your password"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="department">Department (Optional)</Label>
+              <div className="text-left">
+                <Label htmlFor="department" className="text-left">Department (Optional)</Label>
                 <Input
                   id="department"
                   value={form.department}
                   onChange={(e) => setForm({...form, department: e.target.value})}
                   placeholder="Enter your department"
-                  className="mt-1"
+                  className="mt-1 text-left"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="yearOfStudy">Year of Study (Optional)</Label>
+              <div className="text-left">
+                <Label htmlFor="yearOfStudy" className="text-left">Year of Study (Optional)</Label>
                 <select
                   id="yearOfStudy"
                   value={form.yearOfStudy}
                   onChange={(e) => setForm({...form, yearOfStudy: e.target.value})}
-                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
                 >
                   <option value="">Select Year (Optional)</option>
                   {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
