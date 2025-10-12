@@ -456,3 +456,14 @@ export interface ApiResponse<T = any> {
   message: string;
   success: boolean;
 }
+
+// =============================================================================
+// PLATFORM SETTINGS TYPES
+// =============================================================================
+
+export interface PlatformPricingSettings {
+  vapiCostPerMinute: number;
+  markupPercentage: number;
+  annualLicenseCost: number;
+  updatedAt: Date;
+}

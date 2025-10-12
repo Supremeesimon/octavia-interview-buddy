@@ -32,22 +32,29 @@ export class PriceChangeService {
         return [];
       }
       
+      console.log('Fetching price changes from Firestore...');
       const q = query(
         collection(db, this.COLLECTION_NAME),
         orderBy('changeDate', 'asc')
       );
       const querySnapshot = await getDocs(q);
       
-      return querySnapshot.docs.map(doc => {
+      console.log(`Found ${querySnapshot.size} price changes in Firestore`);
+      
+      const results = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        console.log('Raw document data:', data);
         return {
           id: doc.id,
           ...data,
-          changeDate: data.changeDate?.toDate() || new Date(),
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
+          changeDate: data.changeDate?.toDate ? data.changeDate.toDate() : data.changeDate || new Date(),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt || new Date(),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt || new Date()
         } as ScheduledPriceChange;
       });
+      
+      console.log('Processed price changes:', results);
+      return results;
     } catch (error) {
       console.error('Error fetching price changes:', error);
       // Return empty array instead of throwing to prevent UI crashes
@@ -131,7 +138,9 @@ export class PriceChangeService {
   // Method to initialize the collection with sample data if empty
   static async initializeSampleData(): Promise<void> {
     try {
+      console.log('Checking for existing price changes...');
       const existingChanges = await this.getAllPriceChanges();
+      console.log(`Found ${existingChanges.length} existing price changes`);
       
       if (existingChanges.length === 0) {
         console.log('No existing price changes found. Creating sample data...');
@@ -162,12 +171,17 @@ export class PriceChangeService {
         
         // Only try to create sample data if Firebase is initialized
         if (db) {
+          console.log('Creating sample price changes...');
           for (const change of sampleChanges) {
             await this.createPriceChange(change);
           }
           
           console.log('Sample price changes created successfully!');
+        } else {
+          console.warn('Firebase not initialized, skipping sample data creation');
         }
+      } else {
+        console.log('Existing price changes found, skipping sample data creation');
       }
     } catch (error) {
       console.error('Error initializing sample data:', error);

@@ -9,6 +9,9 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Calendar as CalendarIcon } from 'lucide-react'; // Rename the Calendar icon to avoid conflict
 import { 
   BarChart3, 
   DollarSign, 
@@ -23,7 +26,6 @@ import {
   Wallet,
   Save,
   Search,
-  Calendar,
   ArrowUpDown,
   Info,
   PieChart,
@@ -32,6 +34,7 @@ import {
   Filter,
   Edit
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { InstitutionService } from '@/services/institution.service';
 import { PriceChangeService } from '@/services/price-change.service';
@@ -64,6 +67,12 @@ const FinancialManagement = () => {
   const [vapiCost, setVapiCost] = useState(0.11); // Default cost per minute in dollars
   const [markupPercentage, setMarkupPercentage] = useState(36.36); // Default markup percentage
   const [licenseCost, setLicenseCost] = useState(19.96); // Default annual license cost
+  const [originalVapiCost, setOriginalVapiCost] = useState(0.11); // Original value from Firebase
+  const [originalMarkupPercentage, setOriginalMarkupPercentage] = useState(36.36); // Original value from Firebase
+  const [originalLicenseCost, setOriginalLicenseCost] = useState(19.96); // Original value from Firebase
+  const [isScheduleEnabled, setIsScheduleEnabled] = useState(false); // Keep this state
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined); // Add this state
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false); // Add this state
   const [selectedInstitution, setSelectedInstitution] = useState<string>('all');
   const [institutions, setInstitutions] = useState<FinancialInstitution[]>([]);
   const [filteredInstitutions, setFilteredInstitutions] = useState<FinancialInstitution[]>([]);
@@ -81,19 +90,27 @@ const FinancialManagement = () => {
     isEnabled: false
   });
   
+  
   // Fetch real institution data and scheduled price changes
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchData = async () => {
       try {
+        if (!isMounted) return;
         setLoading(true);
         
         // Load platform pricing settings
         try {
           const pricingSettings = await PlatformSettingsService.getPricingSettings();
-          if (pricingSettings) {
+          if (isMounted && pricingSettings) {
             setVapiCost(pricingSettings.vapiCostPerMinute);
             setMarkupPercentage(pricingSettings.markupPercentage);
             setLicenseCost(pricingSettings.annualLicenseCost);
+            // Store original values for comparison when scheduling
+            setOriginalVapiCost(pricingSettings.vapiCostPerMinute);
+            setOriginalMarkupPercentage(pricingSettings.markupPercentage);
+            setOriginalLicenseCost(pricingSettings.annualLicenseCost);
           }
         } catch (error) {
           console.warn('Failed to load platform pricing settings:', error);
@@ -109,7 +126,9 @@ const FinancialManagement = () => {
         
         // Initialize sample price change data if needed
         try {
+          console.log('Initializing sample price change data...');
           await PriceChangeService.initializeSampleData();
+          console.log('Sample price change data initialization completed');
         } catch (error) {
           console.warn('Failed to initialize sample price change data:', error);
           // Continue even if this fails
@@ -118,52 +137,69 @@ const FinancialManagement = () => {
         // Fetch institutions
         let institutionsData: any[] = [];
         try {
+          console.log('Fetching institutions...');
           institutionsData = await InstitutionService.getAllInstitutions();
+          console.log(`Fetched ${institutionsData.length} institutions`);
         } catch (error) {
           console.error('Failed to fetch institutions:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load institution data",
-            variant: "destructive",
-          });
+          if (isMounted) {
+            toast({
+              title: "Error",
+              description: "Failed to load institution data",
+              variant: "destructive",
+            });
+          }
         }
         
         // Fetch price changes
         let priceChangesData: ScheduledPriceChange[] = [];
         try {
+          console.log('Fetching upcoming price changes...');
           priceChangesData = await PriceChangeService.getUpcomingPriceChanges();
+          console.log(`Fetched ${priceChangesData.length} upcoming price changes`);
         } catch (error) {
           console.error('Failed to fetch price changes:', error);
           // Don't show toast for this as it's less critical
         }
         
         // Convert institutions to the format expected by the component
-        const formattedInstitutions: FinancialInstitution[] = institutionsData.map((inst) => ({
-          id: inst.id,
-          name: inst.name,
-          students: inst.stats?.totalStudents || 0,
-          licenseRevenue: (inst.stats?.totalStudents || 0) * (licenseCost / 4), // Estimate based on students
-          sessionRevenue: (inst.stats?.totalInterviews || 0) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)), // Estimate
-          status: inst.isActive ? 'active' : 'pending',
-          pricingOverride: inst.pricingOverride || undefined
-        }));
-        
-        setInstitutions(formattedInstitutions);
-        setScheduledPriceChanges(priceChangesData);
+        if (isMounted) {
+          const formattedInstitutions: FinancialInstitution[] = institutionsData.map((inst) => ({
+            id: inst.id,
+            name: inst.name,
+            students: inst.stats?.totalStudents || 0,
+            licenseRevenue: (inst.stats?.totalStudents || 0) * (licenseCost / 4), // Estimate based on students
+            sessionRevenue: (inst.stats?.totalInterviews || 0) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)), // Estimate
+            status: inst.isActive ? 'active' : 'pending',
+            pricingOverride: inst.pricingOverride || undefined
+          }));
+          
+          console.log('Setting institutions and scheduled price changes in state');
+          setInstitutions(formattedInstitutions);
+          setScheduledPriceChanges(priceChangesData);
+        }
       } catch (error) {
         console.error('Unexpected error in fetchData:', error);
-        toast({
-          title: "Error",
-          description: "An unexpected error occurred while loading data",
-          variant: "destructive",
-        });
+        if (isMounted) {
+          toast({
+            title: "Error",
+            description: "An unexpected error occurred while loading data",
+            variant: "destructive",
+          });
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
     fetchData();
-  }, []); // Remove the dependencies as we only want to load once on mount
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   
   // Quick calculate derived values
   const calculatedSessionPrice = Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2));
@@ -177,6 +213,15 @@ const FinancialManagement = () => {
   const estimatedProfit = totalRevenue - estimatedVapiCost;
   const estimatedMargin = totalRevenue > 0 ? (estimatedProfit / totalRevenue * 100).toFixed(1) : '0';
   
+  // Update institutions when pricing changes
+  useEffect(() => {
+    setInstitutions(prev => prev.map(inst => ({
+      ...inst,
+      licenseRevenue: inst.students * (licenseCost / 4),
+      sessionRevenue: (inst.students * 5) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)) // Estimate
+    })));
+  }, [vapiCost, markupPercentage, licenseCost]);
+  
   const handleVapiCostChange = (value: number[]) => {
     setVapiCost(value[0]);
   };
@@ -189,18 +234,201 @@ const FinancialManagement = () => {
     setLicenseCost(parseFloat(e.target.value) || 0);
   };
   
+  const scheduleChange = async () => {
+    if (isScheduleEnabled && scheduledDate) {
+      try {
+        // Create scheduled price changes for the selected date
+        const changesToCreate: Omit<ScheduledPriceChange, 'id' | 'createdAt' | 'updatedAt'>[] = [];
+        
+        // Check which values have changed and create scheduled changes for them
+        if (vapiCost !== originalVapiCost) {
+          changesToCreate.push({
+            changeDate: scheduledDate,
+            changeType: 'vapiCost',
+            affected: 'all',
+            currentValue: originalVapiCost,
+            newValue: vapiCost,
+            status: 'scheduled'
+          });
+        }
+        
+        if (markupPercentage !== originalMarkupPercentage) {
+          changesToCreate.push({
+            changeDate: scheduledDate,
+            changeType: 'markupPercentage',
+            affected: 'all',
+            currentValue: originalMarkupPercentage,
+            newValue: markupPercentage,
+            status: 'scheduled'
+          });
+        }
+        
+        if (licenseCost !== originalLicenseCost) {
+          changesToCreate.push({
+            changeDate: scheduledDate,
+            changeType: 'licenseCost',
+            affected: 'all',
+            currentValue: originalLicenseCost,
+            newValue: licenseCost,
+            status: 'scheduled'
+          });
+        }
+        
+        // If no changes, show a message
+        if (changesToCreate.length === 0) {
+          toast({
+            title: "No changes detected",
+            description: "No pricing values have been modified.",
+          });
+          return;
+        }
+        
+        // Create the scheduled changes in Firestore
+        for (const change of changesToCreate) {
+          await PriceChangeService.createPriceChange(change);
+        }
+        
+        toast({
+          title: "Price changes scheduled",
+          description: `${changesToCreate.length} price change(s) scheduled for ${format(scheduledDate, 'PPP')}.`,
+        });
+        
+        // Refresh the scheduled price changes data
+        const updatedPriceChanges = await PriceChangeService.getUpcomingPriceChanges();
+        setScheduledPriceChanges(updatedPriceChanges);
+        
+        // Update original values to match current values
+        setOriginalVapiCost(vapiCost);
+        setOriginalMarkupPercentage(markupPercentage);
+        setOriginalLicenseCost(licenseCost);
+        
+        // Reset the date picker
+        setScheduledDate(undefined);
+      } catch (error) {
+        console.error('Failed to schedule price changes:', error);
+        toast({
+          title: "Error",
+          description: "Failed to schedule price changes. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "Schedule not enabled or date not selected",
+        description: "Please enable scheduling and select a date first.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   const applyGlobalPricing = async () => {
     try {
-      await PlatformSettingsService.updatePricingSettings({
-        vapiCostPerMinute: vapiCost,
-        markupPercentage: markupPercentage,
-        annualLicenseCost: licenseCost
-      });
-      
-      toast({
-        title: "Global pricing updated",
-        description: `VAPI: $${vapiCost.toFixed(2)}/min, Markup: ${markupPercentage}%, License: $${licenseCost.toFixed(2)}/year`,
-      });
+      if (isScheduleEnabled) {
+        // If scheduling is enabled but no date is selected, show an error
+        if (!scheduledDate) {
+          toast({
+            title: "Date required",
+            description: "Please select a date for the scheduled price change.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Schedule the price changes instead of applying immediately
+        try {
+          const changesToCreate: Omit<ScheduledPriceChange, 'id' | 'createdAt' | 'updatedAt'>[] = [];
+          
+          // Check which values have changed and create scheduled changes for them
+          if (vapiCost !== originalVapiCost) {
+            changesToCreate.push({
+              changeDate: scheduledDate,
+              changeType: 'vapiCost',
+              affected: 'all',
+              currentValue: originalVapiCost,
+              newValue: vapiCost,
+              status: 'scheduled'
+            });
+          }
+          
+          if (markupPercentage !== originalMarkupPercentage) {
+            changesToCreate.push({
+              changeDate: scheduledDate,
+              changeType: 'markupPercentage',
+              affected: 'all',
+              currentValue: originalMarkupPercentage,
+              newValue: markupPercentage,
+              status: 'scheduled'
+            });
+          }
+          
+          if (licenseCost !== originalLicenseCost) {
+            changesToCreate.push({
+              changeDate: scheduledDate,
+              changeType: 'licenseCost',
+              affected: 'all',
+              currentValue: originalLicenseCost,
+              newValue: licenseCost,
+              status: 'scheduled'
+            });
+          }
+          
+          // If no changes, show a message
+          if (changesToCreate.length === 0) {
+            toast({
+              title: "No changes detected",
+              description: "No pricing values have been modified.",
+            });
+            return;
+          }
+          
+          // Create the scheduled changes in Firestore
+          for (const change of changesToCreate) {
+            await PriceChangeService.createPriceChange(change);
+          }
+          
+          toast({
+            title: "Price changes scheduled",
+            description: `${changesToCreate.length} price change(s) scheduled for ${format(scheduledDate, 'PPP')}.`,
+          });
+          
+          // Refresh the scheduled price changes data
+          const updatedPriceChanges = await PriceChangeService.getUpcomingPriceChanges();
+          setScheduledPriceChanges(updatedPriceChanges);
+          
+          // Update original values to match current values
+          setOriginalVapiCost(vapiCost);
+          setOriginalMarkupPercentage(markupPercentage);
+          setOriginalLicenseCost(licenseCost);
+          
+          // Reset the date picker
+          setScheduledDate(undefined);
+        } catch (error) {
+          console.error('Failed to schedule price changes:', error);
+          toast({
+            title: "Error",
+            description: "Failed to schedule price changes. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        // Apply changes immediately (current behavior)
+        await PlatformSettingsService.updatePricingSettings({
+          vapiCostPerMinute: vapiCost,
+          markupPercentage: markupPercentage,
+          annualLicenseCost: licenseCost
+        });
+        
+        // Update original values to match current values
+        setOriginalVapiCost(vapiCost);
+        setOriginalMarkupPercentage(markupPercentage);
+        setOriginalLicenseCost(licenseCost);
+        
+        toast({
+          title: "Global pricing updated",
+          description: `VAPI: $${vapiCost.toFixed(2)}/min, Markup: ${markupPercentage}%, License: $${licenseCost.toFixed(2)}/year`,
+        });
+      }
     } catch (error) {
       console.error('Failed to save global pricing:', error);
       toast({
@@ -209,13 +437,6 @@ const FinancialManagement = () => {
         variant: "destructive",
       });
     }
-  };
-  
-  const scheduleChange = () => {
-    toast({
-      title: "Price change scheduled",
-      description: "New prices will take effect on June 1, 2025",
-    });
   };
   
   // Handle edit institution pricing
@@ -670,12 +891,56 @@ const FinancialManagement = () => {
             </CardContent>
             <CardFooter className="flex justify-between">
               <div className="flex items-center space-x-2">
-                <Switch id="schedule" />
+                <Switch 
+                  id="schedule" 
+                  checked={isScheduleEnabled}
+                  onCheckedChange={setIsScheduleEnabled}
+                />
                 <Label htmlFor="schedule">Schedule price change</Label>
               </div>
               <div className="space-x-2">
-                <Button variant="outline" onClick={scheduleChange}>Schedule Changes</Button>
-                <Button onClick={applyGlobalPricing}>Apply Global Pricing</Button>
+                {isScheduleEnabled && (
+                  <>
+                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-[180px] justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {scheduledDate ? format(scheduledDate, 'PPP') : 'Pick a date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <div className="p-3">
+                          <Calendar
+                            mode="single"
+                            selected={scheduledDate}
+                            onSelect={(date) => {
+                              setScheduledDate(date);
+                              setIsCalendarOpen(false);
+                            }}
+                            initialFocus
+                            fromDate={new Date()} // Only allow future dates
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <Button 
+                      variant="outline" 
+                      onClick={scheduleChange}
+                      disabled={!scheduledDate}
+                    >
+                      Schedule Changes
+                    </Button>
+                  </>
+                )}
+                <Button 
+                  onClick={applyGlobalPricing}
+                  disabled={isScheduleEnabled && !scheduledDate}
+                >
+                  Apply Global Pricing
+                </Button>
               </div>
             </CardFooter>
           </Card>
@@ -785,7 +1050,7 @@ const FinancialManagement = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
+                <CalendarIcon className="h-5 w-5 text-primary" />
                 Price Change Schedule
               </CardTitle>
               <CardDescription>
@@ -1222,7 +1487,7 @@ const FinancialManagement = () => {
                     <div className="space-y-2">
                       <Label htmlFor="quick-license-cost">License Cost (Annual)</Label>
                       <div className="flex">
-                        <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                        <span className="inline-flex items-center px-33 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
                           $
                         </span>
                         <Input
