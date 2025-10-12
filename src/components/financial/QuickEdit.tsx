@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Save, Settings, Users } from 'lucide-react';
+import { PlatformSettingsService } from '@/services/platform-settings.service';
+import { useToast } from '@/hooks/use-toast';
 
 interface FinancialInstitution {
   id: string;
@@ -37,8 +39,10 @@ const QuickEdit: React.FC<QuickEditProps> = ({
   selectedInstitution,
   onSelectedInstitutionChange
 }) => {
+  const { toast } = useToast();
   const [operationType, setOperationType] = useState<string>('update-markup');
   const [newValue, setNewValue] = useState<string>('35');
+  const [loading, setLoading] = useState<boolean>(false);
 
   const handleVapiCostChange = (value: number[]) => {
     onVapiCostChange(value[0]);
@@ -50,6 +54,41 @@ const QuickEdit: React.FC<QuickEditProps> = ({
 
   const handleLicenseCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onLicenseCostChange(parseFloat(e.target.value) || 0);
+  };
+
+  const handleApplyPriceChanges = async () => {
+    try {
+      setLoading(true);
+      
+      // Apply changes immediately (current behavior)
+      await PlatformSettingsService.updatePricingSettings({
+        vapiCostPerMinute: vapiCost,
+        markupPercentage: markupPercentage,
+        annualLicenseCost: licenseCost
+      });
+      
+      toast({
+        title: "Global pricing updated",
+        description: `VAPI: $${vapiCost.toFixed(2)}/min, Markup: ${markupPercentage}%, License: $${licenseCost.toFixed(2)}/year`,
+      });
+    } catch (error) {
+      console.error('Failed to save global pricing:', error);
+      if (error instanceof Error && error.message.includes('Firebase not initialized')) {
+        toast({
+          title: "Error",
+          description: "Firebase is not properly configured. Please check your environment settings.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to save global pricing settings. Please check the console for details.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const profitPerMinute = calculatedSessionPrice - vapiCost;
@@ -124,7 +163,7 @@ const QuickEdit: React.FC<QuickEditProps> = ({
                 <div className="space-y-2">
                   <Label htmlFor="quick-license-cost">License Cost (Annual)</Label>
                   <div className="flex">
-                    <span className="inline-flex items-center px-33 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
                       $
                     </span>
                     <Input
@@ -186,9 +225,9 @@ const QuickEdit: React.FC<QuickEditProps> = ({
                     ? 'This will update pricing for all institutions' 
                     : 'This will update pricing for ' + (institutions.find(i => i.id.toString() === selectedInstitution)?.name || '')}
                 </div>
-                <Button className="w-full">
+                <Button className="w-full" onClick={handleApplyPriceChanges} disabled={loading}>
                   <Save className="h-4 w-4 mr-2" />
-                  Apply Price Changes
+                  {loading ? "Applying..." : "Apply Price Changes"}
                 </Button>
               </div>
             </div>

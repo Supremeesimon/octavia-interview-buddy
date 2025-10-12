@@ -20,6 +20,7 @@
     "test-anonymous-data": "npx tsx src/scripts/test-anonymous-interview.ts",
     "test-financial-analytics": "node test-financial-analytics.js",
     "test-contextual-financial-data": "node test-contextual-financial-data.js",
+    "test-quick-edit-button": "node test-quick-edit-button.js",
     "debug-vapi": "npx tsx src/scripts/debug-vapi-service.ts",
     "test-data-saving": "npx tsx src/scripts/test-data-saving.ts",
     "debug-firebase": "npx tsx src/scripts/debug-firebase-collections.ts",
