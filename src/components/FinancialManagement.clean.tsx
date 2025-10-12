@@ -63,7 +63,20 @@ interface InstitutionPricingOverrideForm {
 
 const FinancialManagement = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('overview');
+
+  // Get initial tab from URL hash or default to 'overview'
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '');
+      const validTabs = ['overview', 'pricing', 'margins', 'reports', 'quickedit'];
+      const initialTab = validTabs.includes(hash) ? hash : 'overview';
+      console.log('Initial tab from hash:', hash, 'Setting to:', initialTab);
+      return initialTab;
+    }
+    return 'overview';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [vapiCost, setVapiCost] = useState(0.11); // Default cost per minute in dollars
   const [markupPercentage, setMarkupPercentage] = useState(36.36); // Default markup percentage
   const [licenseCost, setLicenseCost] = useState(19.96); // Default annual license cost
@@ -131,15 +144,8 @@ const FinancialManagement = () => {
           // Continue even if this fails
         }
         
-        // Initialize sample price change data if needed
-        try {
-          console.log('Initializing sample price change data...');
-          await PriceChangeService.initializeSampleData();
-          console.log('Sample price change data initialization completed');
-        } catch (error) {
-          console.warn('Failed to initialize sample price change data:', error);
-          // Continue even if this fails
-        }
+        // Removed automatic sample data initialization for production
+        // Sample data should only be created explicitly when needed
         
         // Fetch institutions
         let institutionsData: any[] = [];
@@ -577,6 +583,40 @@ const FinancialManagement = () => {
     );
   }
   
+  // Update URL hash when tab changes
+  const handleTabChange = (value: string) => {
+    console.log('Tab changed to:', value);
+    setActiveTab(value);
+    if (typeof window !== 'undefined') {
+      window.location.hash = value;
+      console.log('Hash set to:', value);
+    }
+  };
+  
+  // Listen for hash changes to support browser back/forward buttons
+  useEffect(() => {
+    console.log('Component mounted, current hash:', window.location.hash);
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      console.log('Hash changed to:', hash);
+      const validTabs = ['overview', 'pricing', 'margins', 'reports', 'quickedit'];
+      if (validTabs.includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+  
+  // Set initial hash if none exists
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.location.hash) {
+      window.location.hash = activeTab;
+      console.log('Setting initial hash to:', activeTab);
+    }
+  }, [activeTab]);
+
   return (
     <div className="space-y-6">
       {firebaseError && (
@@ -597,7 +637,7 @@ const FinancialManagement = () => {
         </div>
       )}
       
-      <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab} value={activeTab}>
+      <Tabs className="w-full" onValueChange={handleTabChange} value={activeTab}>
         <TabsList className="grid grid-cols-5 mb-4">
           <TabsTrigger value="overview">Dashboard</TabsTrigger>
           <TabsTrigger value="pricing">Pricing Control</TabsTrigger>

@@ -1,9 +1,10 @@
-import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, Timestamp, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, Timestamp, updateDoc, getDoc, setDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ScheduledPriceChange } from '@/types';
 
 export class PriceChangeService {
   private static readonly COLLECTION_NAME = 'scheduled_price_changes';
+  private static readonly META_COLLECTION_NAME = 'metadata';
 
   static async createPriceChange(data: Omit<ScheduledPriceChange, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
@@ -135,57 +136,81 @@ export class PriceChangeService {
     }
   }
 
-  // Method to initialize the collection with sample data if empty
+  // Method to check if sample data has already been initialized
+  private static async isSampleDataInitialized(): Promise<boolean> {
+    try {
+      if (!db) return true; // If Firebase not initialized, assume initialized to prevent errors
+      
+      const metaDocRef = doc(db, this.META_COLLECTION_NAME, 'price_changes_initialized');
+      const metaDocSnap = await getDoc(metaDocRef);
+      
+      // Return true if the document exists and initialized is true
+      // Also return true if the document exists but doesn't have the initialized field
+      // (to prevent re-initialization after user has deleted data)
+      if (metaDocSnap.exists()) {
+        const data = metaDocSnap.data();
+        return data?.initialized === true || data?.initialized === undefined;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking if sample data is initialized:', error);
+      // If there's an error checking, assume it's initialized to prevent issues
+      return true;
+    }
+  }
+
+  // Method to mark sample data as initialized
+  private static async markSampleDataAsInitialized(): Promise<void> {
+    try {
+      if (!db) return;
+      
+      const metaDocRef = doc(db, this.META_COLLECTION_NAME, 'price_changes_initialized');
+      await setDoc(metaDocRef, {
+        initialized: true,
+        timestamp: Timestamp.now()
+      });
+    } catch (error) {
+      console.error('Error marking sample data as initialized:', error);
+    }
+  }
+
+  // Method to initialize the collection with sample data if empty and not already initialized
   static async initializeSampleData(): Promise<void> {
     try {
+      // Check if sample data has already been initialized
+      const isInitialized = await this.isSampleDataInitialized();
+      
+      // In production, we should not automatically create sample data
+      // Only initialize if explicitly requested or if this is a completely fresh install
+      if (isInitialized) {
+        return;
+      }
+
       console.log('Checking for existing price changes...');
       const existingChanges = await this.getAllPriceChanges();
       console.log(`Found ${existingChanges.length} existing price changes`);
       
-      if (existingChanges.length === 0) {
-        console.log('No existing price changes found. Creating sample data...');
-        
-        // Create sample price changes
-        const sampleChanges = [
-          {
-            changeDate: new Date('2025-06-01'),
-            changeType: 'vapiCost' as const,
-            affected: 'all',
-            currentValue: 0.11,
-            newValue: 0.12,
-            status: 'scheduled' as const,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          },
-          {
-            changeDate: new Date('2025-07-01'),
-            changeType: 'markupPercentage' as const,
-            affected: 'all',
-            currentValue: 36.36,
-            newValue: 40.0,
-            status: 'scheduled' as const,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        ];
-        
-        // Only try to create sample data if Firebase is initialized
-        if (db) {
-          console.log('Creating sample price changes...');
-          for (const change of sampleChanges) {
-            await this.createPriceChange(change);
-          }
-          
-          console.log('Sample price changes created successfully!');
-        } else {
-          console.warn('Firebase not initialized, skipping sample data creation');
-        }
-      } else {
-        console.log('Existing price changes found, skipping sample data creation');
+      // If there are existing changes, mark as initialized to prevent future recreation
+      if (existingChanges.length > 0) {
+        console.log('Existing price changes found, marking as initialized');
+        await this.markSampleDataAsInitialized();
+        return;
       }
+      
+      // For production, we don't automatically create sample data
+      // Only mark as initialized to prevent future attempts
+      console.log('No existing price changes found. Marking as initialized without creating sample data.');
+      await this.markSampleDataAsInitialized();
+      
     } catch (error) {
       console.error('Error initializing sample data:', error);
-      // Don't throw error to prevent UI crashes
+      // Try to mark as initialized even if there was an error to prevent infinite retries
+      try {
+        await this.markSampleDataAsInitialized();
+      } catch (markError) {
+        console.error('Error marking sample data as initialized after failure:', markError);
+      }
     }
   }
 }
