@@ -35,3 +35,4 @@ check-*.js
 test-*.js
 *.mjs
 temp-clone/
+temp-clone/
