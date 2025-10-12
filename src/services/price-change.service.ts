@@ -177,12 +177,20 @@ export class PriceChangeService {
 
   // Method to initialize the collection with sample data if empty and not already initialized
   static async initializeSampleData(): Promise<void> {
+    // In production environments, we should never automatically create sample data
+    // This method should do nothing in production
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction) {
+      console.log('Production environment detected. Sample data initialization skipped.');
+      return;
+    }
+    
+    // For development environments, we can keep the existing logic
     try {
       // Check if sample data has already been initialized
       const isInitialized = await this.isSampleDataInitialized();
       
-      // In production, we should not automatically create sample data
-      // Only initialize if explicitly requested or if this is a completely fresh install
       if (isInitialized) {
         return;
       }
@@ -198,7 +206,7 @@ export class PriceChangeService {
         return;
       }
       
-      // For production, we don't automatically create sample data
+      // For development, we don't automatically create sample data either
       // Only mark as initialized to prevent future attempts
       console.log('No existing price changes found. Marking as initialized without creating sample data.');
       await this.markSampleDataAsInitialized();
