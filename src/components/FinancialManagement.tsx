@@ -68,22 +68,42 @@ interface InstitutionPricingOverrideForm {
   isEnabled: boolean;
 }
 
+// Interface for margin alert settings
+interface MarginAlertSettings {
+  lowMarginThreshold: number;
+  highVapiCostThreshold: number;
+  autoPriceAdjustment: boolean;
+  emailNotifications: boolean;
+}
+
 const FinancialManagement = () => {
   const { toast } = useToast();
   
-  // Get initial tab from URL hash or default to 'overview'
+  // Get initial tab from localStorage or default to 'overview'
   const getInitialTab = () => {
     if (typeof window !== 'undefined') {
-      const hash = window.location.hash.replace('#', '');
-      const validTabs = ['overview', 'pricing', 'margins', 'reports', 'quickedit'];
-      const initialTab = validTabs.includes(hash) ? hash : 'overview';
-      console.log('Initial tab from hash:', hash, 'Setting to:', initialTab);
-      return initialTab;
+      try {
+        const savedTab = localStorage.getItem('financialManagementActiveTab');
+        const validTabs = ['overview', 'pricing', 'margins', 'reports', 'quickedit'];
+        const initialTab = savedTab && validTabs.includes(savedTab) ? savedTab : 'overview';
+        console.log('Initial tab from localStorage:', savedTab, 'Setting to:', initialTab);
+        return initialTab;
+      } catch (error) {
+        console.error('Error reading from localStorage:', error);
+        return 'overview';
+      }
     }
     return 'overview';
   };
 
-  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Set the initial tab after component mounts
+  useEffect(() => {
+    const initialTab = getInitialTab();
+    setActiveTab(initialTab);
+  }, []);
+  
   const [vapiCost, setVapiCost] = useState(0.11); // Default cost per minute in dollars
   const [markupPercentage, setMarkupPercentage] = useState(36.36); // Default markup percentage
   const [licenseCost, setLicenseCost] = useState(19.96); // Default annual license cost
@@ -110,6 +130,14 @@ const FinancialManagement = () => {
     isEnabled: false
   });
   const [firebaseError, setFirebaseError] = useState<string | null>(null); // Add this state
+  
+  // Add state for margin alert settings
+  const [marginAlertSettings, setMarginAlertSettings] = useState<MarginAlertSettings>({
+    lowMarginThreshold: 25,
+    highVapiCostThreshold: 0.15,
+    autoPriceAdjustment: false,
+    emailNotifications: true
+  });
   
   // Function to refresh scheduled price changes
   const refreshScheduledPriceChanges = async () => {
@@ -154,6 +182,22 @@ const FinancialManagement = () => {
           if (isMounted) {
             setFirebaseError("Failed to load pricing settings from Firebase. Using default values.");
           }
+        }
+        
+        // Load margin alert settings
+        try {
+          const marginSettings = await PlatformSettingsService.getMarginAlertSettings();
+          if (isMounted && marginSettings) {
+            setMarginAlertSettings({
+              lowMarginThreshold: marginSettings.lowMarginThreshold,
+              highVapiCostThreshold: marginSettings.highVapiCostThreshold,
+              autoPriceAdjustment: marginSettings.autoPriceAdjustment,
+              emailNotifications: marginSettings.emailNotifications
+            });
+          }
+        } catch (error) {
+          console.warn('Failed to load margin alert settings:', error);
+          // Continue even if this fails
         }
         
         // Ensure all institutions have the pricingOverride field
@@ -602,40 +646,31 @@ const FinancialManagement = () => {
     setFilteredInstitutions(filtered);
   }, [searchTerm, statusFilter, institutions]);
   
-  // Update URL hash when tab changes
+  // Update localStorage when tab changes
   const handleTabChange = (value: string) => {
     console.log('Tab changed to:', value);
     setActiveTab(value);
     if (typeof window !== 'undefined') {
-      window.location.hash = value;
-      console.log('Hash set to:', value);
+      try {
+        localStorage.setItem('financialManagementActiveTab', value);
+        console.log('Saved tab to localStorage:', value);
+      } catch (error) {
+        console.error('Error saving to localStorage:', error);
+      }
     }
   };
   
   // Listen for hash changes to support browser back/forward buttons
   useEffect(() => {
     console.log('Component mounted, current hash:', window.location.hash);
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
-      console.log('Hash changed to:', hash);
-      const validTabs = ['overview', 'pricing', 'margins', 'reports', 'quickedit'];
-      if (validTabs.includes(hash)) {
-        setActiveTab(hash);
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    // Remove the hash change listener since we're using localStorage
   }, []);
   
   // Set initial hash if none exists
   useEffect(() => {
-    if (typeof window !== 'undefined' && !window.location.hash) {
-      window.location.hash = activeTab;
-      console.log('Setting initial hash to:', activeTab);
-    }
+    // Remove hash setting since we're using localStorage
   }, [activeTab]);
-
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">

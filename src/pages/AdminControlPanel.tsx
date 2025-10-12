@@ -28,7 +28,45 @@ import {
 
 const AdminControlPanel = () => {
   const isMobile = useIsMobile();
+  
+  // Get initial tab from localStorage or default to 'dashboard'
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedTab = localStorage.getItem('adminControlPanelActiveTab');
+        const validTabs = ['dashboard', 'institutions', 'students', 'resources', 'broadcasting', 'analytics', 'financial', 'gemini-test'];
+        const initialTab = savedTab && validTabs.includes(savedTab) ? savedTab : 'dashboard';
+        console.log('Admin panel initial tab from localStorage:', savedTab, 'Setting to:', initialTab);
+        return initialTab;
+      } catch (error) {
+        console.error('Error reading from localStorage:', error);
+        return 'dashboard';
+      }
+    }
+    return 'dashboard';
+  };
+
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Set the initial tab after component mounts
+  useEffect(() => {
+    const initialTab = getInitialTab();
+    setActiveTab(initialTab);
+  }, []);
+  
+  // Update localStorage when tab changes
+  const handleTabChange = (value: string) => {
+    console.log('Admin panel tab changed to:', value);
+    setActiveTab(value);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('adminControlPanelActiveTab', value);
+        console.log('Saved admin panel tab to localStorage:', value);
+      } catch (error) {
+        console.error('Error saving to localStorage:', error);
+      }
+    }
+  };
   
   // Initialize AI analytics service with Gemini API key
   useEffect(() => {
@@ -48,9 +86,8 @@ const AdminControlPanel = () => {
             <h1 className="text-3xl font-bold mb-6">Platform Admin Control Panel</h1>
             
             <Tabs 
-              defaultValue="dashboard" 
               className="w-full mb-6"
-              onValueChange={setActiveTab}
+              onValueChange={handleTabChange}
               value={activeTab}
             >
               <TabsList className={`${isMobile ? 'grid-cols-2 gap-2 mb-4' : 'w-full grid-cols-8'} grid overflow-x-auto`}>

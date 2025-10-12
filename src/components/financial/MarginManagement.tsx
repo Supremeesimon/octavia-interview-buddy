@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { BarChart3, Calculator, AlertTriangle } from 'lucide-react';
+import { PlatformSettingsService } from '@/services/platform-settings.service';
+import { useToast } from '@/hooks/use-toast';
 
 interface MarginManagementProps {
   vapiCost: number;
@@ -19,8 +21,66 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
   calculatedSessionPrice,
   estimatedMargin
 }) => {
+  const { toast } = useToast();
   const [desiredMargin, setDesiredMargin] = useState<string>('35');
   const [highVapiCostThreshold, setHighVapiCostThreshold] = useState<string>('0.15');
+  const [lowMarginThreshold, setLowMarginThreshold] = useState<number>(25);
+  const [autoPriceAdjustment, setAutoPriceAdjustment] = useState<boolean>(false);
+  const [emailNotifications, setEmailNotifications] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Load margin alert settings from Firebase
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const settings = await PlatformSettingsService.getMarginAlertSettings();
+        if (settings) {
+          setLowMarginThreshold(settings.lowMarginThreshold);
+          setHighVapiCostThreshold(settings.highVapiCostThreshold.toString());
+          setAutoPriceAdjustment(settings.autoPriceAdjustment);
+          setEmailNotifications(settings.emailNotifications);
+        }
+      } catch (error) {
+        console.error('Failed to load margin alert settings:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load margin alert settings",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleSaveSettings = async () => {
+    try {
+      setLoading(true);
+      await PlatformSettingsService.updateMarginAlertSettings({
+        lowMarginThreshold: lowMarginThreshold,
+        highVapiCostThreshold: parseFloat(highVapiCostThreshold) || 0.15,
+        autoPriceAdjustment: autoPriceAdjustment,
+        emailNotifications: emailNotifications
+      });
+      
+      toast({
+        title: "Settings saved",
+        description: "Margin alert settings have been successfully updated.",
+      });
+    } catch (error) {
+      console.error('Failed to save margin alert settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save margin alert settings",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -139,9 +199,19 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                <Input className="w-20" type="number" defaultValue="25" />
+                <Input 
+                  className="w-20" 
+                  type="number" 
+                  value={lowMarginThreshold} 
+                  onChange={(e) => setLowMarginThreshold(parseInt(e.target.value) || 25)} 
+                  min="0" 
+                  max="100" 
+                />
                 <span className="text-muted-foreground">%</span>
-                <Switch defaultChecked id="low-margin-alert" />
+                <Switch 
+                  checked={true} 
+                  id="low-margin-alert" 
+                />
               </div>
             </div>
             
@@ -161,7 +231,7 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                   onChange={(e) => setHighVapiCostThreshold(e.target.value)}
                   step="0.01" 
                 />
-                <Switch defaultChecked id="high-cost-alert" />
+                <Switch checked={true} id="high-cost-alert" />
               </div>
             </div>
             
@@ -173,7 +243,11 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch id="auto-price-adjustment" />
+                <Switch 
+                  checked={autoPriceAdjustment} 
+                  onCheckedChange={setAutoPriceAdjustment}
+                  id="auto-price-adjustment" 
+                />
               </div>
             </div>
             
@@ -185,13 +259,23 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch defaultChecked id="email-notifications" />
+                <Switch 
+                  checked={emailNotifications} 
+                  onCheckedChange={setEmailNotifications}
+                  id="email-notifications" 
+                />
               </div>
             </div>
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="w-full">Save Alert Settings</Button>
+          <Button 
+            className="w-full" 
+            onClick={handleSaveSettings}
+            disabled={loading}
+          >
+            {loading ? "Saving..." : "Save Alert Settings"}
+          </Button>
         </CardFooter>
       </Card>
     </>
