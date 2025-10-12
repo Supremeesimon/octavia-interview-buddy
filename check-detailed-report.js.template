@@ -1,0 +1,101 @@
+// Check detailed end-of-call report in Firebase
+import admin from 'firebase-admin';
+
+// Initialize Firebase Admin SDK with your credentials
+const serviceAccount = {
+  "type": "service_account",
+  "project_id": "octavia-practice-interviewer",
+  "private_key_id": "YOUR_PRIVATE_KEY_ID",
+  "private_key": "YOUR_PRIVATE_KEY",
+  "client_email": "YOUR_CLIENT_EMAIL",
+  "client_id": "YOUR_CLIENT_ID",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40octavia-practice-interviewer.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+};
+
+try {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://octavia-practice-interviewer-default-rtdb.firebaseio.com"
+  });
+
+  console.log('Firebase Admin SDK initialized successfully');
+
+  // Function to get the detailed end-of-call report
+  async function getDetailedEndOfCallReport() {
+    try {
+      const db = admin.firestore();
+      
+      // Get the most recent document
+      const snapshot = await db.collection('end-of-call-analysis')
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get();
+      
+      if (snapshot.empty) {
+        console.log('No end-of-call reports found in Firebase');
+        return null;
+      }
+      
+      const doc = snapshot.docs[0];
+      const report = doc.data();
+      
+      console.log('Detailed End-of-Call Report:');
+      console.log('============================');
+      console.log('Document ID:', doc.id);
+      console.log('Created At:', report.createdAt ? report.createdAt.toDate() : 'N/A');
+      console.log('Call ID:', report.callId || 'N/A');
+      console.log('Student ID:', report.studentId || 'N/A');
+      console.log('Department ID:', report.departmentId || 'N/A');
+      console.log('Institution ID:', report.institutionId || 'N/A');
+      console.log('Interview Type:', report.interviewType || 'N/A');
+      console.log('Duration:', report.duration || 'N/A');
+      console.log('Overall Score:', report.overallScore || 'N/A');
+      
+      if (report.summary) {
+        console.log('Summary:');
+        console.log(report.summary);
+      }
+      
+      if (report.structuredData) {
+        console.log('Structured Data:');
+        console.log(JSON.stringify(report.structuredData, null, 2));
+      }
+      
+      if (report.successEvaluation) {
+        console.log('Success Evaluation:');
+        console.log(JSON.stringify(report.successEvaluation, null, 2));
+      }
+      
+      if (report.transcript) {
+        console.log('Transcript:');
+        console.log(report.transcript);
+      }
+      
+      if (report.recordingUrl) {
+        console.log('Recording URL:', report.recordingUrl);
+      }
+      
+      return report;
+    } catch (error) {
+      console.error('Error retrieving end-of-call report:', error);
+      return null;
+    }
+  }
+
+  // Run the function
+  getDetailedEndOfCallReport().then(() => {
+    console.log('\nDetailed report check completed');
+    process.exit(0);
+  }).catch(error => {
+    console.error('Error:', error);
+    process.exit(1);
+  });
+
+} catch (error) {
+  console.error('Failed to initialize Firebase Admin SDK:', error);
+  process.exit(1);
+}
