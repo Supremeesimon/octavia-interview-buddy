@@ -26,7 +26,13 @@ const AIAnalytics = () => {
   const [institutionData, setInstitutionData] = useState<any[]>([]);
   const [institutionPerformanceData, setInstitutionPerformanceData] = useState<any[]>([]);
   const [skillGapsData, setSkillGapsData] = useState<any[]>([]);
-  const [aiInsights, setAiInsights] = useState<string>('');
+  const [aiInsights, setAiInsights] = useState<any>({
+    overallPerformanceGrade: 'N/A',
+    gradeExplanation: 'No assessment available yet.',
+    dataLinkingStatus: 'The collected data is not currently linked to specific institutional identifiers or individual student metadata. All analysis is based solely on two anonymous, aggregated reports.',
+    studentImprovementAssessment: 'No assessment available yet.',
+    keyInsight: 'No key insight available.'
+  });
   const [loading, setLoading] = useState(true);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -48,21 +54,38 @@ const AIAnalytics = () => {
         
         console.log('Fetched data:', { perfData, trendData, instData, instPerfData, gapsData });
         
-        setPerformanceData(perfData);
-        setTrendData(trendData);
-        setInstitutionData(instData);
-        setInstitutionPerformanceData(instPerfData);
-        setSkillGapsData(gapsData);
-        
-        // Generate AI insights
-        console.log('Generating AI insights...');
+        // Log the actual data being sent to AI for debugging
         const insightsData = {
           performanceData: perfData,
           trendData: trendData,
           institutionData: instData,
           skillGapsData: gapsData
         };
-        console.log('Insights data:', JSON.stringify(insightsData, null, 2));
+        
+        // Log detailed data structure for debugging
+        console.log('=== DETAILED DATA BEING SENT TO AI ===');
+        console.log('Performance Data Count:', perfData.length);
+        console.log('Performance Data:', JSON.stringify(perfData, null, 2));
+        console.log('Trend Data Count:', trendData.length);
+        console.log('Trend Data:', JSON.stringify(trendData, null, 2));
+        console.log('Institution Data Count:', instData.length);
+        console.log('Institution Data:', JSON.stringify(instData, null, 2));
+        console.log('Skill Gaps Data Count:', gapsData.length);
+        console.log('Skill Gaps Data:', JSON.stringify(gapsData, null, 2));
+        console.log('=====================================');
+        
+        // Ensure skill gaps data is properly formatted
+        const formattedGapsData = Array.isArray(gapsData) ? gapsData : [];
+        console.log('Formatted skill gaps data:', formattedGapsData);
+        
+        setPerformanceData(perfData);
+        setTrendData(trendData);
+        setInstitutionData(instData);
+        setInstitutionPerformanceData(instPerfData);
+        setSkillGapsData(formattedGapsData);
+        
+        // Generate AI insights
+        console.log('Generating AI insights with data:', JSON.stringify(insightsData, null, 2));
         const insights = await aiAnalyticsService.generateAIInsights(insightsData);
         console.log('Generated insights:', insights);
         setAiInsights(insights);
@@ -318,6 +341,7 @@ const AIAnalytics = () => {
                 <CardDescription>Areas where students are struggling the most</CardDescription>
               </CardHeader>
               <CardContent>
+                {console.log('Rendering Top Skill Gaps - skillGapsData.length:', skillGapsData.length, 'skillGapsData:', skillGapsData)}
                 {skillGapsData.length > 0 ? (
                   <ChartContainer
                     config={{
@@ -362,6 +386,7 @@ const AIAnalytics = () => {
                 <CardDescription>AI-suggested areas for improvement</CardDescription>
               </CardHeader>
               <CardContent>
+                {console.log('Rendering Recommended Focus Areas - skillGapsData.length:', skillGapsData.length)}
                 <div className="space-y-4">
                   <div className="flex items-start gap-3 pb-4 border-b">
                     <div className="bg-red-100 p-2 rounded-md">
@@ -370,6 +395,7 @@ const AIAnalytics = () => {
                     <div>
                       <h4 className="font-medium">Technical Interview Preparation</h4>
                       <p className="text-sm text-muted-foreground">
+                        {console.log('Technical Interview Preparation check - skillGapsData.length > 0:', skillGapsData.length > 0)}
                         {skillGapsData.length > 0 
                           ? `Focus on areas with highest skill gaps like ${skillGapsData.slice(0, 2).map(s => s.name).join(' and ')}.`
                           : 'No specific recommendations available.'}
@@ -384,6 +410,7 @@ const AIAnalytics = () => {
                     <div>
                       <h4 className="font-medium">Behavioral Question Workshops</h4>
                       <p className="text-sm text-muted-foreground">
+                        {console.log('Behavioral Question Workshops check - skillGapsData.length > 1:', skillGapsData.length > 1)}
                         {skillGapsData.length > 1 
                           ? `Address behavioral skill gaps identified in ${skillGapsData[1]?.name || 'key areas'}.`
                           : 'No behavioral skill gap data available.'}
@@ -398,6 +425,7 @@ const AIAnalytics = () => {
                     <div>
                       <h4 className="font-medium">Targeted Intervention</h4>
                       <p className="text-sm text-muted-foreground">
+                        {console.log('Targeted Intervention check - skillGapsData.length > 0:', skillGapsData.length > 0)}
                         {skillGapsData.length > 0 
                           ? `Prioritize interventions for the top ${Math.min(3, skillGapsData.length)} skill gaps.`
                           : 'No targeted intervention data available.'}
@@ -412,112 +440,31 @@ const AIAnalytics = () => {
           <div className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Skill Gap Analysis by Institution Type</CardTitle>
-                <CardDescription>Comparison of different educational institutions</CardDescription>
+                <CardTitle>Skill Gap Analysis</CardTitle>
+                <CardDescription>Analysis of skill gaps from anonymous user data</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <div className="pb-4 border-b">
-                    <h4 className="font-medium mb-2">Technical Universities</h4>
-                    <div className="space-y-3">
-                      <div>
+                  {skillGapsData.length > 0 ? (
+                    skillGapsData.map((skillGap, index) => (
+                      <div key={index} className={index < skillGapsData.length - 1 ? "pb-4 border-b" : ""}>
                         <div className="flex justify-between mb-1">
-                          <span className="text-sm">Soft Skills & Communication</span>
-                          <span className="text-sm font-medium">
-                            {skillGapsData.length > 0 ? `${Math.min(100, Math.round(skillGapsData[0]?.gap * 0.8))}%` : '0%'}
-                          </span>
+                          <span className="text-sm font-medium">{skillGap.name}</span>
+                          <span className="text-sm font-medium">{skillGap.gap}%</span>
                         </div>
                         <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-red-500 rounded-full" 
-                            style={{ width: `${skillGapsData.length > 0 ? Math.min(100, Math.round(skillGapsData[0]?.gap * 0.8)) : 0}%` }}
+                            style={{ width: `${skillGap.gap}%` }}
                           ></div>
                         </div>
                       </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">Leadership Questions</span>
-                          <span className="text-sm font-medium">
-                            {skillGapsData.length > 1 ? `${Math.min(100, Math.round(skillGapsData[1]?.gap * 0.7))}%` : '0%'}
-                          </span>
-                        </div>
-                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-red-500 rounded-full" 
-                            style={{ width: `${skillGapsData.length > 1 ? Math.min(100, Math.round(skillGapsData[1]?.gap * 0.7)) : 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-center justify-center h-32">
+                      <p className="text-muted-foreground">No skill gap data available</p>
                     </div>
-                  </div>
-                  
-                  <div className="pb-4 border-b">
-                    <h4 className="font-medium mb-2">Liberal Arts Colleges</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">Technical Knowledge</span>
-                          <span className="text-sm font-medium">
-                            {skillGapsData.length > 2 ? `${Math.min(100, Math.round(skillGapsData[2]?.gap * 0.9))}%` : '0%'}
-                          </span>
-                        </div>
-                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-red-500 rounded-full" 
-                            style={{ width: `${skillGapsData.length > 2 ? Math.min(100, Math.round(skillGapsData[2]?.gap * 0.9)) : 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">Problem Solving</span>
-                          <span className="text-sm font-medium">
-                            {skillGapsData.length > 3 ? `${Math.min(100, Math.round(skillGapsData[3]?.gap * 0.75))}%` : '0%'}
-                          </span>
-                        </div>
-                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-red-500 rounded-full" 
-                            style={{ width: `${skillGapsData.length > 3 ? Math.min(100, Math.round(skillGapsData[3]?.gap * 0.75)) : 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium mb-2">Business Schools</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">Technical Implementation</span>
-                          <span className="text-sm font-medium">
-                            {skillGapsData.length > 0 ? `${Math.min(100, Math.round(skillGapsData[0]?.gap * 0.76))}%` : '0%'}
-                          </span>
-                        </div>
-                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-red-500 rounded-full" 
-                            style={{ width: `${skillGapsData.length > 0 ? Math.min(100, Math.round(skillGapsData[0]?.gap * 0.76)) : 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm">Data Analysis</span>
-                          <span className="text-sm font-medium">
-                            {skillGapsData.length > 4 ? `${Math.min(100, Math.round(skillGapsData[4]?.gap * 0.62))}%` : '0%'}
-                          </span>
-                        </div>
-                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-red-500 rounded-full" 
-                            style={{ width: `${skillGapsData.length > 4 ? Math.min(100, Math.round(skillGapsData[4]?.gap * 0.62)) : 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -528,8 +475,8 @@ const AIAnalytics = () => {
           <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-6`}>
             <Card>
               <CardHeader>
-                <CardTitle>Usage Distribution</CardTitle>
-                <CardDescription>Platform usage by institution</CardDescription>
+                <CardTitle>Platform Usage</CardTitle>
+                <CardDescription>Overall platform usage distribution</CardDescription>
               </CardHeader>
               <CardContent>
                 {renderPieChart()}
@@ -538,8 +485,8 @@ const AIAnalytics = () => {
             
             <Card>
               <CardHeader>
-                <CardTitle>Institution Performance</CardTitle>
-                <CardDescription>Average student scores by institution</CardDescription>
+                <CardTitle>Performance Overview</CardTitle>
+                <CardDescription>Average scores across platform</CardDescription>
               </CardHeader>
               <CardContent>
                 {institutionPerformanceData.length > 0 ? (
@@ -570,7 +517,7 @@ const AIAnalytics = () => {
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-64">
-                    <p className="text-muted-foreground">No institution performance data available</p>
+                    <p className="text-muted-foreground">No performance data available</p>
                   </div>
                 )}
               </CardContent>
@@ -580,8 +527,8 @@ const AIAnalytics = () => {
           <div className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Institution-Specific Insights</CardTitle>
-                <CardDescription>AI-Generated recommendations for each institution</CardDescription>
+                <CardTitle>General Insights</CardTitle>
+                <CardDescription>AI-Generated recommendations from anonymous user data</CardDescription>
               </CardHeader>
               <CardContent>
                 {institutionData.length > 0 ? (
@@ -608,7 +555,7 @@ const AIAnalytics = () => {
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-64">
-                    <p className="text-muted-foreground">No institution-specific insights available</p>
+                    <p className="text-muted-foreground">No general insights available</p>
                   </div>
                 )}
               </CardContent>
@@ -620,71 +567,71 @@ const AIAnalytics = () => {
           <Card>
             <CardHeader>
               <CardTitle>AI-Generated Platform Insights</CardTitle>
-              <CardDescription>Comprehensive analysis and recommendations</CardDescription>
+              <CardDescription>Comprehensive performance assessment</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="prose max-w-none">
-                <h3 className="text-lg font-semibold">Executive Summary</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {aiInsights || 'No insights generated at this time. Please check back later.'}
-                </p>
+              <div className="prose max-w-none space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Overall Performance Assessment</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <div className="text-3xl font-bold text-center">
+                        <span className={
+                          aiInsights.overallPerformanceGrade === 'A' || aiInsights.overallPerformanceGrade === 'A-' || aiInsights.overallPerformanceGrade === 'A+' ? 'text-green-600' :
+                          aiInsights.overallPerformanceGrade === 'B' || aiInsights.overallPerformanceGrade === 'B-' || aiInsights.overallPerformanceGrade === 'B+' ? 'text-green-500' :
+                          aiInsights.overallPerformanceGrade === 'C' || aiInsights.overallPerformanceGrade === 'C-' || aiInsights.overallPerformanceGrade === 'C+' ? 'text-yellow-500' :
+                          aiInsights.overallPerformanceGrade === 'D' || aiInsights.overallPerformanceGrade === 'D-' || aiInsights.overallPerformanceGrade === 'D+' ? 'text-orange-500' :
+                          aiInsights.overallPerformanceGrade === 'F' ? 'text-red-500' : 'text-gray-500'
+                        }>
+                          {aiInsights.overallPerformanceGrade || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="text-sm text-center text-muted-foreground mt-1">
+                        Overall Performance Grade
+                      </div>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <div className="text-sm text-center">
+                        {aiInsights.dataLinkingStatus || 'Unknown data linking status'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 
-                <h3 className="text-lg font-semibold">Key Observations</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground mb-4">
-                  {aiInsights ? (
-                    // If we have AI insights, try to parse them or show a generic message
-                    <li className="text-sm text-muted-foreground">
-                      {aiInsights.includes('Key Observations') 
-                        ? 'See detailed insights above' 
-                        : 'AI-generated observations are included in the executive summary above'}
-                    </li>
-                  ) : (
-                    // If no AI insights, show mock data
-                    <>
-                      <li><strong>Usage Patterns:</strong> Platform usage varies by time and institution.</li>
-                      <li><strong>Performance Trends:</strong> Average scores show variation across categories.</li>
-                      <li><strong>Engagement Correlation:</strong> Active users show different patterns than inactive ones.</li>
-                      <li><strong>Institutional Variations:</strong> Different institutions show different performance patterns.</li>
-                    </>
-                  )}
-                </ul>
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Grade Explanation</h3>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm">
+                      {aiInsights.gradeExplanation || 'No grade explanation available.'}
+                    </p>
+                  </div>
+                </div>
                 
-                <h3 className="text-lg font-semibold">Strategic Recommendations</h3>
-                <ol className="space-y-2 text-sm text-muted-foreground mb-4">
-                  {aiInsights ? (
-                    // If we have AI insights, try to parse them or show a generic message
-                    <li className="text-sm text-muted-foreground">
-                      {aiInsights.includes('Recommendations') 
-                        ? 'See detailed recommendations above' 
-                        : 'AI-generated recommendations are included in the executive summary above'}
-                    </li>
-                  ) : (
-                    // If no AI insights, show mock data
-                    <>
-                      <li><strong>Tailored Content:</strong> Develop institution-specific resources based on identified skill gaps.</li>
-                      <li><strong>Engagement Strategy:</strong> Implement targeted messaging for users with specific needs.</li>
-                      <li><strong>Feature Development:</strong> Prioritize features based on demand analysis.</li>
-                      <li><strong>Resource Allocation:</strong> Focus on areas showing highest demand across institutions.</li>
-                    </>
-                  )}
-                </ol>
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Student Improvement Assessment</h3>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm">
+                      {aiInsights.studentImprovementAssessment || 'No student improvement assessment available.'}
+                    </p>
+                  </div>
+                </div>
                 
-                <h3 className="text-lg font-semibold">Forecasted Impact</h3>
-                <p className="text-sm text-muted-foreground">
-                  {aiInsights 
-                    ? (aiInsights.includes('Forecasted Impact') 
-                        ? 'See detailed forecast above' 
-                        : 'AI-generated forecast is included in the executive summary above')
-                    : 'Implementing these recommendations is projected to improve user engagement and performance scores based on current data trends.'}
-                </p>
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Key Insight</h3>
+                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                    <p className="text-sm">
+                      {aiInsights.keyInsight || 'No key insight available.'}
+                    </p>
+                  </div>
+                </div>
                 
                 <div className="mt-6 p-4 bg-muted rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Brain className="h-5 w-5 text-primary" />
-                    <h4 className="font-medium">AI-Powered Next Steps</h4>
+                    <h4 className="font-medium">Platform Administrator Note</h4>
                   </div>
                   <p className="text-sm">
-                    Based on current platform data, the system recommends focusing on skill gap areas, implementing targeted engagement strategies, and creating institution-specific resources.
+                    This assessment is based on aggregate data from 2 interview analyses. The collected data is not currently linked to specific institutional identifiers or individual student metadata. All analysis is based solely on two anonymous, aggregated reports.
                   </p>
                 </div>
               </div>

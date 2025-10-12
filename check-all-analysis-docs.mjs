@@ -62,6 +62,29 @@ async function checkAllAnalysisDocs() {
       console.log(`Has recordingUrl: ${!!data.recordingUrl}`);
       console.log(`Duration: ${data.duration || 'N/A'}`);
       
+      // Parse the summary JSON to extract structured data
+      if (data.summary) {
+        try {
+          // The summary is a JSON string wrapped in markdown code blocks
+          let summaryContent = data.summary;
+          // Remove markdown code block wrappers if present
+          summaryContent = summaryContent.replace(/```json\s*|\s*```/g, '').trim();
+          
+          const summaryData = JSON.parse(summaryContent);
+          console.log(`Parsed Summary Rating: ${summaryData.Rating || 'N/A'}`);
+          console.log(`Parsed Communication Skills: ${summaryData['Communication Skills'] || 'N/A'}`);
+          console.log(`Parsed Technical Knowledge: ${summaryData['Technical Knowledge'] || 'N/A'}`);
+          console.log(`Parsed Problem Solving: ${summaryData['Problem Solving'] || 'N/A'}`);
+          console.log(`Parsed Enthusiasm: ${summaryData.Enthusiasm || 'N/A'}`);
+          console.log(`Parsed Interview Outcome: ${summaryData['Interview Outcome'] || 'N/A'}`);
+          console.log(`Parsed Strengths Count: ${summaryData.Strengths ? summaryData.Strengths.length : 0}`);
+          console.log(`Parsed Areas for Improvement Count: ${summaryData['Areas for Improvement'] ? summaryData['Areas for Improvement'].length : 0}`);
+          console.log(`Parsed Recommendations Count: ${summaryData.Recommendations ? summaryData.Recommendations.length : 0}`);
+        } catch (parseError) {
+          console.log(`Error parsing summary JSON: ${parseError.message}`);
+        }
+      }
+      
       if (data.successEvaluation) {
         console.log(`Success Evaluation Score: ${data.successEvaluation.score || 'N/A'}`);
       }
@@ -72,7 +95,19 @@ async function checkAllAnalysisDocs() {
         console.log(`Structured Data Improvements: ${data.structuredData.improvements ? data.structuredData.improvements.length : 0}`);
       }
       
+      // Show the actual summary content
+      if (data.summary) {
+        console.log(`\nSUMMARY CONTENT:`);
+        console.log(data.summary);
+      }
+      
       console.log(''); // Empty line for readability
+      
+      // Limit detailed output to first 2 documents
+      if (index >= 1) {
+        console.log(`... (${analysisSnapshot.size - 2} more documents not shown in detail)`);
+        break;
+      }
     }
     
     console.log('✅ Analysis complete!');
