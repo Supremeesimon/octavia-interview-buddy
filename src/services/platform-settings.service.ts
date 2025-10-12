@@ -1,19 +1,12 @@
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-
-export interface PlatformPricingSettings {
-  vapiCostPerMinute: number;
-  markupPercentage: number;
-  annualLicenseCost: number;
-  updatedAt: Date;
-}
-
 // Add interface for margin alert settings
 export interface PlatformMarginAlertSettings {
   lowMarginThreshold: number;
   highVapiCostThreshold: number;
   autoPriceAdjustment: boolean;
   emailNotifications: boolean;
+  // Add toggle states for the alert switches
+  lowMarginAlertEnabled: boolean;
+  highVapiCostAlertEnabled: boolean;
   updatedAt: Date;
 }
 
@@ -95,6 +88,8 @@ export class PlatformSettingsService {
           highVapiCostThreshold: data.highVapiCostThreshold !== undefined ? data.highVapiCostThreshold : 0.15,
           autoPriceAdjustment: data.autoPriceAdjustment !== undefined ? data.autoPriceAdjustment : false,
           emailNotifications: data.emailNotifications !== undefined ? data.emailNotifications : true,
+          lowMarginAlertEnabled: data.lowMarginAlertEnabled !== undefined ? data.lowMarginAlertEnabled : true,
+          highVapiCostAlertEnabled: data.highVapiCostAlertEnabled !== undefined ? data.highVapiCostAlertEnabled : true,
           updatedAt: data.updatedAt?.toDate() || new Date()
         };
       }
@@ -105,6 +100,8 @@ export class PlatformSettingsService {
         highVapiCostThreshold: 0.15,
         autoPriceAdjustment: false,
         emailNotifications: true,
+        lowMarginAlertEnabled: true,
+        highVapiCostAlertEnabled: true,
         updatedAt: new Date()
       };
     } catch (error) {
@@ -153,6 +150,8 @@ export class PlatformSettingsService {
           highVapiCostThreshold: data.highVapiCostThreshold !== undefined ? data.highVapiCostThreshold : 0.15,
           autoPriceAdjustment: data.autoPriceAdjustment !== undefined ? data.autoPriceAdjustment : false,
           emailNotifications: data.emailNotifications !== undefined ? data.emailNotifications : true,
+          lowMarginAlertEnabled: data.lowMarginAlertEnabled !== undefined ? data.lowMarginAlertEnabled : true,
+          highVapiCostAlertEnabled: data.highVapiCostAlertEnabled !== undefined ? data.highVapiCostAlertEnabled : true,
           updatedAt: data.updatedAt?.toDate() || new Date()
         };
       }
@@ -166,6 +165,8 @@ export class PlatformSettingsService {
         highVapiCostThreshold: 0.15,
         autoPriceAdjustment: false,
         emailNotifications: true,
+        lowMarginAlertEnabled: true,
+        highVapiCostAlertEnabled: true,
         updatedAt: new Date()
       };
     } catch (error) {

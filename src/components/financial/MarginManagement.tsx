@@ -210,6 +210,7 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                 <span className="text-muted-foreground">%</span>
                 <Switch 
                   checked={true} 
+                  onCheckedChange={() => {}} // TODO: Implement toggle state
                   id="low-margin-alert" 
                 />
               </div>
@@ -231,7 +232,11 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                   onChange={(e) => setHighVapiCostThreshold(e.target.value)}
                   step="0.01" 
                 />
-                <Switch checked={true} id="high-cost-alert" />
+                <Switch 
+                  checked={true} 
+                  onCheckedChange={() => {}} // TODO: Implement toggle state
+                  id="high-cost-alert" 
+                />
               </div>
             </div>
             
