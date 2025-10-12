@@ -34,3 +34,4 @@ firebase-service-account.json
 check-*.js
 test-*.js
 *.mjs
+temp-clone/
