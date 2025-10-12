@@ -10,7 +10,10 @@ import {
   Trash2, 
   Edit, 
   CheckCircle2,
-  Clock
+  Clock,
+  Search,
+  Filter,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,12 +25,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import { MessagingService } from '@/services/messaging.service';
-import { Message, MessageTemplate } from '@/types';
+import { InstitutionService } from '@/services/institution.service';
+import { Message, MessageTemplate, Institution } from '@/types';
 
-// Actual institution data from Firestore
-const actualInstitutions = [
-  { id: 'WxD3cWTybNsqkpj7OwW4', name: 'Lethbridge Polytechnic' }
-];
+
 
 const BroadcastSystem = () => {
   const { toast } = useToast();
@@ -48,6 +49,15 @@ const BroadcastSystem = () => {
   const [recipientType, setRecipientType] = useState<'all' | 'specific' | 'students' | 'inactive'>('all');
   const [selectedInstitutions, setSelectedInstitutions] = useState<string[]>([]);
   
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<'all' | Message['type']>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | Message['status']>('all');
+  const [analytics, setAnalytics] = useState<any>(null);
+  
+  // Institution states
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  
   // Form refs
   const messageTitleRef = useRef<HTMLInputElement>(null);
   const messageTypeRef = useRef<HTMLSelectElement>(null);
@@ -56,7 +66,7 @@ const BroadcastSystem = () => {
   const scheduleTimeRef = useRef<HTMLInputElement>(null);
   const templateSelectRef = useRef<HTMLSelectElement>(null);
   
-  // Fetch messages and templates from Firebase
+  // Fetch messages, templates, analytics, and institutions from Firebase
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -68,11 +78,19 @@ const BroadcastSystem = () => {
         // Fetch templates
         const templatesData = await MessagingService.getAllTemplates();
         setTemplates(templatesData);
+        
+        // Fetch analytics
+        const analyticsData = await MessagingService.getMessageAnalytics();
+        setAnalytics(analyticsData);
+        
+        // Fetch institutions
+        const institutionsData = await InstitutionService.getAllInstitutions();
+        setInstitutions(institutionsData);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast({
           title: "Error",
-          description: "Failed to load messages and templates.",
+          description: "Failed to load messages, templates, analytics, or institutions.",
           variant: "destructive",
         });
       } finally {
@@ -161,7 +179,7 @@ const BroadcastSystem = () => {
           break;
         case 'specific':
           target = selectedInstitutions.map(id => {
-            const inst = actualInstitutions.find(i => i.id === id);
+            const inst = institutions.find(i => i.id === id);
             return inst ? inst.name : id;
           }).join(', ');
           break;
@@ -429,12 +447,27 @@ const BroadcastSystem = () => {
   };
   
   const selectAllInstitutions = () => {
-    setSelectedInstitutions(actualInstitutions.map(inst => inst.id));
+    setSelectedInstitutions(institutions.map(inst => inst.id));
   };
   
   const clearInstitutionSelection = () => {
     setSelectedInstitutions([]);
   };
+  
+  // Filter messages based on search query and filters
+  const filteredMessages = messages.filter(message => {
+    // Search filter
+    const matchesSearch = message.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         message.content.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Type filter
+    const matchesType = filterType === 'all' || message.type === filterType;
+    
+    // Status filter
+    const matchesStatus = filterStatus === 'all' || message.status === filterStatus;
+    
+    return matchesSearch && matchesType && matchesStatus;
+  });
   
   return (
     <div className="space-y-6">
@@ -455,7 +488,7 @@ const BroadcastSystem = () => {
         onValueChange={setActiveTab}
         className="w-full"
       >
-        <TabsList className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} w-full max-w-md`}>
+        <TabsList className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} w-full`}>
           <TabsTrigger value="messages">
             <MessageSquare className="mr-2 h-4 w-4" />
             Messages
@@ -468,6 +501,10 @@ const BroadcastSystem = () => {
             <Calendar className="mr-2 h-4 w-4" />
             Scheduled
           </TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Analytics
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="messages" className="mt-6">
@@ -478,22 +515,84 @@ const BroadcastSystem = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Message</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Target</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {messages.map((message) => (
-                        <TableRow key={message.id}>
-                          <TableCell className="font-medium">{message.title}</TableCell>
+                <>
+                  {/* Search and Filter Controls */}
+                  <div className="p-4 border-b flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input
+                        placeholder="Search messages..."
+                        className="pl-10"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <select 
+                        className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value as any)}
+                      >
+                        <option value="all">All Types</option>
+                        <option value="Announcement">Announcement</option>
+                        <option value="Event">Event</option>
+                        <option value="System">System</option>
+                        <option value="Product Update">Product Update</option>
+                        <option value="Engagement">Engagement</option>
+                      </select>
+                      <select 
+                        className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value as any)}
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="Sent">Sent</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Analytics Summary */}
+                  {analytics && (
+                    <div className="p-4 border-b bg-muted/50">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{analytics.totalMessages}</div>
+                          <div className="text-sm text-muted-foreground">Total Messages</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{analytics.sentMessages}</div>
+                          <div className="text-sm text-muted-foreground">Sent</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{analytics.scheduledMessages}</div>
+                          <div className="text-sm text-muted-foreground">Scheduled</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{Math.round(analytics.deliveryRate)}%</div>
+                          <div className="text-sm text-muted-foreground">Delivery Rate</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Message</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Target</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredMessages.map((message) => (
+                          <TableRow key={message.id}>
+                            <TableCell className="font-medium">{message.title}</TableCell>
                           <TableCell>
                             <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                               ${message.type === 'Announcement' ? 'bg-blue-100 text-blue-800' : 
@@ -546,7 +645,8 @@ const BroadcastSystem = () => {
                     </TableBody>
                   </Table>
                 </div>
-              )}
+              </>
+            )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -609,6 +709,91 @@ const BroadcastSystem = () => {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="analytics" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Message Analytics</CardTitle>
+              <CardDescription>Track delivery rates, open rates, and engagement metrics</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {analytics ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-2xl font-bold">{analytics.totalMessages}</div>
+                        <div className="text-sm text-muted-foreground">Total Messages</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-2xl font-bold">{analytics.sentMessages}</div>
+                        <div className="text-sm text-muted-foreground">Sent Messages</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-2xl font-bold">{Math.round(analytics.deliveryRate)}%</div>
+                        <div className="text-sm text-muted-foreground">Delivery Rate</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-2xl font-bold">{analytics.recentMessages}</div>
+                        <div className="text-sm text-muted-foreground">Messages (30 days)</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Message Type Distribution</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {Object.entries(analytics.typeDistribution).map(([type, count]) => (
+                            <div key={type} className="flex justify-between">
+                              <span>{type}</span>
+                              <span className="font-medium">{count as number}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Message Status Distribution</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Draft</span>
+                            <span className="font-medium">{analytics.draftMessages}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Scheduled</span>
+                            <span className="font-medium">{analytics.scheduledMessages}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Sent</span>
+                            <span className="font-medium">{analytics.sentMessages}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -723,7 +908,7 @@ const BroadcastSystem = () => {
                       </div>
                     </div>
                     <div className="max-h-40 overflow-y-auto">
-                      {actualInstitutions.map(institution => (
+                      {institutions.map(institution => (
                         <div key={institution.id} className="flex items-center mb-2">
                           <input
                             type="checkbox"

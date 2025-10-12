@@ -401,6 +401,8 @@ export interface Message {
   dateCreated: string; // YYYY-MM-DD format
   dateScheduled?: string; // YYYY-MM-DD format for scheduled messages
   deliveryRate?: number; // Percentage of successful deliveries
+  openRate?: number; // Percentage of opened messages
+  openedBy?: string[]; // User IDs who opened the message
   createdBy: string; // User ID of creator
   createdAt: Date;
   updatedAt: Date;

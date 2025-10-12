@@ -17,7 +17,8 @@ import {
   MessageSquare,
   Download,
   ArrowRight,
-  Loader2
+  Loader2,
+  Bell
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Link, useNavigate } from 'react-router-dom';
@@ -29,6 +30,7 @@ import { useInterviewFeedback } from '@/hooks/use-interview-feedback';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import DebugDashboard from './DebugDashboard';
+import StudentMessageInbox from './StudentMessageInbox';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -439,6 +441,10 @@ const StudentDashboard = () => {
           <TabsTrigger value="history">Interview History</TabsTrigger>
           <TabsTrigger value="feedback">Latest Feedback</TabsTrigger>
           <TabsTrigger value="performance">Performance Analysis</TabsTrigger>
+          <TabsTrigger value="messages">
+            <Bell className="h-4 w-4 mr-2" />
+            Messages
+          </TabsTrigger>
           <TabsTrigger value="debug">Debug Info</TabsTrigger>
         </TabsList>
         
@@ -473,7 +479,7 @@ const StudentDashboard = () => {
                     }
                     
                     // Get interview type with fallback
-                    const interviewType = interview.type || interview.interviewType || 'General';
+                    const interviewType = interview.type || 'General';
                     const displayType = `${interviewType.charAt(0).toUpperCase() + interviewType.slice(1)} Interview`;
                     
                     // Get score with fallback
@@ -645,6 +651,9 @@ const StudentDashboard = () => {
           </Card>
         </TabsContent>
         
+        <TabsContent value="messages">
+          <StudentMessageInbox />
+        </TabsContent>
         <TabsContent value="debug">
           <DebugDashboard />
         </TabsContent>

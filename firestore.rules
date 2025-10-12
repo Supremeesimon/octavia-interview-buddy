@@ -237,6 +237,9 @@ service cloud.firestore {
       
       // Institution admins can read messages
       allow read: if isAuthenticated() && isInstitutionAdmin();
+      
+      // Students can read messages
+      allow read: if isAuthenticated() && isStudent();
     }
     
     match /message_templates/{templateId} {

@@ -1,6 +1,7 @@
 import { 
   collection, 
   addDoc, 
+  getDoc,
   getDocs, 
   updateDoc, 
   deleteDoc, 
@@ -310,6 +311,125 @@ export class MessagingService {
     } catch (error) {
       console.error('Error fetching messages by status:', error);
       throw new Error('Failed to fetch messages by status');
+    }
+  }
+
+  // Track message open
+  static async trackMessageOpen(messageId: string, userId: string): Promise<void> {
+    try {
+      console.log('Tracking message open in Firebase:', messageId, userId);
+      
+      if (!db) {
+        console.warn('Firebase not initialized');
+        return;
+      }
+
+      const messageRef = doc(db, this.MESSAGES_COLLECTION, messageId);
+      const messageDoc = await getDoc(messageRef);
+      
+      if (messageDoc.exists()) {
+        const data = messageDoc.data();
+        const openedBy = data.openedBy || [];
+        
+        // Only add user ID if not already in the list
+        if (!openedBy.includes(userId)) {
+          openedBy.push(userId);
+          
+          // Calculate open rate (simplified)
+          const openRate = Math.min(100, Math.round((openedBy.length / 100) * 100));
+          
+          await updateDoc(messageRef, {
+            openedBy,
+            openRate,
+            updatedAt: Timestamp.now()
+          });
+          
+          console.log('Message open tracked successfully:', messageId);
+        }
+      }
+    } catch (error) {
+      console.error('Error tracking message open:', error);
+    }
+  }
+
+  // Search messages by title or content
+  static async searchMessages(queryText: string): Promise<Message[]> {
+    try {
+      console.log('Searching messages in Firebase:', queryText);
+      
+      if (!db) {
+        console.warn('Firebase not initialized');
+        return [];
+      }
+
+      const allMessages = await this.getAllMessages();
+      
+      const filteredMessages = allMessages.filter(message => 
+        message.title.toLowerCase().includes(queryText.toLowerCase()) ||
+        message.content.toLowerCase().includes(queryText.toLowerCase())
+      );
+      
+      console.log('Found', filteredMessages.length, 'messages matching query:', queryText);
+      return filteredMessages;
+    } catch (error) {
+      console.error('Error searching messages:', error);
+      throw new Error('Failed to search messages');
+    }
+  }
+
+  // Get message analytics
+  static async getMessageAnalytics(): Promise<any> {
+    try {
+      console.log('Fetching message analytics from Firebase');
+      
+      if (!db) {
+        console.warn('Firebase not initialized');
+        return {};
+      }
+
+      const messages = await this.getAllMessages();
+      
+      // Calculate analytics
+      const totalMessages = messages.length;
+      const sentMessages = messages.filter(m => m.status === 'Sent').length;
+      const scheduledMessages = messages.filter(m => m.status === 'Scheduled').length;
+      const draftMessages = messages.filter(m => m.status === 'Draft').length;
+      
+      // Calculate delivery rates (simplified)
+      const deliveryRate = totalMessages > 0 ? (sentMessages / totalMessages) * 100 : 0;
+      
+      // Message type distribution
+      const typeDistribution = {
+        Announcement: messages.filter(m => m.type === 'Announcement').length,
+        Event: messages.filter(m => m.type === 'Event').length,
+        System: messages.filter(m => m.type === 'System').length,
+        'Product Update': messages.filter(m => m.type === 'Product Update').length,
+        Engagement: messages.filter(m => m.type === 'Engagement').length
+      };
+      
+      // Recent activity (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const recentMessages = messages.filter(m => 
+        m.createdAt >= thirtyDaysAgo
+      );
+      
+      const analytics = {
+        totalMessages,
+        sentMessages,
+        scheduledMessages,
+        draftMessages,
+        deliveryRate,
+        typeDistribution,
+        recentMessages: recentMessages.length
+      };
+      
+      console.log('Message analytics:', analytics);
+      return analytics;
+    } catch (error) {
+      console.error('Error fetching message analytics:', error);
+      throw new Error('Failed to fetch message analytics');
     }
   }
 }
