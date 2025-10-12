@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, 
   Search, 
@@ -20,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
+import { ResourceService } from '@/services/resource.service';
+import { Resource } from '@/types';
 
 const ResourceManagement = ({ 
   institutionCount = 0, 
@@ -36,96 +38,34 @@ const ResourceManagement = ({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedResource, setSelectedResource] = useState<any>(null);
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [resourceType, setResourceType] = useState('Questions');
-  const [resources, setResources] = useState<any[]>([]);
-  const [resourceToDelete, setResourceToDelete] = useState<any>(null);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // In a real implementation, this would fetch resources from a database
+  // Refs for form elements
+  const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const questionsRef = useRef<HTMLTextAreaElement>(null);
+  const guideContentRef = useRef<HTMLTextAreaElement>(null);
+  const videoUrlRef = useRef<HTMLInputElement>(null);
+  const videoTranscriptRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Fetch resources from the database
   useEffect(() => {
-    // Simulate fetching resources
     const fetchResources = async () => {
       setLoading(true);
       try {
-        // This is where you would call your API to fetch real resources
-        // For now, we'll use the mock data but simulate an API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Mock resources data - in a real app, this would come from an API
-        const mockResourcesData = [
-          { 
-            id: 1, 
-            title: 'Behavioral Interview Questions Set', 
-            type: 'Questions',
-            description: 'Standard behavioral questions for general interviews',
-            institutions: ['All'],
-            dateCreated: '2023-04-15'
-          },
-          { 
-            id: 2, 
-            title: 'Technical Interview Guide - Software Engineering', 
-            type: 'Guide',
-            description: 'Comprehensive guide for software engineering technical interviews',
-            institutions: ['MIT', 'Stanford University'],
-            dateCreated: '2023-04-18'
-          },
-          { 
-            id: 3, 
-            title: 'How to Answer Difficult Questions', 
-            type: 'Video',
-            description: 'Tutorial video on handling challenging interview questions',
-            institutions: ['All'],
-            dateCreated: '2023-04-22'
-          },
-          { 
-            id: 4, 
-            title: 'Healthcare Professional Interview Questions', 
-            type: 'Questions',
-            description: 'Specialized questions for medical and healthcare roles',
-            institutions: ['Harvard University'],
-            dateCreated: '2023-04-25'
-          },
-          { 
-            id: 5, 
-            title: 'Resume Building Workshop Materials', 
-            type: 'Guide',
-            description: 'Resources for helping students create effective resumes',
-            institutions: ['Yale University', 'Princeton University'],
-            dateCreated: '2023-04-28'
-          },
-        ];
-        
-        setResources(mockResourcesData);
+        const resourcesData = await ResourceService.getAllResources();
+        setResources(resourcesData);
       } catch (error) {
         console.error('Error fetching resources:', error);
         toast({
           title: "Error",
-          description: "Failed to load resources. Using mock data.",
+          description: "Failed to load resources.",
           variant: "destructive",
         });
-        
-        // Fallback to mock data
-        const mockResourcesData = [
-          { 
-            id: 1, 
-            title: 'Behavioral Interview Questions Set', 
-            type: 'Questions',
-            description: 'Standard behavioral questions for general interviews',
-            institutions: ['All'],
-            dateCreated: '2023-04-15'
-          },
-          { 
-            id: 2, 
-            title: 'Technical Interview Guide - Software Engineering', 
-            type: 'Guide',
-            description: 'Comprehensive guide for software engineering technical interviews',
-            institutions: ['MIT', 'Stanford University'],
-            dateCreated: '2023-04-18'
-          }
-        ];
-        
-        setResources(mockResourcesData);
       } finally {
         setLoading(false);
       }
@@ -141,53 +81,228 @@ const ResourceManagement = ({
       resource.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-  const handleAddResource = () => {
-    // In a real implementation, this would save the resource to a database
-    toast({
-      title: "Resource Added",
-      description: "The new resource has been successfully added.",
-    });
-    setShowAddDialog(false);
-    // Handle add resource logic
+  const handleAddResource = async () => {
+    try {
+      // Get form data from refs
+      const title = titleRef.current?.value || '';
+      const description = descriptionRef.current?.value || '';
+      
+      if (!title.trim()) {
+        toast({
+          title: "Error",
+          description: "Please enter a title for the resource.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Get content based on resource type
+      let content = '';
+      let url = '';
+      let transcript = '';
+      
+      switch (resourceType) {
+        case 'Questions':
+          content = questionsRef.current?.value || '';
+          break;
+        case 'Guide':
+          content = guideContentRef.current?.value || '';
+          break;
+        case 'Video':
+          url = videoUrlRef.current?.value || '';
+          transcript = videoTranscriptRef.current?.value || '';
+          break;
+      }
+      
+      // Create resource object
+      const newResource: Omit<Resource, 'id'> = {
+        title,
+        description,
+        type: resourceType as 'Questions' | 'Guide' | 'Video',
+        institutions: ['All'], // Default to all institutions
+        dateCreated: new Date().toISOString().split('T')[0],
+        content,
+        url,
+        transcript
+      };
+      
+      // Save to database
+      await ResourceService.createResource(newResource);
+      
+      toast({
+        title: "Resource Added",
+        description: "The new resource has been successfully added.",
+      });
+      
+      // Refresh resources
+      const updatedResources = await ResourceService.getAllResources();
+      setResources(updatedResources);
+      
+      // Reset form
+      if (titleRef.current) titleRef.current.value = '';
+      if (descriptionRef.current) descriptionRef.current.value = '';
+      if (questionsRef.current) questionsRef.current.value = '';
+      if (guideContentRef.current) guideContentRef.current.value = '';
+      if (videoUrlRef.current) videoUrlRef.current.value = '';
+      if (videoTranscriptRef.current) videoTranscriptRef.current.value = '';
+      
+      setShowAddDialog(false);
+    } catch (error) {
+      console.error('Error adding resource:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add resource. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
-  const handleUpdateResource = () => {
-    // In a real implementation, this would update the resource in a database
-    toast({
-      title: "Resource Updated",
-      description: "The resource has been successfully updated.",
-    });
-    setShowAddDialog(false);
+  const handleUpdateResource = async () => {
+    try {
+      if (!selectedResource) return;
+      
+      // Get form data from refs
+      const title = titleRef.current?.value || '';
+      const description = descriptionRef.current?.value || '';
+      
+      if (!title.trim()) {
+        toast({
+          title: "Error",
+          description: "Please enter a title for the resource.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Get content based on resource type
+      let content = '';
+      let url = '';
+      let transcript = '';
+      
+      switch (resourceType) {
+        case 'Questions':
+          content = questionsRef.current?.value || '';
+          break;
+        case 'Guide':
+          content = guideContentRef.current?.value || '';
+          break;
+        case 'Video':
+          url = videoUrlRef.current?.value || '';
+          transcript = videoTranscriptRef.current?.value || '';
+          break;
+      }
+      
+      // Update resource object
+      const updatedResource: Partial<Resource> = {
+        title,
+        description,
+        type: resourceType as 'Questions' | 'Guide' | 'Video',
+        content,
+        url,
+        transcript
+      };
+      
+      // Update in database
+      await ResourceService.updateResource(selectedResource.id, updatedResource);
+      
+      toast({
+        title: "Resource Updated",
+        description: "The resource has been successfully updated.",
+      });
+      
+      // Refresh resources
+      const updatedResources = await ResourceService.getAllResources();
+      setResources(updatedResources);
+      
+      setShowAddDialog(false);
+    } catch (error) {
+      console.error('Error updating resource:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update resource. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
-  const handleAssignResource = () => {
-    // In a real implementation, this would save the assignments to a database
-    toast({
-      title: "Resource Assigned",
-      description: "The resource has been successfully assigned to institutions.",
-    });
-    setShowAssignDialog(false);
+  const handleAssignResource = async () => {
+    try {
+      if (!selectedResource) return;
+      
+      // Get selected institutions from checkboxes
+      const selectedInstitutionIds: string[] = [];
+      institutions.forEach(institution => {
+        const checkbox = document.getElementById(`institution-${institution.id}`) as HTMLInputElement;
+        if (checkbox && checkbox.checked) {
+          selectedInstitutionIds.push(institution.id);
+        }
+      });
+      
+      // Check if "All Institutions" checkbox is selected
+      const allInstitutionsCheckbox = document.getElementById('all-institutions') as HTMLInputElement;
+      if (allInstitutionsCheckbox && allInstitutionsCheckbox.checked) {
+        // Assign to all institutions
+        await ResourceService.assignResourceToInstitutions(selectedResource.id, ['All']);
+      } else {
+        // Assign to selected institutions
+        await ResourceService.assignResourceToInstitutions(selectedResource.id, selectedInstitutionIds);
+      }
+      
+      toast({
+        title: "Resource Assigned",
+        description: "The resource has been successfully assigned to institutions.",
+      });
+      
+      // Refresh resources
+      const updatedResources = await ResourceService.getAllResources();
+      setResources(updatedResources);
+      
+      setShowAssignDialog(false);
+    } catch (error) {
+      console.error('Error assigning resource:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign resource. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
-  const handleDeleteResource = () => {
-    if (resourceToDelete) {
-      setResources(resources.filter(r => r.id !== resourceToDelete.id));
+  const handleDeleteResource = async () => {
+    try {
+      if (!resourceToDelete) return;
+      
+      // Delete from database
+      await ResourceService.deleteResource(resourceToDelete.id);
+      
       toast({
         title: "Resource Deleted",
         description: "The resource has been successfully deleted.",
       });
+      
+      // Refresh resources
+      const updatedResources = await ResourceService.getAllResources();
+      setResources(updatedResources);
+      
+      setShowDeleteDialog(false);
+      setResourceToDelete(null);
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete resource. Please try again.",
+        variant: "destructive",
+      });
     }
-    setShowDeleteDialog(false);
-    setResourceToDelete(null);
   };
   
-  const handleEditResource = (resource: any) => {
+  const handleEditResource = (resource: Resource) => {
     setSelectedResource(resource);
     setResourceType(resource.type);
     setShowAddDialog(true);
   };
   
-  const confirmDeleteResource = (resource: any) => {
+  const confirmDeleteResource = (resource: Resource) => {
     setResourceToDelete(resource);
     setShowDeleteDialog(true);
   };
@@ -421,6 +536,7 @@ const ResourceManagement = ({
                   id="title"
                   placeholder="Enter resource title"
                   defaultValue={selectedResource?.title || ''}
+                  ref={titleRef}
                 />
               </div>
               
@@ -431,6 +547,7 @@ const ResourceManagement = ({
                   placeholder="Enter resource description"
                   defaultValue={selectedResource?.description || ''}
                   rows={3}
+                  ref={descriptionRef}
                 />
               </div>
               
@@ -442,6 +559,7 @@ const ResourceManagement = ({
                     placeholder="Enter questions (one per line)"
                     rows={5}
                     defaultValue={selectedResource?.content || ''}
+                    ref={questionsRef}
                   />
                 </div>
               </TabsContent>
@@ -454,6 +572,7 @@ const ResourceManagement = ({
                     placeholder="Enter guide content"
                     rows={5}
                     defaultValue={selectedResource?.content || ''}
+                    ref={guideContentRef}
                   />
                 </div>
                 <div className="space-y-2">
@@ -472,6 +591,7 @@ const ResourceManagement = ({
                     id="video-url"
                     placeholder="Enter video URL (YouTube, Vimeo, etc.)"
                     defaultValue={selectedResource?.url || ''}
+                    ref={videoUrlRef}
                   />
                 </div>
                 <div className="space-y-2">
@@ -481,6 +601,7 @@ const ResourceManagement = ({
                     placeholder="Enter video transcript"
                     rows={5}
                     defaultValue={selectedResource?.transcript || ''}
+                    ref={videoTranscriptRef}
                   />
                 </div>
               </TabsContent>

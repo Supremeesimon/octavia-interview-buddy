@@ -9,6 +9,21 @@
 
 export type UserRole = 'student' | 'institution_admin' | 'platform_admin';
 
+export type AdminPermission = 
+  | 'manage_students'
+  | 'manage_sessions'
+  | 'view_analytics'
+  | 'manage_billing'
+  | 'manage_settings';
+
+export type PlatformPermission = 
+  | 'manage_institutions'
+  | 'manage_users'
+  | 'view_platform_analytics'
+  | 'manage_pricing'
+  | 'manage_system_settings'
+  | 'access_support_tools';
+
 export interface User {
   id: string;
   email: string;
@@ -151,6 +166,68 @@ export interface SessionPurchase {
 
 export type ResumeType = 'pdf' | 'linkedin' | 'voice';
 
+export interface ParsedResumeContent {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  summary?: string;
+  workExperience?: WorkExperience[];
+  education?: Education[];
+  skills?: string[];
+  certifications?: Certification[];
+  languages?: Language[];
+  projects?: Project[];
+}
+
+export interface WorkExperience {
+  id: string;
+  company: string;
+  position: string;
+  startDate?: Date;
+  endDate?: Date;
+  isCurrent: boolean;
+  description: string;
+  achievements: string[];
+}
+
+export interface Education {
+  id: string;
+  institution: string;
+  degree: string;
+  fieldOfStudy?: string;
+  startDate?: Date;
+  endDate?: Date;
+  isCurrent: boolean;
+  gpa?: number;
+  description?: string;
+}
+
+export interface Certification {
+  id: string;
+  name: string;
+  issuingOrganization: string;
+  issueDate?: Date;
+  expirationDate?: Date;
+  credentialId?: string;
+  url?: string;
+}
+
+export interface Language {
+  id: string;
+  name: string;
+  proficiency: 'beginner' | 'intermediate' | 'advanced' | 'fluent' | 'native';
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  url?: string;
+  startDate?: Date;
+  endDate?: Date;
+  technologies: string[];
+}
+
 export interface Resume {
   id: string;
   studentId: string;
@@ -163,51 +240,6 @@ export interface Resume {
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface ParsedResumeContent {
-  name?: string;
-  email?: string;
-  phone?: string;
-  summary?: string;
-  skills: string[];
-  experience: WorkExperience[];
-  education: Education[];
-  projects?: Project[];
-  certifications?: Certification[];
-}
-
-export interface WorkExperience {
-  company: string;
-  position: string;
-  startDate: string;
-  endDate?: string;
-  description: string;
-  skills: string[];
-}
-
-export interface Education {
-  institution: string;
-  degree: string;
-  field: string;
-  startDate: string;
-  endDate?: string;
-  gpa?: number;
-}
-
-export interface Project {
-  name: string;
-  description: string;
-  technologies: string[];
-  url?: string;
-}
-
-export interface Certification {
-  name: string;
-  issuer: string;
-  issueDate: string;
-  expiryDate?: string;
-  credentialId?: string;
 }
 
 // =============================================================================
@@ -327,164 +359,30 @@ export interface MonthlyUsageStats {
 // PAYMENT TYPES
 // =============================================================================
 
-export interface PaymentMethod {
+export interface Payment {
   id: string;
-  type: 'card' | 'bank_account';
-  last4: string;
-  brand?: string;
-  expiryMonth?: number;
-  expiryYear?: number;
-  isDefault: boolean;
-}
-
-export interface Invoice {
-  id: string;
-  institutionId: string;
-  sessionPurchaseId: string;
+  userId: string;
   amount: number;
   currency: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
-  dueDate: Date;
-  paidAt?: Date;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  method: 'card' | 'paypal' | 'bank_transfer';
+  transactionId?: string;
   createdAt: Date;
-}
-
-// =============================================================================
-// API REQUEST/RESPONSE TYPES
-// =============================================================================
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  user: User;
-  token: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-export interface SignupRequest {
-  name: string;
-  email: string;
-  password: string;
-  institutionDomain?: string;
-  role?: UserRole;
-  department?: string;
-  yearOfStudy?: string;
-}
-
-export interface ResumeUploadRequest {
-  type: ResumeType;
-  file?: File;
-  linkedinUrl?: string;
-  voiceData?: Blob;
-}
-
-export interface InterviewBookingRequest {
-  resumeId: string;
-  scheduledAt: Date;
-  type: InterviewType;
-}
-
-export interface SessionPurchaseRequest {
-  sessionCount: number;
-  paymentMethodId: string;
-}
-
-// =============================================================================
-// PERMISSION TYPES
-// =============================================================================
-
-export type AdminPermission = 
-  | 'manage_students'
-  | 'manage_sessions'
-  | 'view_analytics'
-  | 'manage_billing'
-  | 'manage_settings';
-
-export type PlatformPermission = 
-  | 'manage_institutions'
-  | 'manage_users'
-  | 'view_platform_analytics'
-  | 'manage_pricing'
-  | 'manage_system_settings'
-  | 'access_support_tools';
-
-// =============================================================================
-// INSTITUTION INTEREST TYPES
-// =============================================================================
-
-export interface InstitutionInterest {
-  id?: string;
-  institutionName: string;
-  contactName: string;
-  email: string;
-  phone: string;
-  studentCapacity: string;
-  message?: string;
-  createdAt: Date;
-  status: 'pending' | 'processed' | 'contacted';
-}
-
-// =============================================================================
-// UTILITY TYPES
-// =============================================================================
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-}
-
-export interface ApiError {
-  message: string;
-  code?: string;
-  details?: Record<string, any>;
-}
-
-export interface ApiResponse<T = any> {
-  data: T;
-  status: number;
-  message: string;
-  success: boolean;
-}
-
-// =============================================================================
-// PLATFORM SETTINGS TYPES
-// =============================================================================
-
-export interface PlatformPricingSettings {
-  vapiCostPerMinute: number;
-  markupPercentage: number;
-  annualLicenseCost: number;
   updatedAt: Date;
 }
 
 // =============================================================================
-// FINANCIAL ANALYTICS TYPES
+// RESOURCE TYPES
 // =============================================================================
 
-export interface FinancialMarginData {
-  id?: string;
-  date: Date;
-  period: 'daily' | 'weekly' | 'monthly';
-  vapiCostPerMinute: number;
-  markupPercentage: number;
-  averageSessionLength: number; // in minutes
-  totalSessions: number;
-  totalRevenue: number;
-  totalCost: number;
-  totalProfit: number;
-  marginPercentage: number;
-  licenseRevenue: number;
-  sessionRevenue: number;
-  createdAt: Date;
+export interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  type: 'Questions' | 'Guide' | 'Video';
+  institutions: string[]; // Array of institution IDs or 'All'
+  dateCreated: string; // YYYY-MM-DD format
+  content?: string; // For Questions and Guide types
+  url?: string; // For Video type
+  transcript?: string; // For Video type
 }
