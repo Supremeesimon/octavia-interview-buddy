@@ -101,7 +101,7 @@ export class ResourceService {
 
       const resourceRef = doc(db, this.COLLECTION_NAME, resourceId);
       await updateDoc(resourceRef, {
-        assignedInstitutions: institutionIds
+        institutions: institutionIds
       });
     } catch (error) {
       console.error('Error assigning resource:', error);

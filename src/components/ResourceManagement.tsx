@@ -85,6 +85,41 @@ const ResourceManagement = ({
       resource.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
+  // Reset form when dialog opens/closes or resource type changes
+  useEffect(() => {
+    if (showAddDialog && titleRef.current) {
+      // Populate form fields when editing
+      if (selectedResource) {
+        if (titleRef.current) titleRef.current.value = selectedResource.title || '';
+        if (descriptionRef.current) descriptionRef.current.value = selectedResource.description || '';
+        setResourceType(selectedResource.type);
+        
+        // Populate content based on type
+        switch (selectedResource.type) {
+          case 'Questions':
+            if (questionsRef.current) questionsRef.current.value = selectedResource.content || '';
+            break;
+          case 'Guide':
+            if (guideContentRef.current) guideContentRef.current.value = selectedResource.content || '';
+            break;
+          case 'Video':
+            if (videoUrlRef.current) videoUrlRef.current.value = selectedResource.url || '';
+            if (videoTranscriptRef.current) videoTranscriptRef.current.value = selectedResource.transcript || '';
+            break;
+        }
+      } else {
+        // Clear form when adding new resource
+        if (titleRef.current) titleRef.current.value = '';
+        if (descriptionRef.current) descriptionRef.current.value = '';
+        if (questionsRef.current) questionsRef.current.value = '';
+        if (guideContentRef.current) guideContentRef.current.value = '';
+        if (videoUrlRef.current) videoUrlRef.current.value = '';
+        if (videoTranscriptRef.current) videoTranscriptRef.current.value = '';
+        setResourceType('Questions');
+      }
+    }
+  }, [showAddDialog, selectedResource]);
+  
   const handleAddResource = async () => {
     console.log('=== handleAddResource START ===');
     setAdding(true);
@@ -265,6 +300,7 @@ const ResourceManagement = ({
       setResources(updatedResources);
       
       setShowAddDialog(false);
+      setSelectedResource(null);
       console.log('=== handleUpdateResource END ===');
     } catch (error) {
       console.error('=== ERROR in handleUpdateResource ===', error);
@@ -345,6 +381,7 @@ const ResourceManagement = ({
       setResources(updatedResources);
       
       setShowAssignDialog(false);
+      setSelectedResource(null);
     } catch (error) {
       console.error('Error assigning resource:', error);
       toast({
@@ -390,7 +427,6 @@ const ResourceManagement = ({
   
   const handleEditResource = (resource: Resource) => {
     setSelectedResource(resource);
-    setResourceType(resource.type);
     setShowAddDialog(true);
   };
   
@@ -438,7 +474,7 @@ const ResourceManagement = ({
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Resources</p>
-                <p className="text-2xl font-bold">{totalResources}</p>
+                <p className="text-2xl font-bold">{resources.length}</p>
               </div>
             </div>
           </CardContent>
@@ -592,7 +628,12 @@ const ResourceManagement = ({
       </Card>
       
       {/* Add/Edit Resource Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      <Dialog open={showAddDialog} onOpenChange={(open) => {
+        setShowAddDialog(open);
+        if (!open) {
+          setSelectedResource(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>{selectedResource ? 'Edit Resource' : 'Add New Resource'}</DialogTitle>
@@ -627,7 +668,6 @@ const ResourceManagement = ({
                 <Input
                   id="title"
                   placeholder="Enter resource title"
-                  defaultValue={selectedResource?.title || ''}
                   ref={titleRef}
                 />
               </div>
@@ -637,7 +677,6 @@ const ResourceManagement = ({
                 <Textarea
                   id="description"
                   placeholder="Enter resource description"
-                  defaultValue={selectedResource?.description || ''}
                   rows={3}
                   ref={descriptionRef}
                 />
@@ -650,7 +689,6 @@ const ResourceManagement = ({
                     id="questions"
                     placeholder="Enter questions (one per line)"
                     rows={5}
-                    defaultValue={selectedResource?.content || ''}
                     ref={questionsRef}
                   />
                 </div>
@@ -663,7 +701,6 @@ const ResourceManagement = ({
                     id="guide-content"
                     placeholder="Enter guide content"
                     rows={5}
-                    defaultValue={selectedResource?.content || ''}
                     ref={guideContentRef}
                   />
                 </div>
@@ -682,7 +719,6 @@ const ResourceManagement = ({
                   <Input
                     id="video-url"
                     placeholder="Enter video URL (YouTube, Vimeo, etc.)"
-                    defaultValue={selectedResource?.url || ''}
                     ref={videoUrlRef}
                   />
                 </div>
@@ -692,7 +728,6 @@ const ResourceManagement = ({
                     id="video-transcript"
                     placeholder="Enter video transcript"
                     rows={5}
-                    defaultValue={selectedResource?.transcript || ''}
                     ref={videoTranscriptRef}
                   />
                 </div>
@@ -701,26 +736,44 @@ const ResourceManagement = ({
           </Tabs>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+            <Button variant="outline" onClick={() => {
+              setShowAddDialog(false);
+              setSelectedResource(null);
+            }} disabled={adding || updating}>
               Cancel
             </Button>
-            <Button onClick={(e) => {
-              console.log('Add Resource button clicked', { selectedResource, resourceType });
-              e.preventDefault();
-              if (selectedResource) {
-                handleUpdateResource();
-              } else {
-                handleAddResource();
-              }
-            }}>
-              {selectedResource ? 'Save Changes' : 'Add Resource'}
+            <Button 
+              onClick={(e) => {
+                console.log('Add Resource button clicked', { selectedResource, resourceType });
+                e.preventDefault();
+                if (selectedResource) {
+                  handleUpdateResource();
+                } else {
+                  handleAddResource();
+                }
+              }} 
+              disabled={adding || updating}
+            >
+              {adding || updating ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  {adding ? 'Adding...' : 'Updating...'}
+                </>
+              ) : (
+                selectedResource ? 'Save Changes' : 'Add Resource'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
       {/* Assign Resource Dialog */}
-      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+      <Dialog open={showAssignDialog} onOpenChange={(open) => {
+        setShowAssignDialog(open);
+        if (!open) {
+          setSelectedResource(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
             <DialogTitle>Assign Resource to Institutions</DialogTitle>
@@ -737,6 +790,7 @@ const ResourceManagement = ({
                 type="checkbox"
                 id="all-institutions"
                 className="h-4 w-4 rounded border-gray-300 focus:ring-primary"
+                defaultChecked={selectedResource?.institutions.includes('All')}
               />
               <label htmlFor="all-institutions" className="ml-2 text-sm font-medium">
                 All Institutions
@@ -750,7 +804,7 @@ const ResourceManagement = ({
                     type="checkbox"
                     id={`institution-${institution.id}`}
                     className="h-4 w-4 rounded border-gray-300 focus:ring-primary"
-                    defaultChecked={selectedResource?.institutions.includes(institution.name)}
+                    defaultChecked={selectedResource?.institutions.includes(institution.id)}
                   />
                   <label htmlFor={`institution-${institution.id}`} className="ml-2 text-sm">
                     {institution.name}
@@ -761,18 +815,33 @@ const ResourceManagement = ({
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>
+            <Button variant="outline" onClick={() => {
+              setShowAssignDialog(false);
+              setSelectedResource(null);
+            }}>
               Cancel
             </Button>
-            <Button onClick={handleAssignResource}>
-              Confirm Assignment
+            <Button onClick={handleAssignResource} disabled={assigning}>
+              {assigning ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  Assigning...
+                </>
+              ) : (
+                'Confirm Assignment'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+        setShowDeleteDialog(open);
+        if (!open) {
+          setResourceToDelete(null);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
@@ -781,7 +850,10 @@ const ResourceManagement = ({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>
+            <Button variant="outline" onClick={() => {
+              setShowDeleteDialog(false);
+              setResourceToDelete(null);
+            }} disabled={deleting}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDeleteResource} disabled={deleting}>
