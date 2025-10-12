@@ -82,12 +82,16 @@ const ResourceManagement = ({
   );
   
   const handleAddResource = async () => {
+    console.log('=== handleAddResource START ===');
     try {
       // Get form data from refs
       const title = titleRef.current?.value || '';
       const description = descriptionRef.current?.value || '';
       
+      console.log('Form data retrieved:', { title, description, resourceType });
+      
       if (!title.trim()) {
+        console.log('Title is empty, showing error toast');
         toast({
           title: "Error",
           description: "Please enter a title for the resource.",
@@ -101,17 +105,24 @@ const ResourceManagement = ({
       let url = '';
       let transcript = '';
       
+      console.log('Getting content for resource type:', resourceType);
+      
       switch (resourceType) {
         case 'Questions':
           content = questionsRef.current?.value || '';
+          console.log('Questions content:', content);
           break;
         case 'Guide':
           content = guideContentRef.current?.value || '';
+          console.log('Guide content:', content);
           break;
         case 'Video':
           url = videoUrlRef.current?.value || '';
           transcript = videoTranscriptRef.current?.value || '';
+          console.log('Video content:', { url, transcript });
           break;
+        default:
+          console.log('Unknown resource type:', resourceType);
       }
       
       // Create resource object
@@ -126,8 +137,12 @@ const ResourceManagement = ({
         transcript
       };
       
+      console.log('Creating resource object:', newResource);
+      
       // Save to database
-      await ResourceService.createResource(newResource);
+      console.log('Calling ResourceService.createResource...');
+      const resourceId = await ResourceService.createResource(newResource);
+      console.log('Resource created with ID:', resourceId);
       
       toast({
         title: "Resource Added",
@@ -135,10 +150,13 @@ const ResourceManagement = ({
       });
       
       // Refresh resources
+      console.log('Refreshing resources...');
       const updatedResources = await ResourceService.getAllResources();
+      console.log('Updated resources count:', updatedResources.length);
       setResources(updatedResources);
       
       // Reset form
+      console.log('Resetting form fields...');
       if (titleRef.current) titleRef.current.value = '';
       if (descriptionRef.current) descriptionRef.current.value = '';
       if (questionsRef.current) questionsRef.current.value = '';
@@ -147,11 +165,16 @@ const ResourceManagement = ({
       if (videoTranscriptRef.current) videoTranscriptRef.current.value = '';
       
       setShowAddDialog(false);
+      console.log('=== handleAddResource END ===');
     } catch (error) {
-      console.error('Error adding resource:', error);
+      console.error('=== ERROR in handleAddResource ===', error);
+      console.error('Error name:', error?.name);
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
+      
       toast({
         title: "Error",
-        description: "Failed to add resource. Please try again.",
+        description: `Failed to add resource: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
     }
@@ -612,7 +635,15 @@ const ResourceManagement = ({
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={selectedResource ? handleUpdateResource : handleAddResource}>
+            <Button onClick={(e) => {
+              console.log('Add Resource button clicked', { selectedResource, resourceType });
+              e.preventDefault();
+              if (selectedResource) {
+                handleUpdateResource();
+              } else {
+                handleAddResource();
+              }
+            }}>
               {selectedResource ? 'Save Changes' : 'Add Resource'}
             </Button>
           </DialogFooter>

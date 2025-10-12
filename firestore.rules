@@ -218,6 +218,18 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && isPlatformAdmin();
     }
 
+    // Resources collection (platform admins only)
+    match /resources/{resourceId} {
+      // Platform admins can read/write all resources
+      allow read, write, create, update, delete: if isAuthenticated() && isPlatformAdmin();
+      
+      // Institution admins can read resources
+      allow read: if isAuthenticated() && isInstitutionAdmin();
+      
+      // Students can read resources
+      allow read: if isAuthenticated() && isStudent();
+    }
+
     // Default deny all other documents
     match /{document=**} {
       allow read, write: if false;
