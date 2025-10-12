@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { BarChart3, Calculator, AlertTriangle } from 'lucide-react';
-import { PlatformSettingsService, PlatformMarginAlertSettings } from '@/services/platform-settings.service';
+import { PlatformSettingsService } from '@/services/platform-settings.service';
 import { useToast } from '@/hooks/use-toast';
 // Import Recharts components
 import { 
@@ -131,6 +131,56 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
     }
   };
 
+  // Function to calculate recommended pricing based on desired margin
+  const calculateRecommendedPricing = () => {
+    const desiredMarginPercent = parseFloat(desiredMargin) || 35;
+    // Formula: sellingPrice = vapiCost / (1 - (desiredMarginPercent / 100))
+    // This ensures that the margin percentage is achieved
+    const recommendedPrice = vapiCost / (1 - (desiredMarginPercent / 100));
+    return {
+      recommendedPrice: Number(recommendedPrice.toFixed(2)),
+      profitPerMinute: Number((recommendedPrice - vapiCost).toFixed(2)),
+      sessionPrice: Number((recommendedPrice * 15).toFixed(2))
+    };
+  };
+
+  // Function to apply the recommended pricing
+  const handleApplyPricing = async () => {
+    try {
+      setLoading(true);
+      const { recommendedPrice } = calculateRecommendedPricing();
+      
+      // Update the global pricing settings with the recommended price
+      // We need to calculate the new markup percentage based on the current vapiCost
+      // Formula: markupPercentage = ((sellingPrice / vapiCost) - 1) * 100
+      const newMarkupPercentage = ((recommendedPrice / vapiCost) - 1) * 100;
+      
+      // Update the pricing settings in Firebase
+      await PlatformSettingsService.updatePricingSettings({
+        vapiCostPerMinute: vapiCost,
+        markupPercentage: Number(newMarkupPercentage.toFixed(2)),
+        annualLicenseCost: 19.96 // Default value, could be passed as prop if needed
+      });
+      
+      toast({
+        title: "Pricing applied",
+        description: `Global pricing updated to achieve ${desiredMargin}% margin.`,
+      });
+    } catch (error) {
+      console.error('Failed to apply recommended pricing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to apply recommended pricing",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate recommended pricing for display
+  const { recommendedPrice, profitPerMinute, sessionPrice } = calculateRecommendedPricing();
+
   return (
     <>
       <Card>
@@ -201,19 +251,21 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Minimum selling price:</span>
-                    <span className="font-medium">${calculatedSessionPrice.toFixed(2)}/min</span>
+                    <span className="font-medium">${recommendedPrice.toFixed(2)}/min</span>
                   </div>
                   <div className="flex justify-between">
                     <span>15-minute session price:</span>
-                    <span className="font-medium">${(calculatedSessionPrice * 15).toFixed(2)}</span>
+                    <span className="font-medium">${sessionPrice.toFixed(2)}</span>
                   </div>
                   <div className="h-px bg-border my-2"></div>
                   <div className="flex justify-between">
                     <span>Profit per minute:</span>
-                    <span className="font-medium">${(calculatedSessionPrice - vapiCost).toFixed(2)}</span>
+                    <span className="font-medium">${profitPerMinute.toFixed(2)}</span>
                   </div>
                 </div>
-                <Button className="w-full mt-4">Apply This Pricing</Button>
+                <Button className="w-full mt-4" onClick={handleApplyPricing} disabled={loading}>
+                  {loading ? "Applying..." : "Apply This Pricing"}
+                </Button>
               </div>
             </div>
           </div>
