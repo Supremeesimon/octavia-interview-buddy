@@ -18,7 +18,10 @@
     "firebase:use": "firebase use octavia-practice-interviewer",
     "test-anonymous-data": "npx tsx src/scripts/test-anonymous-interview.ts",
     "debug-vapi": "npx tsx src/scripts/debug-vapi-service.ts",
-    "test-data-saving": "npx tsx src/scripts/test-data-saving.ts"
+    "test-data-saving": "npx tsx src/scripts/test-data-saving.ts",
+    "debug-firebase": "npx tsx src/scripts/debug-firebase-collections.ts",
+    "debug-firebase-data": "npx tsx src/scripts/debug-firebase-data.ts",
+    "set-platform-admin": "npx tsx src/scripts/set-platform-admin.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -93,6 +96,7 @@
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
+    "tsx": "^4.20.6",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"

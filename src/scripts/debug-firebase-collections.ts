@@ -1,104 +1,115 @@
+#!/usr/bin/env tsx
+import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load environment variables from .env.local or .env
+config({ path: resolve(__dirname, '../../.env.local') });
+config({ path: resolve(__dirname, '../../.env') });
+
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 
-/**
- * Debug script to check Firebase collections for the financial management system
- * This script checks if the required collections exist and have the correct data
- */
-
-async function debugCollections() {
+async function debugFirebaseCollections() {
   try {
-    console.log('Debugging Firebase collections...\n');
+    console.log('=== Debugging Firebase Collections ===');
     
-    // 1. Check system_config/pricing document
-    console.log('1. Checking system_config/pricing document...');
-    const pricingDocRef = doc(db, 'system_config', 'pricing');
-    const pricingDocSnap = await getDoc(pricingDocRef);
+    // Check if we can access the database
+    console.log('Firestore instance available:', !!db);
     
-    if (pricingDocSnap.exists()) {
-      const data = pricingDocSnap.data();
-      console.log('✓ system_config/pricing document exists:');
-      console.log('  vapiCostPerMinute:', data.vapiCostPerMinute);
-      console.log('  markupPercentage:', data.markupPercentage);
-      console.log('  annualLicenseCost:', data.annualLicenseCost);
-      console.log('  updatedAt:', data.updatedAt?.toDate?.() || data.updatedAt);
-    } else {
-      console.log('✗ system_config/pricing document does not exist');
-    }
+    // List all collections
+    console.log('Attempting to list collections...');
     
-    // 2. Check scheduled_price_changes collection
-    console.log('\n2. Checking scheduled_price_changes collection...');
+    // Check interviews collection
     try {
-      const q = query(
-        collection(db, 'scheduled_price_changes'),
-        orderBy('changeDate', 'asc')
-      );
-      const querySnapshot = await getDocs(q);
+      console.log('\n--- Checking Interviews Collection ---');
+      const interviewsRef = collection(db, 'interviews');
+      const interviewsQuery = query(interviewsRef, orderBy('createdAt', 'desc'), limit(5));
+      const interviewsSnapshot = await getDocs(interviewsQuery);
+      console.log('Interviews count:', interviewsSnapshot.size);
       
-      console.log(`✓ scheduled_price_changes collection exists with ${querySnapshot.size} documents`);
-      
-      if (querySnapshot.size > 0) {
-        console.log('  Sample documents:');
-        querySnapshot.forEach((doc, index) => {
-          if (index < 3) { // Only show first 3 documents
-            const data = doc.data();
-            console.log(`    ${doc.id}:`, {
-              changeDate: data.changeDate?.toDate?.() || data.changeDate,
-              changeType: data.changeType,
-              status: data.status,
-              currentValue: data.currentValue,
-              newValue: data.newValue
-            });
-          }
+      interviewsSnapshot.docs.forEach((doc, index) => {
+        const data = doc.data();
+        console.log(`Interview ${index + 1} (ID: ${doc.id}):`, {
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
+          userId: data.userId,
+          status: data.status
         });
-        if (querySnapshot.size > 3) {
-          console.log(`    ... and ${querySnapshot.size - 3} more documents`);
-        }
-      }
+      });
     } catch (error) {
-      console.log('✗ Error accessing scheduled_price_changes collection:', error);
+      console.error('Error fetching interviews:', error);
     }
     
-    // 3. Check other important collections
-    console.log('\n3. Checking other important collections...');
-    
-    const collectionsToCheck = [
-      'institutions',
-      'users',
-      'interviews',
-      'sessions'
-    ];
-    
-    for (const collectionName of collectionsToCheck) {
-      try {
-        const colRef = collection(db, collectionName);
-        const colSnapshot = await getDocs(colRef);
-        console.log(`  ${collectionName}: ${colSnapshot.size} documents`);
-      } catch (error) {
-        console.log(`  ${collectionName}: Error accessing collection -`, error.message);
-      }
+    // Check end-of-call-analysis collection
+    try {
+      console.log('\n--- Checking End-of-Call Analysis Collection ---');
+      const analysisRef = collection(db, 'end-of-call-analysis');
+      const analysisQuery = query(analysisRef, orderBy('timestamp', 'desc'), limit(5));
+      const analysisSnapshot = await getDocs(analysisQuery);
+      console.log('End-of-call analysis count:', analysisSnapshot.size);
+      
+      analysisSnapshot.docs.forEach((doc, index) => {
+        const data = doc.data();
+        console.log(`Analysis ${index + 1} (ID: ${doc.id}):`, {
+          timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : data.timestamp,
+          interviewId: data.interviewId,
+          overallScore: data.overallScore
+        });
+      });
+    } catch (error) {
+      console.error('Error fetching end-of-call analysis:', error);
     }
     
-    console.log('\n✅ Debug completed!');
+    // Check users collection
+    try {
+      console.log('\n--- Checking Users Collection ---');
+      const usersRef = collection(db, 'users');
+      const usersQuery = query(usersRef, limit(5));
+      const usersSnapshot = await getDocs(usersQuery);
+      console.log('Users count:', usersSnapshot.size);
+      
+      usersSnapshot.docs.forEach((doc, index) => {
+        const data = doc.data();
+        console.log(`User ${index + 1} (ID: ${doc.id}):`, {
+          email: data.email,
+          displayName: data.displayName,
+          role: data.role
+        });
+      });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+    
+    // Check sessions collection
+    try {
+      console.log('\n--- Checking Sessions Collection ---');
+      const sessionsRef = collection(db, 'sessions');
+      const sessionsQuery = query(sessionsRef, orderBy('createdAt', 'desc'), limit(5));
+      const sessionsSnapshot = await getDocs(sessionsQuery);
+      console.log('Sessions count:', sessionsSnapshot.size);
+      
+      sessionsSnapshot.docs.forEach((doc, index) => {
+        const data = doc.data();
+        console.log(`Session ${index + 1} (ID: ${doc.id}):`, {
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
+          userId: data.userId,
+          status: data.status
+        });
+      });
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+    }
+    
+    console.log('\n=== Debug Complete ===');
     
   } catch (error) {
-    console.error('❌ Error during debug:', error);
-    throw error;
+    console.error('General error:', error);
   }
 }
 
-// Run the debug
-if (typeof window === 'undefined') {
-  // Only run in Node.js environment
-  debugCollections()
-    .then(() => {
-      console.log('\nFirebase collections debug completed.');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('\nFirebase collections debug failed:', error);
-      process.exit(1);
-    });
-}
-
-export default debugCollections;
+// Run the debug function
+debugFirebaseCollections();

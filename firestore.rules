@@ -203,6 +203,11 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && isPlatformAdmin();
     }
 
+    // Scheduled price changes (platform admins only)
+    match /scheduled_price_changes/{changeId} {
+      allow read, write, create, update, delete: if isAuthenticated() && isPlatformAdmin();
+    }
+
     // Default deny all other documents
     match /{document=**} {
       allow read, write: if false;

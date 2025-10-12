@@ -36,3 +36,4 @@ test-*.js
 *.mjs
 temp-clone/
 temp-clone/
+functions/service-account-key.json

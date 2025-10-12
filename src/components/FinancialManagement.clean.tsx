@@ -91,17 +91,6 @@ const FinancialManagement = () => {
   });
   const [firebaseError, setFirebaseError] = useState<string | null>(null); // Add this state
   
-  // Function to refresh scheduled price changes
-  const refreshScheduledPriceChanges = async () => {
-    try {
-      const updatedPriceChanges = await PriceChangeService.getUpcomingPriceChanges();
-      setScheduledPriceChanges(updatedPriceChanges);
-    } catch (error) {
-      console.error('Failed to refresh price changes:', error);
-      setFirebaseError("Failed to refresh scheduled price changes from Firebase.");
-    }
-  };
-  
   // Fetch real institution data and scheduled price changes
   useEffect(() => {
     let isMounted = true;
@@ -222,16 +211,7 @@ const FinancialManagement = () => {
       isMounted = false;
     };
   }, []);
-
-  // Add a periodic refresh for scheduled price changes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshScheduledPriceChanges();
-    }, 30000); // Refresh every 30 seconds
-    
-    return () => clearInterval(interval);
-  }, []);
-
+  
   // Quick calculate derived values
   const calculatedSessionPrice = Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2));
   const totalInstitutions = institutions.length;
@@ -338,12 +318,18 @@ const FinancialManagement = () => {
           });
           
           // Refresh the scheduled price changes data
-          await refreshScheduledPriceChanges();
-          
-          // Update original values to match current values
-          setOriginalVapiCost(vapiCost);
-          setOriginalMarkupPercentage(markupPercentage);
-          setOriginalLicenseCost(licenseCost);
+          try {
+            const updatedPriceChanges = await PriceChangeService.getUpcomingPriceChanges();
+            setScheduledPriceChanges(updatedPriceChanges);
+            
+            // Update original values to match current values
+            setOriginalVapiCost(vapiCost);
+            setOriginalMarkupPercentage(markupPercentage);
+            setOriginalLicenseCost(licenseCost);
+          } catch (error) {
+            console.error('Failed to refresh price changes:', error);
+            setFirebaseError("Failed to refresh scheduled price changes from Firebase.");
+          }
         }
         
         // Reset the date picker
@@ -398,9 +384,6 @@ const FinancialManagement = () => {
             title: "Global pricing updated",
             description: 'VAPI: $' + vapiCost.toFixed(2) + '/min, Markup: ' + markupPercentage + '%, License: $' + licenseCost.toFixed(2) + '/year',
           });
-          
-          // Refresh the scheduled price changes data to ensure UI is up to date
-          await refreshScheduledPriceChanges();
         } catch (error) {
           console.error('Failed to save global pricing:', error);
           if (error instanceof Error && error.message.includes('Firebase not initialized')) {

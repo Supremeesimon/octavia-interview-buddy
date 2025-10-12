@@ -1,50 +1,71 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config({ path: '.env.local' });
-
-// Firebase configuration from environment
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VITE_FIREBASE_APP_ID,
-  measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// Import the PriceChangeService after Firebase is initialized
-const { PriceChangeService } = await import('@/services/price-change.service');
+import { PriceChangeService } from '../services/price-change.service';
 
 async function testScheduledChanges() {
+  console.log('Testing scheduled_price_changes collection');
+  
   try {
-    console.log('Testing scheduled price changes...');
-    
-    // Initialize sample data
-    console.log('Initializing sample data...');
-    await PriceChangeService.initializeSampleData();
-    
-    // Fetch all price changes
-    console.log('Fetching all price changes...');
+    // Test 1: Check if we can get all price changes (should be empty initially)
+    console.log('\n1. Fetching all price changes...');
     const allChanges = await PriceChangeService.getAllPriceChanges();
-    console.log('All price changes:', allChanges);
+    console.log('Found', allChanges.length, 'price changes');
     
-    // Fetch upcoming price changes
-    console.log('Fetching upcoming price changes...');
+    // Test 2: Create a scheduled price change
+    console.log('\n2. Creating a scheduled price change...');
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 30); // 30 days from now
+    
+    const scheduledChange = {
+      changeDate: futureDate,
+      changeType: 'vapiCost' as const,
+      affected: 'all',
+      currentValue: 0.11,
+      newValue: 0.12,
+      status: 'scheduled' as const
+    };
+    
+    const changeId = await PriceChangeService.createPriceChange(scheduledChange);
+    console.log('Created scheduled change with ID:', changeId);
+    
+    // Test 3: Fetch all price changes again (should now have 1)
+    console.log('\n3. Fetching all price changes again...');
+    const allChangesAfter = await PriceChangeService.getAllPriceChanges();
+    console.log('Found', allChangesAfter.length, 'price changes');
+    
+    // Test 4: Get upcoming price changes (should have 1)
+    console.log('\n4. Fetching upcoming price changes...');
     const upcomingChanges = await PriceChangeService.getUpcomingPriceChanges();
-    console.log('Upcoming price changes:', upcomingChanges);
+    console.log('Found', upcomingChanges.length, 'upcoming price changes');
     
-    console.log('Test completed successfully!');
+    // Test 5: Get the specific change by ID
+    console.log('\n5. Fetching specific price change...');
+    const specificChange = await PriceChangeService.getPriceChangeById(changeId);
+    console.log('Found change:', specificChange);
+    
+    // Test 6: Update the change
+    console.log('\n6. Updating the price change...');
+    await PriceChangeService.updatePriceChange(changeId, {
+      status: 'applied'
+    });
+    
+    // Test 7: Fetch upcoming price changes again (should now be 0)
+    console.log('\n7. Fetching upcoming price changes after update...');
+    const upcomingChangesAfter = await PriceChangeService.getUpcomingPriceChanges();
+    console.log('Found', upcomingChangesAfter.length, 'upcoming price changes');
+    
+    // Test 8: Delete the change
+    console.log('\n8. Deleting the price change...');
+    await PriceChangeService.deletePriceChange(changeId);
+    
+    // Test 9: Fetch all price changes again (should be 0)
+    console.log('\n9. Fetching all price changes after deletion...');
+    const allChangesFinal = await PriceChangeService.getAllPriceChanges();
+    console.log('Found', allChangesFinal.length, 'price changes');
+    
+    console.log('\n✅ All tests passed!');
   } catch (error) {
-    console.error('Error in test:', error);
+    console.error('❌ Test failed:', error);
   }
 }
 
+// Run the test
 testScheduledChanges();
