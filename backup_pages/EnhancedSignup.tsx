@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -499,6 +500,7 @@ const EnhancedSignup = () => {
           </Card>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

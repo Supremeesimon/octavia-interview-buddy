@@ -32,6 +32,9 @@ import VapiTestPage from '@/pages/VapiTestPage';
 import NotFound from '@/pages/NotFound';
 import TestAuthPage from '@/pages/TestAuthPage';
 import ComprehensiveAnalyticsDashboard from '@/pages/ComprehensiveAnalyticsDashboard';
+import ExternalSignup from '@/pages/ExternalSignup';
+import EnhancedSignup from '@/pages/EnhancedSignup';
+import InstitutionalSignup from '@/pages/InstitutionalSignup';
 
 // Import components
 import Header from '@/components/Header';
@@ -72,6 +75,9 @@ function App() {
                 <Route path="/analytics/anonymous-data" element={<AnonymousDataPage />} />
                 <Route path="/vapi-test" element={<VapiTestPage />} />
                 <Route path="/test-auth" element={<TestAuthPage />} />
+                <Route path="/signup-external" element={<ExternalSignup />} />
+                <Route path="/signup-enhanced" element={<EnhancedSignup />} />
+                <Route path="/signup-institution" element={<InstitutionalSignup />} />
                 {/* Jobs pages are temporarily hidden */}
                 {/* <Route path="/jobs" element={<JobsPage />} /> */}
                 {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}

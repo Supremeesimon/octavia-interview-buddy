@@ -1,6 +1,7 @@
 
 import React from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const PrivacyPolicyPage = () => {
@@ -96,6 +97,7 @@ const PrivacyPolicyPage = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

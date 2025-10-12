@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import TeacherDashboard from '@/components/TeacherDashboard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -148,6 +149,7 @@ const TeacherDashboardPage = () => {
           </div>
         </TooltipProvider>
       </main>
+      <Footer />
     </div>
   );
 };

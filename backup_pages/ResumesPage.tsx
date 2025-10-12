@@ -1,20 +1,22 @@
 
 import React from 'react';
 import Header from '@/components/Header';
-import JobsList from '@/components/JobsList';
+import Footer from '@/components/Footer';
+import ResumesList from '@/components/ResumesList';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-const JobsPage = () => {
+const ResumesPage = () => {
   const isMobile = useIsMobile();
   
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'}`}>
-        <JobsList />
+        <ResumesList />
       </main>
+      <Footer />
     </div>
   );
 };
 
-export default JobsPage;
+export default ResumesPage;

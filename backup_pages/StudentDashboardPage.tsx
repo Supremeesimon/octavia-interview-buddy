@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import StudentDashboard from '@/components/StudentDashboard';
 import SimpleResumesList from '@/components/SimpleResumesList';
 import InterviewInterface from '@/components/InterviewInterface';
@@ -97,6 +98,7 @@ const StudentDashboardPage = () => {
           </div>
         </TooltipProvider>
       </main>
+      <Footer />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import InstitutionDashboard from '@/components/InstitutionDashboard';
 import SessionManagement from '@/components/SessionManagement';
 import BillingControls from '@/components/BillingControls';
@@ -81,6 +82,7 @@ const Dashboard = () => {
           </div>
         </TooltipProvider>
       </main>
+      <Footer />
       <Toaster />
     </div>
   );

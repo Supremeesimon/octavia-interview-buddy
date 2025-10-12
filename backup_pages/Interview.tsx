@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import InterviewInterface from '@/components/InterviewInterface';
 import ResumeUploadDialog from '@/components/ResumeUploadDialog';
 import PreInterviewDialog from '@/components/PreInterviewDialog';
@@ -178,6 +179,7 @@ const Interview = () => {
           onStartInterview={handleStartInterview}
         />
       </main>
+      <Footer />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import AdminDashboard from '@/components/AdminDashboard';
 import InstitutionManagement from '@/components/InstitutionManagement';
 import StudentManagement from '@/components/StudentManagement';
@@ -229,6 +230,7 @@ const AdminControlPanel = () => {
           </div>
         </TooltipProvider>
       </main>
+      <Footer />
       <Toaster />
     </div>
   );

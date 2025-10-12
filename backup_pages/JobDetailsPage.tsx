@@ -1,6 +1,7 @@
 
 import React from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -287,6 +288,7 @@ const JobDetailsPage = () => {
           </TooltipProvider>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

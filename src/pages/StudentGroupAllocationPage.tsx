@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -273,7 +272,6 @@ const StudentGroupAllocationPage = () => {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const TermsOfServicePage = () => {
@@ -107,6 +108,7 @@ const TermsOfServicePage = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };
