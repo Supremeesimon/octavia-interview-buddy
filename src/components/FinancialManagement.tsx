@@ -35,6 +35,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { InstitutionService } from '@/services/institution.service';
 import { PriceChangeService } from '@/services/price-change.service';
+import { PlatformSettingsService } from '@/services/platform-settings.service';
 import { Institution, InstitutionPricingOverride, ScheduledPriceChange } from '@/types';
 
 // Interface for financial institution data
@@ -85,6 +86,18 @@ const FinancialManagement = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Load platform pricing settings
+        try {
+          const pricingSettings = await PlatformSettingsService.getPricingSettings();
+          if (pricingSettings) {
+            setVapiCost(pricingSettings.vapiCostPerMinute);
+            setMarkupPercentage(pricingSettings.markupPercentage);
+            setLicenseCost(pricingSettings.annualLicenseCost);
+          }
+        } catch (error) {
+          console.warn('Failed to load platform pricing settings:', error);
+        }
         
         // Ensure all institutions have the pricingOverride field
         try {
@@ -150,7 +163,7 @@ const FinancialManagement = () => {
     };
     
     fetchData();
-  }, [licenseCost, vapiCost, markupPercentage]);
+  }, []); // Remove the dependencies as we only want to load once on mount
   
   // Quick calculate derived values
   const calculatedSessionPrice = Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2));
@@ -176,11 +189,26 @@ const FinancialManagement = () => {
     setLicenseCost(parseFloat(e.target.value) || 0);
   };
   
-  const applyGlobalPricing = () => {
-    toast({
-      title: "Global pricing updated",
-      description: `VAPI: $${vapiCost.toFixed(2)}/min, Markup: ${markupPercentage}%, License: $${licenseCost.toFixed(2)}/year`,
-    });
+  const applyGlobalPricing = async () => {
+    try {
+      await PlatformSettingsService.updatePricingSettings({
+        vapiCostPerMinute: vapiCost,
+        markupPercentage: markupPercentage,
+        annualLicenseCost: licenseCost
+      });
+      
+      toast({
+        title: "Global pricing updated",
+        description: `VAPI: $${vapiCost.toFixed(2)}/min, Markup: ${markupPercentage}%, License: $${licenseCost.toFixed(2)}/year`,
+      });
+    } catch (error) {
+      console.error('Failed to save global pricing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save global pricing settings",
+        variant: "destructive",
+      });
+    }
   };
   
   const scheduleChange = () => {
