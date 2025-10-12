@@ -31,3 +31,6 @@ firebase-service-account.json
 *.njsproj
 *.sln
 *.sw?
+check-*.js
+test-*.js
+*.mjs
