@@ -43,6 +43,10 @@ const ResourceManagement = ({
   const [resources, setResources] = useState<Resource[]>([]);
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   // Refs for form elements
   const titleRef = useRef<HTMLInputElement>(null);
@@ -83,6 +87,7 @@ const ResourceManagement = ({
   
   const handleAddResource = async () => {
     console.log('=== handleAddResource START ===');
+    setAdding(true);
     try {
       // Get form data from refs
       const title = titleRef.current?.value || '';
@@ -97,6 +102,7 @@ const ResourceManagement = ({
           description: "Please enter a title for the resource.",
           variant: "destructive",
         });
+        setAdding(false);
         return;
       }
       
@@ -177,10 +183,14 @@ const ResourceManagement = ({
         description: `Failed to add resource: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
+    } finally {
+      setAdding(false);
     }
   };
   
   const handleUpdateResource = async () => {
+    console.log('=== handleUpdateResource START ===');
+    setUpdating(true);
     try {
       if (!selectedResource) return;
       
@@ -188,12 +198,16 @@ const ResourceManagement = ({
       const title = titleRef.current?.value || '';
       const description = descriptionRef.current?.value || '';
       
+      console.log('Form data retrieved:', { title, description, resourceType });
+      
       if (!title.trim()) {
+        console.log('Title is empty, showing error toast');
         toast({
           title: "Error",
           description: "Please enter a title for the resource.",
           variant: "destructive",
         });
+        setUpdating(false);
         return;
       }
       
@@ -202,17 +216,24 @@ const ResourceManagement = ({
       let url = '';
       let transcript = '';
       
+      console.log('Getting content for resource type:', resourceType);
+      
       switch (resourceType) {
         case 'Questions':
           content = questionsRef.current?.value || '';
+          console.log('Questions content:', content);
           break;
         case 'Guide':
           content = guideContentRef.current?.value || '';
+          console.log('Guide content:', content);
           break;
         case 'Video':
           url = videoUrlRef.current?.value || '';
           transcript = videoTranscriptRef.current?.value || '';
+          console.log('Video content:', { url, transcript });
           break;
+        default:
+          console.log('Unknown resource type:', resourceType);
       }
       
       // Update resource object
@@ -225,8 +246,12 @@ const ResourceManagement = ({
         transcript
       };
       
+      console.log('Updating resource object:', updatedResource);
+      
       // Update in database
+      console.log('Calling ResourceService.updateResource...');
       await ResourceService.updateResource(selectedResource.id, updatedResource);
+      console.log('Resource updated successfully');
       
       toast({
         title: "Resource Updated",
@@ -234,23 +259,41 @@ const ResourceManagement = ({
       });
       
       // Refresh resources
+      console.log('Refreshing resources...');
       const updatedResources = await ResourceService.getAllResources();
+      console.log('Updated resources count:', updatedResources.length);
       setResources(updatedResources);
       
       setShowAddDialog(false);
+      console.log('=== handleUpdateResource END ===');
     } catch (error) {
-      console.error('Error updating resource:', error);
+      console.error('=== ERROR in handleUpdateResource ===', error);
+      console.error('Error name:', error?.name);
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
+      
       toast({
         title: "Error",
-        description: "Failed to update resource. Please try again.",
+        description: `Failed to update resource: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
+    } finally {
+      setUpdating(false);
     }
   };
   
   const handleAssignResource = async () => {
+    setAssigning(true);
     try {
-      if (!selectedResource) return;
+      if (!selectedResource) {
+        toast({
+          title: "Error",
+          description: "No resource selected for assignment.",
+          variant: "destructive",
+        });
+        setAssigning(false);
+        return;
+      }
       
       // Get selected institutions from checkboxes
       const selectedInstitutionIds: string[] = [];
@@ -263,17 +306,38 @@ const ResourceManagement = ({
       
       // Check if "All Institutions" checkbox is selected
       const allInstitutionsCheckbox = document.getElementById('all-institutions') as HTMLInputElement;
+      let assignToAll = false;
       if (allInstitutionsCheckbox && allInstitutionsCheckbox.checked) {
-        // Assign to all institutions
+        assignToAll = true;
+      }
+      
+      // Validate selection
+      if (!assignToAll && selectedInstitutionIds.length === 0) {
+        toast({
+          title: "Warning",
+          description: "Please select at least one institution or check 'All Institutions'.",
+          variant: "destructive",
+        });
+        setAssigning(false);
+        return;
+      }
+      
+      console.log('Assigning resource:', { 
+        resourceId: selectedResource.id, 
+        assignToAll, 
+        selectedInstitutionIds 
+      });
+      
+      // Assign to all institutions or selected institutions
+      if (assignToAll) {
         await ResourceService.assignResourceToInstitutions(selectedResource.id, ['All']);
       } else {
-        // Assign to selected institutions
         await ResourceService.assignResourceToInstitutions(selectedResource.id, selectedInstitutionIds);
       }
       
       toast({
         title: "Resource Assigned",
-        description: "The resource has been successfully assigned to institutions.",
+        description: `The resource has been successfully assigned to ${assignToAll ? 'all institutions' : selectedInstitutionIds.length + ' institution(s)'}.`,
       });
       
       // Refresh resources
@@ -285,16 +349,19 @@ const ResourceManagement = ({
       console.error('Error assigning resource:', error);
       toast({
         title: "Error",
-        description: "Failed to assign resource. Please try again.",
+        description: `Failed to assign resource: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
+    } finally {
+      setAssigning(false);
     }
   };
   
   const handleDeleteResource = async () => {
+    if (!resourceToDelete) return;
+    
+    setDeleting(true);
     try {
-      if (!resourceToDelete) return;
-      
       // Delete from database
       await ResourceService.deleteResource(resourceToDelete.id);
       
@@ -313,9 +380,11 @@ const ResourceManagement = ({
       console.error('Error deleting resource:', error);
       toast({
         title: "Error",
-        description: "Failed to delete resource. Please try again.",
+        description: `Failed to delete resource: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
+    } finally {
+      setDeleting(false);
     }
   };
   
@@ -442,7 +511,7 @@ const ResourceManagement = ({
           <div className="overflow-x-auto">
             {loading ? (
               <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <div className="animate-spin rounded-full h-88 w-8 border-b-2 border-primary"></div>
               </div>
             ) : (
               <Table>
@@ -712,11 +781,18 @@ const ResourceManagement = ({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteResource}>
-              Delete Resource
+            <Button variant="destructive" onClick={handleDeleteResource} disabled={deleting}>
+              {deleting ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  Deleting...
+                </>
+              ) : (
+                'Delete Resource'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
