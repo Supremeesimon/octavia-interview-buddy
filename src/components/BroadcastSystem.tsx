@@ -173,17 +173,21 @@ const BroadcastSystem = () => {
           break;
       }
       
-      // Create message object
-      const newMessage = {
+      // Create message object - FIXED: Properly handle dateScheduled field
+      const newMessage: any = {
         title,
         type: type as Message['type'],
         target,
         status: scheduleDate ? 'Scheduled' : 'Sent' as Message['status'],
         content,
         dateCreated: new Date().toISOString().split('T')[0],
-        dateScheduled: scheduleDate ? `${scheduleDate}${scheduleTime ? `T${scheduleTime}` : ''}` : undefined,
         createdBy: 'current_user_id', // This would be the actual user ID
       };
+      
+      // Only add dateScheduled if it's actually set
+      if (scheduleDate) {
+        newMessage.dateScheduled = scheduleDate + (scheduleTime ? `T${scheduleTime}` : 'T00:00');
+      }
       
       // Save to Firebase
       const messageId = await MessagingService.createMessage(newMessage);
@@ -258,15 +262,15 @@ const BroadcastSystem = () => {
         return;
       }
       
-      // Update message object
-      const updatedMessage = {
+      // Update message object - FIXED: Properly handle dateScheduled field
+      const updatedMessage: any = {
         title: title.value,
         type: type.value as Message['type'],
         content: content.value,
         updatedAt: new Date()
       };
       
-      // Update in Firebase
+      // Save to Firebase
       await MessagingService.updateMessage(selectedMessage.id, updatedMessage);
       
       // Refresh messages
