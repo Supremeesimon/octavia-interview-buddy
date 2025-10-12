@@ -792,6 +792,10 @@ const FinancialManagement = () => {
             markupPercentage={markupPercentage}
             calculatedSessionPrice={calculatedSessionPrice}
             estimatedMargin={estimatedMargin}
+            institutionCount={totalInstitutions}
+            studentCount={totalStudents}
+            totalRevenue={totalRevenue}
+            totalSessions={scheduledPriceChanges.length}
           />
         </TabsContent>
         

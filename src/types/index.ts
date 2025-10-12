@@ -467,3 +467,24 @@ export interface PlatformPricingSettings {
   annualLicenseCost: number;
   updatedAt: Date;
 }
+
+// =============================================================================
+// FINANCIAL ANALYTICS TYPES
+// =============================================================================
+
+export interface FinancialMarginData {
+  id?: string;
+  date: Date;
+  period: 'daily' | 'weekly' | 'monthly';
+  vapiCostPerMinute: number;
+  markupPercentage: number;
+  averageSessionLength: number; // in minutes
+  totalSessions: number;
+  totalRevenue: number;
+  totalCost: number;
+  totalProfit: number;
+  marginPercentage: number;
+  licenseRevenue: number;
+  sessionRevenue: number;
+  createdAt: Date;
+}

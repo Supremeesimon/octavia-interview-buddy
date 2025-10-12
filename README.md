@@ -9,6 +9,7 @@ Welcome to Octavia Interview Buddy - your AI-powered interview practice platform
 - **Performance Analytics**: Track your progress over time with detailed analytics and insights
 - **Anonymous Access**: Try our platform without creating an account
 - **Multi-role Support**: Platform for students, institution admins, and platform administrators
+- **Financial Analytics**: Track platform revenue, costs, and margins with detailed financial reporting
 
 ## Getting Started
 
@@ -62,6 +63,7 @@ VITE_FIREBASE_MEASUREMENT_ID="your_firebase_measurement_id_here"
 - `npm run build` - Build the production version
 - `npm run lint` - Run ESLint
 - `npm run test-anonymous-data` - Test anonymous user data collection
+- `npm run test-financial-analytics` - Test financial analytics functionality
 
 ### Anonymous User Data Collection
 
@@ -85,6 +87,18 @@ To deploy the webhook function:
 
 See [VAPI_INTEGRATION_STRATEGY.md](VAPI_INTEGRATION_STRATEGY.md) for detailed information about the integration strategy.
 
+### Financial Analytics
+
+The platform now includes financial analytics capabilities:
+
+1. **Daily Margin Calculation**: A Firebase function runs daily to calculate platform revenue, costs, and margins
+2. **Financial Analytics Collection**: Stores historical financial data in Firestore
+3. **Margin Management Dashboard**: Visualizes financial data and provides pricing recommendations
+
+To test financial analytics:
+1. Run `npm run test-financial-analytics` to verify the functionality
+2. Check the Margin Management tab in the Financial section of the admin panel
+
 ## Deployment
 
 ### Firebase Deployment
@@ -93,6 +107,7 @@ See [VAPI_INTEGRATION_STRATEGY.md](VAPI_INTEGRATION_STRATEGY.md) for detailed in
 2. Login to Firebase: `firebase login`
 3. Deploy hosting: `npm run deploy:hosting`
 4. Deploy rules: `npm run deploy:rules`
+5. Deploy functions: `npm run deploy:functions`
 
 ## Project Structure
 

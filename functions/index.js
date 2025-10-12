@@ -238,3 +238,120 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
     res.status(500).send('Internal server error');
   }
 });
+
+// Financial Analytics Function - runs daily to calculate and store margin data
+exports.calculateDailyMargin = functions.pubsub.schedule('every 24 hours from 00:00').timeZone('America/New_York').onRun(async (context) => {
+  try {
+    console.log('📊 Starting daily margin calculation');
+    
+    const db = admin.firestore();
+    
+    // Get the current pricing settings
+    const pricingSettingsDoc = await db.collection('system_config').doc('pricing').get();
+    let pricingSettings = {
+      vapiCostPerMinute: 0.11,
+      markupPercentage: 36.36,
+      annualLicenseCost: 19.96
+    };
+    
+    if (pricingSettingsDoc.exists) {
+      pricingSettings = pricingSettingsDoc.data();
+    }
+    
+    // Calculate date range for the previous day
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    
+    const today = new Date(yesterday);
+    today.setDate(today.getDate() + 1);
+    
+    console.log(`📅 Calculating margin data for ${yesterday.toISOString().split('T')[0]}`);
+    
+    // Get interviews from the previous day
+    const interviewsSnapshot = await db.collection('interviews')
+      .where('createdAt', '>=', yesterday)
+      .where('createdAt', '<', today)
+      .where('status', '==', 'completed')
+      .get();
+    
+    console.log(`📋 Found ${interviewsSnapshot.size} interviews for margin calculation`);
+    
+    let totalSessions = 0;
+    let totalSessionDuration = 0; // in seconds
+    let totalSessionRevenue = 0;
+    let totalLicenseRevenue = 0;
+    
+    // Calculate session-based revenue
+    const averageSessionLength = interviewsSnapshot.size > 0 
+      ? interviewsSnapshot.docs.reduce((sum, doc) => sum + (doc.data().duration || 0), 0) / interviewsSnapshot.size 
+      : 0;
+    
+    // Get institution data for license revenue calculation
+    const institutionsSnapshot = await db.collection('institutions').get();
+    const activeInstitutions = institutionsSnapshot.docs.filter(doc => doc.data().isActive === true);
+    
+    console.log(`🏢 Found ${activeInstitutions.length} active institutions`);
+    
+    // Estimate license revenue (simplified calculation)
+    // In a real implementation, this would be based on actual license purchases
+    const monthlyLicenseRevenue = activeInstitutions.length * (pricingSettings.annualLicenseCost / 12);
+    totalLicenseRevenue = monthlyLicenseRevenue / 30; // Daily portion
+    
+    // Calculate session revenue
+    for (const doc of interviewsSnapshot.docs) {
+      const interview = doc.data();
+      totalSessions++;
+      totalSessionDuration += interview.duration || 0;
+      
+      // Calculate revenue for this session
+      const sessionDurationMinutes = (interview.duration || 0) / 60;
+      const sessionRevenue = sessionDurationMinutes * 
+        (pricingSettings.vapiCostPerMinute * (1 + pricingSettings.markupPercentage / 100));
+      totalSessionRevenue += sessionRevenue;
+    }
+    
+    // Calculate costs and profits
+    const totalSessionDurationMinutes = totalSessionDuration / 60;
+    const totalCost = totalSessionDurationMinutes * pricingSettings.vapiCostPerMinute;
+    const totalRevenue = totalSessionRevenue + totalLicenseRevenue;
+    const totalProfit = totalRevenue - totalCost;
+    const marginPercentage = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    
+    // Create the margin data record
+    const marginData = {
+      date: yesterday,
+      period: 'daily',
+      vapiCostPerMinute: pricingSettings.vapiCostPerMinute,
+      markupPercentage: pricingSettings.markupPercentage,
+      averageSessionLength: averageSessionLength / 60, // Convert to minutes
+      totalSessions: totalSessions,
+      totalRevenue: totalRevenue,
+      totalCost: totalCost,
+      totalProfit: totalProfit,
+      marginPercentage: marginPercentage,
+      licenseRevenue: totalLicenseRevenue,
+      sessionRevenue: totalSessionRevenue,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    // Save to financial_analytics collection
+    const docRef = await db.collection('financial_analytics').add(marginData);
+    console.log(`✅ Saved daily margin data with ID: ${docRef.id}`);
+    console.log(`💰 Total Revenue: $${totalRevenue.toFixed(2)}`);
+    console.log(`💸 Total Cost: $${totalCost.toFixed(2)}`);
+    console.log(`💵 Total Profit: $${totalProfit.toFixed(2)}`);
+    console.log(`📊 Margin: ${marginPercentage.toFixed(2)}%`);
+    
+    // If there's no activity, still save a record with zero values
+    if (totalSessions === 0 && activeInstitutions.length === 0) {
+      console.log('ℹ️ No activity detected - saving zero-value record for tracking purposes');
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('💥 Error calculating daily margin:', error);
+    return null;
+  }
+});

@@ -6,7 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { BarChart3, Calculator, AlertTriangle } from 'lucide-react';
 import { PlatformSettingsService } from '@/services/platform-settings.service';
+import { FinancialAnalyticsService } from '@/services/financial-analytics.service';
 import { useToast } from '@/hooks/use-toast';
+import { FinancialMarginData } from '@/types';
 // Import Recharts components
 import { 
   LineChart, 
@@ -30,13 +32,21 @@ interface MarginManagementProps {
   markupPercentage: number;
   calculatedSessionPrice: number;
   estimatedMargin: string;
+  institutionCount?: number;
+  studentCount?: number;
+  totalRevenue?: number;
+  totalSessions?: number;
 }
 
 const MarginManagement: React.FC<MarginManagementProps> = ({
   vapiCost,
   markupPercentage,
   calculatedSessionPrice,
-  estimatedMargin
+  estimatedMargin,
+  institutionCount = 0,
+  studentCount = 0,
+  totalRevenue = 0,
+  totalSessions = 0
 }) => {
   const { toast } = useToast();
   const [desiredMargin, setDesiredMargin] = useState<string>('35');
@@ -47,31 +57,7 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
   const [lowMarginAlertEnabled, setLowMarginAlertEnabled] = useState<boolean>(true);
   const [highVapiCostAlertEnabled, setHighVapiCostAlertEnabled] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
-
-  // Sample data for margin analysis over time
-  const marginTrendData = [
-    { month: 'Jan', margin: 32 },
-    { month: 'Feb', margin: 35 },
-    { month: 'Mar', margin: 30 },
-    { month: 'Apr', margin: 38 },
-    { month: 'May', margin: 36 },
-    { month: 'Jun', margin: 40 },
-    { month: 'Jul', margin: 37 },
-    { month: 'Aug', margin: 42 },
-    { month: 'Sep', margin: 39 },
-    { month: 'Oct', margin: 41 },
-    { month: 'Nov', margin: 38 },
-    { month: 'Dec', margin: 43 },
-  ];
-
-  // Sample data for revenue breakdown
-  const revenueData = [
-    { name: 'Licenses', value: 45 },
-    { name: 'Interviews', value: 35 },
-    { name: 'Subscriptions', value: 20 },
-  ];
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28'];
+  const [marginData, setMarginData] = useState<FinancialMarginData[]>([]);
 
   // Load margin alert settings from Firebase
   useEffect(() => {
@@ -100,6 +86,30 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
     };
 
     loadSettings();
+  }, []);
+
+  // Load financial analytics data and institution/student counts
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load financial analytics data
+        const data = await FinancialAnalyticsService.getRecentMarginData(30);
+        setMarginData(data);
+        
+        // In a real implementation, we would fetch actual institution and student counts
+        // For now, we'll use placeholder values that would come from the parent component
+        // This would be passed as props in a real implementation
+      } catch (error) {
+        console.error('Failed to load data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load financial data",
+          variant: "destructive",
+        });
+      }
+    };
+
+    loadData();
   }, []);
 
   const handleSaveSettings = async () => {
@@ -181,8 +191,168 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
   // Calculate recommended pricing for display
   const { recommendedPrice, profitPerMinute, sessionPrice } = calculateRecommendedPricing();
 
+  // Prepare data for charts
+  const marginTrendData = marginData.length > 0 ? 
+    marginData.map(item => ({
+      date: item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      margin: Number(item.marginPercentage.toFixed(2)),
+      revenue: Number(item.totalRevenue.toFixed(2)),
+      profit: Number(item.totalProfit.toFixed(2))
+    })).reverse() : // Reverse to show chronological order
+    []; // Empty array when no data
+
+  // Prepare revenue breakdown data from actual financial data
+  const revenueData = marginData.length > 0 ? [
+    { 
+      name: 'Session Revenue', 
+      value: Math.max(0, marginData[0].sessionRevenue || 0) 
+    },
+    { 
+      name: 'License Revenue', 
+      value: Math.max(0, marginData[0].licenseRevenue || 0) 
+    },
+    { 
+      name: 'Other', 
+      value: Math.max(0, (marginData[0].totalRevenue || 0) - (marginData[0].sessionRevenue || 0) - (marginData[0].licenseRevenue || 0)) 
+    }
+  ] : [
+    { name: 'No Data', value: 100 }
+  ];
+
+  const COLORS = ['#9CA3AF', '#9CA3AF', '#9CA3AF']; // Gray color for no data
+  const ACTIVE_COLORS = ['#0088FE', '#00C49F', '#FFBB28']; // Blue, Green, Yellow
+
   return (
     <>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Institutions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{institutionCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {institutionCount === 0 ? 'No institutions yet' : 
+               institutionCount === 1 ? '1 institution' : 
+               `${institutionCount} institutions`}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Students
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{studentCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {studentCount === 0 ? 'No students yet' : 
+               studentCount === 1 ? '1 student' : 
+               `${studentCount} students`}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalRevenue === 0 ? 'No revenue yet' : 'Current revenue'}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Platform Margin
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{estimatedMargin}%</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalRevenue === 0 ? 'No margin yet' : 'Current margin'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {institutionCount === 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-600">
+              <AlertTriangle className="h-5 w-5" />
+              Platform Setup Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-2">You haven't added any institutions to the platform yet.</p>
+            <p className="text-sm text-muted-foreground">
+              To start generating revenue, you'll need to:
+            </p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+              <li>Add institutions through the Institution Management section</li>
+              <li>Configure institution settings and pricing</li>
+              <li>Have institutions add students to their accounts</li>
+              <li>Students need to conduct practice interviews to generate session revenue</li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {institutionCount > 0 && studentCount === 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-600">
+              <AlertTriangle className="h-5 w-5" />
+              Add Students to Generate Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-2">You have {institutionCount} institution(s) but no students yet.</p>
+            <p className="text-sm text-muted-foreground">
+              To start generating revenue:
+            </p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+              <li>Have institutions add students to their accounts</li>
+              <li>Students need to conduct practice interviews to generate session revenue</li>
+              <li>Revenue will be generated from both license fees and session usage</li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {institutionCount > 0 && studentCount > 0 && totalSessions === 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-600">
+              <BarChart3 className="h-5 w-5" />
+              Ready for Revenue Generation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-2">You have {institutionCount} institution(s) and {studentCount} student(s).</p>
+            <p className="text-sm text-muted-foreground">
+              To start generating revenue:
+            </p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+              <li>Have students conduct practice interviews</li>
+              <li>Each completed interview will generate session revenue</li>
+              <li>License revenue will be calculated based on active students</li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -270,13 +440,102 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
             </div>
           </div>
           
-          <div className="h-60 flex items-center justify-center">
-            <div className="text-center text-muted-foreground">
-              <BarChart3 className="h-16 w-16 mx-auto mb-4" />
-              <p>Margin analysis over time</p>
-              <p className="text-sm">(Integration with Recharts would go here)</p>
-            </div>
+          <div className="h-60">
+            <h3 className="font-medium mb-2">Margin Analysis Over Time</h3>
+            {marginTrendData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={marginTrendData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis 
+                    domain={[0, 100]} 
+                    tickFormatter={(value) => `${value}%`}
+                  />
+                  <Tooltip 
+                    formatter={(value, name) => {
+                      if (name === 'margin') return [`${value}%`, 'Margin'];
+                      return [`$${value}`, String(name).charAt(0).toUpperCase() + String(name).slice(1)];
+                    }}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="margin" 
+                    stroke="#8884d8" 
+                    activeDot={{ r: 8 }} 
+                    name="Platform Margin"
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="text-center">
+                  <BarChart3 className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p>No margin data available yet</p>
+                  <p className="text-sm mt-2">Conduct interviews to see margin analysis</p>
+                </div>
+              </div>
+            )}
           </div>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Revenue Breakdown
+          </CardTitle>
+          <CardDescription>
+            Distribution of revenue sources
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-60">
+            <h3 className="font-medium mb-2">Revenue Breakdown</h3>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={revenueData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, percent }) => {
+                    if (marginData.length === 0) {
+                      return 'No financial data yet';
+                    }
+                    return `${name}: ${(percent * 100).toFixed(0)}%`;
+                  }}
+                >
+                  {revenueData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={marginData.length > 0 ? ACTIVE_COLORS[index % ACTIVE_COLORS.length] : COLORS[0]} 
+                    />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => {
+                    if (marginData.length === 0) {
+                      return ['Add students and conduct interviews to see revenue data', 'No Data'];
+                    }
+                    return [`$${Number(value).toFixed(2)}`, 'Amount'];
+                  }} 
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
         </CardContent>
       </Card>
       

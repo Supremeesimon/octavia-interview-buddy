@@ -213,6 +213,11 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && isPlatformAdmin();
     }
 
+    // Financial analytics collection (platform admins only)
+    match /financial_analytics/{doc=**} {
+      allow read, write: if isAuthenticated() && isPlatformAdmin();
+    }
+
     // Default deny all other documents
     match /{document=**} {
       allow read, write: if false;
