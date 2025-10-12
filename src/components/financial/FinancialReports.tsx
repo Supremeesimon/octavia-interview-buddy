@@ -165,15 +165,26 @@ const FinancialReports: React.FC<FinancialReportsProps> = ({
       // Prepare data for export
       const exportData = financialData.map(item => ({
         date: item.date.toLocaleDateString(),
-        totalRevenue: item.totalRevenue,
-        sessionRevenue: item.sessionRevenue,
-        licenseRevenue: item.licenseRevenue,
-        totalCost: item.totalCost,
-        totalProfit: item.totalProfit,
-        marginPercentage: item.marginPercentage,
+        totalRevenue: `$${item.totalRevenue.toFixed(2)}`,
+        sessionRevenue: `$${item.sessionRevenue.toFixed(2)}`,
+        licenseRevenue: `$${item.licenseRevenue.toFixed(2)}`,
+        totalCost: `$${item.totalCost.toFixed(2)}`,
+        totalProfit: `$${item.totalProfit.toFixed(2)}`,
+        marginPercentage: `${item.marginPercentage.toFixed(2)}%`,
         totalSessions: item.totalSessions,
-        averageSessionLength: item.averageSessionLength
+        averageSessionLength: `${item.averageSessionLength.toFixed(2)} minutes`
       }));
+      
+      // Calculate summary statistics
+      const summaryStats = financialData.length > 0 ? {
+        totalRevenue: `$${financialData.reduce((sum, item) => sum + item.totalRevenue, 0).toFixed(2)}`,
+        avgRevenue: `$${(financialData.reduce((sum, item) => sum + item.totalRevenue, 0) / financialData.length).toFixed(2)}`,
+        totalProfit: `$${financialData.reduce((sum, item) => sum + item.totalProfit, 0).toFixed(2)}`,
+        avgProfit: `$${(financialData.reduce((sum, item) => sum + item.totalProfit, 0) / financialData.length).toFixed(2)}`,
+        avgMargin: `${(financialData.reduce((sum, item) => sum + item.marginPercentage, 0) / financialData.length).toFixed(2)}%`,
+        totalSessions: financialData.reduce((sum, item) => sum + item.totalSessions, 0),
+        avgSessions: (financialData.reduce((sum, item) => sum + item.totalSessions, 0) / financialData.length).toFixed(2)
+      } : null;
       
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().split('T')[0];
@@ -182,32 +193,60 @@ const FinancialReports: React.FC<FinancialReportsProps> = ({
       // Prepare contextual information
       const contextualInfo = {
         exportDate: new Date().toLocaleString(),
-        reportType,
-        timePeriod,
+        reportType: reportType.charAt(0).toUpperCase() + reportType.slice(1) + ' Report',
+        timePeriod: timePeriod === 'month' ? 'Current Month' : 
+                   timePeriod === 'quarter' ? 'Current Quarter' : 
+                   timePeriod === 'year' ? 'Current Year' : 'All Time',
         institutionFilter: selectedInstitution === 'all' ? 'All Institutions' : 
                           institutions.find(i => i.id.toString() === selectedInstitution)?.name || selectedInstitution,
         platformSummary: {
           totalInstitutions: institutionCount,
+          activeInstitutions: institutions.filter(i => i.id !== undefined).length,
           totalStudents: studentCount,
           currentTotalRevenue: totalRevenue,
           platformStatus: institutionCount === 0 ? 'No institutions added' :
                          studentCount === 0 ? 'No students added' :
                          totalRevenue === 0 ? 'No revenue generated' :
-                         'Active platform'
-        }
+                         'Active platform',
+          dataPoints: financialData.length,
+          dateRange: financialData.length > 0 ? 
+                    `${new Date(Math.min(...financialData.map(d => d.date.getTime()))).toLocaleDateString()} to ${new Date(Math.max(...financialData.map(d => d.date.getTime()))).toLocaleDateString()}` : 
+                    'No data available'
+        },
+        summaryStats
       };
       
       if (format === 'CSV') {
         // Generate CSV content with contextual information
         let csvContent = `Financial Report Export\n`;
+        csvContent += `=====================\n\n`;
         csvContent += `Export Date: ${contextualInfo.exportDate}\n`;
         csvContent += `Report Type: ${contextualInfo.reportType}\n`;
         csvContent += `Time Period: ${contextualInfo.timePeriod}\n`;
-        csvContent += `Institution Filter: ${contextualInfo.institutionFilter}\n`;
-        csvContent += `Platform Status: ${contextualInfo.platformSummary.platformStatus}\n`;
+        csvContent += `Institution Filter: ${contextualInfo.institutionFilter}\n\n`;
+        
+        csvContent += `Platform Summary\n`;
+        csvContent += `----------------\n`;
+        csvContent += `Status: ${contextualInfo.platformSummary.platformStatus}\n`;
         csvContent += `Total Institutions: ${contextualInfo.platformSummary.totalInstitutions}\n`;
+        csvContent += `Active Institutions: ${contextualInfo.platformSummary.activeInstitutions}\n`;
         csvContent += `Total Students: ${contextualInfo.platformSummary.totalStudents}\n`;
-        csvContent += `Current Total Revenue: $${contextualInfo.platformSummary.currentTotalRevenue.toFixed(2)}\n\n`;
+        csvContent += `Current Total Revenue: $${contextualInfo.platformSummary.currentTotalRevenue.toFixed(2)}\n`;
+        csvContent += `Data Points: ${contextualInfo.platformSummary.dataPoints}\n`;
+        csvContent += `Date Range: ${contextualInfo.platformSummary.dateRange}\n\n`;
+        
+        // Add summary statistics if available
+        if (contextualInfo.summaryStats) {
+          csvContent += `Report Summary\n`;
+          csvContent += `--------------\n`;
+          csvContent += `Total Revenue: ${contextualInfo.summaryStats.totalRevenue}\n`;
+          csvContent += `Average Revenue: ${contextualInfo.summaryStats.avgRevenue}\n`;
+          csvContent += `Total Profit: ${contextualInfo.summaryStats.totalProfit}\n`;
+          csvContent += `Average Profit: ${contextualInfo.summaryStats.avgProfit}\n`;
+          csvContent += `Average Margin: ${contextualInfo.summaryStats.avgMargin}\n`;
+          csvContent += `Total Sessions: ${contextualInfo.summaryStats.totalSessions}\n`;
+          csvContent += `Average Sessions: ${contextualInfo.summaryStats.avgSessions}\n\n`;
+        }
         
         if (exportData.length > 0) {
           const headers = Object.keys(exportData[0]).join(',');
@@ -219,7 +258,25 @@ const FinancialReports: React.FC<FinancialReportsProps> = ({
           csvContent += [headers, ...rows].join('\n');
         } else {
           csvContent += 'No financial data available for the selected period.\n';
-          csvContent += 'Conduct interviews to generate revenue data.\n';
+          csvContent += 'Conduct interviews to generate revenue data.\n\n';
+          
+          // Add guidance based on platform status
+          if (contextualInfo.platformSummary.platformStatus === 'No institutions added') {
+            csvContent += 'Next Steps:\n';
+            csvContent += '1. Add institutions through the Institution Management section\n';
+            csvContent += '2. Configure institution settings and pricing\n';
+            csvContent += '3. Have institutions add students to their accounts\n';
+            csvContent += '4. Students need to conduct practice interviews to generate session revenue\n';
+          } else if (contextualInfo.platformSummary.platformStatus === 'No students added') {
+            csvContent += 'Next Steps:\n';
+            csvContent += '1. Have institutions add students to their accounts\n';
+            csvContent += '2. Students need to conduct practice interviews to generate session revenue\n';
+          } else if (contextualInfo.platformSummary.platformStatus === 'No revenue generated') {
+            csvContent += 'Next Steps:\n';
+            csvContent += '1. Have students conduct practice interviews\n';
+            csvContent += '2. Each completed interview will generate session revenue\n';
+            csvContent += '3. License revenue will be calculated based on active students\n';
+          }
         }
         
         // Create download link
@@ -240,14 +297,34 @@ const FinancialReports: React.FC<FinancialReportsProps> = ({
       } else if (format === 'Excel') {
         // For Excel, we'll create a CSV file with contextual information
         let csvContent = `Financial Report Export\n`;
+        csvContent += `=====================\n\n`;
         csvContent += `Export Date: ${contextualInfo.exportDate}\n`;
         csvContent += `Report Type: ${contextualInfo.reportType}\n`;
         csvContent += `Time Period: ${contextualInfo.timePeriod}\n`;
-        csvContent += `Institution Filter: ${contextualInfo.institutionFilter}\n`;
-        csvContent += `Platform Status: ${contextualInfo.platformSummary.platformStatus}\n`;
+        csvContent += `Institution Filter: ${contextualInfo.institutionFilter}\n\n`;
+        
+        csvContent += `Platform Summary\n`;
+        csvContent += `----------------\n`;
+        csvContent += `Status: ${contextualInfo.platformSummary.platformStatus}\n`;
         csvContent += `Total Institutions: ${contextualInfo.platformSummary.totalInstitutions}\n`;
+        csvContent += `Active Institutions: ${contextualInfo.platformSummary.activeInstitutions}\n`;
         csvContent += `Total Students: ${contextualInfo.platformSummary.totalStudents}\n`;
-        csvContent += `Current Total Revenue: $${contextualInfo.platformSummary.currentTotalRevenue.toFixed(2)}\n\n`;
+        csvContent += `Current Total Revenue: $${contextualInfo.platformSummary.currentTotalRevenue.toFixed(2)}\n`;
+        csvContent += `Data Points: ${contextualInfo.platformSummary.dataPoints}\n`;
+        csvContent += `Date Range: ${contextualInfo.platformSummary.dateRange}\n\n`;
+        
+        // Add summary statistics if available
+        if (contextualInfo.summaryStats) {
+          csvContent += `Report Summary\n`;
+          csvContent += `--------------\n`;
+          csvContent += `Total Revenue: ${contextualInfo.summaryStats.totalRevenue}\n`;
+          csvContent += `Average Revenue: ${contextualInfo.summaryStats.avgRevenue}\n`;
+          csvContent += `Total Profit: ${contextualInfo.summaryStats.totalProfit}\n`;
+          csvContent += `Average Profit: ${contextualInfo.summaryStats.avgProfit}\n`;
+          csvContent += `Average Margin: ${contextualInfo.summaryStats.avgMargin}\n`;
+          csvContent += `Total Sessions: ${contextualInfo.summaryStats.totalSessions}\n`;
+          csvContent += `Average Sessions: ${contextualInfo.summaryStats.avgSessions}\n\n`;
+        }
         
         if (exportData.length > 0) {
           const headers = Object.keys(exportData[0]).join(',');
@@ -259,7 +336,25 @@ const FinancialReports: React.FC<FinancialReportsProps> = ({
           csvContent += [headers, ...rows].join('\n');
         } else {
           csvContent += 'No financial data available for the selected period.\n';
-          csvContent += 'Conduct interviews to generate revenue data.\n';
+          csvContent += 'Conduct interviews to generate revenue data.\n\n';
+          
+          // Add guidance based on platform status
+          if (contextualInfo.platformSummary.platformStatus === 'No institutions added') {
+            csvContent += 'Next Steps:\n';
+            csvContent += '1. Add institutions through the Institution Management section\n';
+            csvContent += '2. Configure institution settings and pricing\n';
+            csvContent += '3. Have institutions add students to their accounts\n';
+            csvContent += '4. Students need to conduct practice interviews to generate session revenue\n';
+          } else if (contextualInfo.platformSummary.platformStatus === 'No students added') {
+            csvContent += 'Next Steps:\n';
+            csvContent += '1. Have institutions add students to their accounts\n';
+            csvContent += '2. Students need to conduct practice interviews to generate session revenue\n';
+          } else if (contextualInfo.platformSummary.platformStatus === 'No revenue generated') {
+            csvContent += 'Next Steps:\n';
+            csvContent += '1. Have students conduct practice interviews\n';
+            csvContent += '2. Each completed interview will generate session revenue\n';
+            csvContent += '3. License revenue will be calculated based on active students\n';
+          }
         }
         
         // Create download link
@@ -290,8 +385,24 @@ const FinancialReports: React.FC<FinancialReportsProps> = ({
         pdfContent += `----------------\n`;
         pdfContent += `Status: ${contextualInfo.platformSummary.platformStatus}\n`;
         pdfContent += `Total Institutions: ${contextualInfo.platformSummary.totalInstitutions}\n`;
+        pdfContent += `Active Institutions: ${contextualInfo.platformSummary.activeInstitutions}\n`;
         pdfContent += `Total Students: ${contextualInfo.platformSummary.totalStudents}\n`;
-        pdfContent += `Current Total Revenue: $${contextualInfo.platformSummary.currentTotalRevenue.toFixed(2)}\n\n`;
+        pdfContent += `Current Total Revenue: $${contextualInfo.platformSummary.currentTotalRevenue.toFixed(2)}\n`;
+        pdfContent += `Data Points: ${contextualInfo.platformSummary.dataPoints}\n`;
+        pdfContent += `Date Range: ${contextualInfo.platformSummary.dateRange}\n\n`;
+        
+        // Add summary statistics if available
+        if (contextualInfo.summaryStats) {
+          pdfContent += `Report Summary\n`;
+          pdfContent += `--------------\n`;
+          pdfContent += `Total Revenue: ${contextualInfo.summaryStats.totalRevenue}\n`;
+          pdfContent += `Average Revenue: ${contextualInfo.summaryStats.avgRevenue}\n`;
+          pdfContent += `Total Profit: ${contextualInfo.summaryStats.totalProfit}\n`;
+          pdfContent += `Average Profit: ${contextualInfo.summaryStats.avgProfit}\n`;
+          pdfContent += `Average Margin: ${contextualInfo.summaryStats.avgMargin}\n`;
+          pdfContent += `Total Sessions: ${contextualInfo.summaryStats.totalSessions}\n`;
+          pdfContent += `Average Sessions: ${contextualInfo.summaryStats.avgSessions}\n\n`;
+        }
         
         if (exportData.length > 0) {
           pdfContent += 'Financial Data\n';
@@ -312,16 +423,29 @@ const FinancialReports: React.FC<FinancialReportsProps> = ({
             pdfContent += '1. Add institutions through the Institution Management section\n';
             pdfContent += '2. Configure institution settings and pricing\n';
             pdfContent += '3. Have institutions add students to their accounts\n';
-            pdfContent += '4. Students need to conduct practice interviews to generate session revenue\n';
+            pdfContent += '4. Students need to conduct practice interviews to generate session revenue\n\n';
+            pdfContent += 'Platform Setup Guide:\n';
+            pdfContent += '- Navigate to Institution Management to add your first institution\n';
+            pdfContent += '- Configure pricing settings in the Pricing Control section\n';
+            pdfContent += '- Institutions can then add students and manage their accounts\n';
           } else if (contextualInfo.platformSummary.platformStatus === 'No students added') {
             pdfContent += 'Next Steps:\n';
             pdfContent += '1. Have institutions add students to their accounts\n';
-            pdfContent += '2. Students need to conduct practice interviews to generate session revenue\n';
+            pdfContent += '2. Students need to conduct practice interviews to generate session revenue\n\n';
+            pdfContent += 'Student Onboarding Guide:\n';
+            pdfContent += '- Institutions should log in to their accounts\n';
+            pdfContent += '- Add students through the student management interface\n';
+            pdfContent += '- Students can then access the platform and conduct practice interviews\n';
           } else if (contextualInfo.platformSummary.platformStatus === 'No revenue generated') {
             pdfContent += 'Next Steps:\n';
             pdfContent += '1. Have students conduct practice interviews\n';
             pdfContent += '2. Each completed interview will generate session revenue\n';
-            pdfContent += '3. License revenue will be calculated based on active students\n';
+            pdfContent += '3. License revenue will be calculated based on active students\n\n';
+            pdfContent += 'Revenue Generation Guide:\n';
+            pdfContent += '- Encourage students to complete practice interviews\n';
+            pdfContent += '- Each completed 15-minute session generates revenue\n';
+            pdfContent += '- License revenue is calculated quarterly based on active students\n';
+            pdfContent += '- Monitor the Margin Management section for profitability insights\n';
           }
         }
         

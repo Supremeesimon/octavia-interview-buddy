@@ -11,6 +11,8 @@ import AIAnalytics from '@/components/AIAnalytics';
 import FinancialManagement from '@/components/FinancialManagement';
 import GeminiTest from '@/components/GeminiTest';
 import { aiAnalyticsService } from '@/services/ai-analytics.service';
+import { InstitutionService } from '@/services/institution.service';
+import { Institution } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
@@ -47,6 +49,24 @@ const AdminControlPanel = () => {
   };
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [loadingInstitutions, setLoadingInstitutions] = useState(true);
+  
+  // Fetch institutions data
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const data = await InstitutionService.getAllInstitutions();
+        setInstitutions(data);
+      } catch (error) {
+        console.error('Error fetching institutions:', error);
+      } finally {
+        setLoadingInstitutions(false);
+      }
+    };
+    
+    fetchInstitutions();
+  }, []);
   
   // Set the initial tab after component mounts
   useEffect(() => {
@@ -76,6 +96,14 @@ const AdminControlPanel = () => {
       aiAnalyticsService.setGeminiApiKey(geminiApiKey);
     }
   }, []);
+  
+  // Calculate resource management props
+  const institutionCount = institutions.length;
+  const totalResources = 5; // This would be fetched from a resources service in a real implementation
+  const formattedInstitutions = institutions.map(inst => ({
+    id: inst.id,
+    name: inst.name
+  }));
   
   return (
     <div className="min-h-screen flex flex-col overflow-hidden w-full">
@@ -160,7 +188,11 @@ const AdminControlPanel = () => {
                   <StudentManagement />
                 </TabsContent>
                 <TabsContent value="resources">
-                  <ResourceManagement />
+                  <ResourceManagement 
+                    institutionCount={institutionCount}
+                    totalResources={totalResources}
+                    institutions={formattedInstitutions}
+                  />
                 </TabsContent>
                 <TabsContent value="broadcasting">
                   <BroadcastSystem />
