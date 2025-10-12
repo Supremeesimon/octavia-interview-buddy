@@ -803,6 +803,9 @@ const FinancialManagement = () => {
         <TabsContent value="reports" className="space-y-6">
           <FinancialReports
             institutions={institutions}
+            institutionCount={totalInstitutions}
+            studentCount={totalStudents}
+            totalRevenue={totalRevenue}
           />
         </TabsContent>
         
