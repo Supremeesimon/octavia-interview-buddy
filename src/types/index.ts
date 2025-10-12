@@ -67,6 +67,28 @@ export interface Institution {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Pricing override fields
+  pricingOverride?: InstitutionPricingOverride | null;
+}
+
+export interface InstitutionPricingOverride {
+  customVapiCost: number;
+  customMarkupPercentage: number;
+  customLicenseCost: number;
+  isEnabled: boolean;
+}
+
+// Interface for scheduled price changes
+export interface ScheduledPriceChange {
+  id: string;
+  changeDate: Date;
+  changeType: 'vapiCost' | 'markupPercentage' | 'licenseCost';
+  affected: 'all' | string; // 'all' for all institutions, or specific institution ID
+  currentValue: number;
+  newValue: number;
+  status: 'scheduled' | 'applied' | 'cancelled';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface InstitutionSettings {

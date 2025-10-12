@@ -34,7 +34,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstitutionService } from '@/services/institution.service';
-import { Institution } from '@/types';
+import { PriceChangeService } from '@/services/price-change.service';
+import { Institution, InstitutionPricingOverride, ScheduledPriceChange } from '@/types';
 
 // Interface for financial institution data
 interface FinancialInstitution {
@@ -44,10 +45,11 @@ interface FinancialInstitution {
   licenseRevenue: number;
   sessionRevenue: number;
   status: 'active' | 'pending';
+  pricingOverride?: InstitutionPricingOverride;
 }
 
 // Interface for institution pricing override
-interface InstitutionPricingOverride {
+interface InstitutionPricingOverrideForm {
   institutionId: string;
   customVapiCost: number;
   customMarkupPercentage: number;
@@ -63,11 +65,14 @@ const FinancialManagement = () => {
   const [licenseCost, setLicenseCost] = useState(19.96); // Default annual license cost
   const [selectedInstitution, setSelectedInstitution] = useState<string>('all');
   const [institutions, setInstitutions] = useState<FinancialInstitution[]>([]);
+  const [filteredInstitutions, setFilteredInstitutions] = useState<FinancialInstitution[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending'>('all');
+  const [scheduledPriceChanges, setScheduledPriceChanges] = useState<ScheduledPriceChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingInstitution, setEditingInstitution] = useState<FinancialInstitution | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [institutionPricingOverrides, setInstitutionPricingOverrides] = useState<InstitutionPricingOverride[]>([]);
-  const [currentOverride, setCurrentOverride] = useState<InstitutionPricingOverride>({
+  const [currentOverride, setCurrentOverride] = useState<InstitutionPricingOverrideForm>({
     institutionId: '',
     customVapiCost: 0.11,
     customMarkupPercentage: 36.36,
@@ -75,26 +80,68 @@ const FinancialManagement = () => {
     isEnabled: false
   });
   
-  // Fetch real institution data
+  // Fetch real institution data and scheduled price changes
   useEffect(() => {
-    const fetchInstitutions = async () => {
+    const fetchData = async () => {
       try {
-        const data = await InstitutionService.getAllInstitutions();
-        // Convert to the format expected by the component
-        const formattedData: FinancialInstitution[] = data.map((inst) => ({
+        setLoading(true);
+        
+        // Ensure all institutions have the pricingOverride field
+        try {
+          await InstitutionService.ensurePricingOverrideField();
+        } catch (error) {
+          console.warn('Failed to ensure pricing override field:', error);
+          // Continue even if this fails
+        }
+        
+        // Initialize sample price change data if needed
+        try {
+          await PriceChangeService.initializeSampleData();
+        } catch (error) {
+          console.warn('Failed to initialize sample price change data:', error);
+          // Continue even if this fails
+        }
+        
+        // Fetch institutions
+        let institutionsData: any[] = [];
+        try {
+          institutionsData = await InstitutionService.getAllInstitutions();
+        } catch (error) {
+          console.error('Failed to fetch institutions:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load institution data",
+            variant: "destructive",
+          });
+        }
+        
+        // Fetch price changes
+        let priceChangesData: ScheduledPriceChange[] = [];
+        try {
+          priceChangesData = await PriceChangeService.getUpcomingPriceChanges();
+        } catch (error) {
+          console.error('Failed to fetch price changes:', error);
+          // Don't show toast for this as it's less critical
+        }
+        
+        // Convert institutions to the format expected by the component
+        const formattedInstitutions: FinancialInstitution[] = institutionsData.map((inst) => ({
           id: inst.id,
           name: inst.name,
           students: inst.stats?.totalStudents || 0,
           licenseRevenue: (inst.stats?.totalStudents || 0) * (licenseCost / 4), // Estimate based on students
           sessionRevenue: (inst.stats?.totalInterviews || 0) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)), // Estimate
-          status: inst.isActive ? 'active' : 'pending'
+          status: inst.isActive ? 'active' : 'pending',
+          pricingOverride: inst.pricingOverride || undefined
         }));
-        setInstitutions(formattedData);
+        
+        setInstitutions(formattedInstitutions);
+        setScheduledPriceChanges(priceChangesData);
       } catch (error) {
-        console.error('Error fetching institutions:', error);
+        console.error('Unexpected error in fetchData:', error);
         toast({
           title: "Error",
-          description: "Failed to load institution data",
+          description: "An unexpected error occurred while loading data",
           variant: "destructive",
         });
       } finally {
@@ -102,7 +149,7 @@ const FinancialManagement = () => {
       }
     };
     
-    fetchInstitutions();
+    fetchData();
   }, [licenseCost, vapiCost, markupPercentage]);
   
   // Quick calculate derived values
@@ -148,10 +195,14 @@ const FinancialManagement = () => {
     setEditingInstitution(institution);
     
     // Check if this institution already has an override
-    const existingOverride = institutionPricingOverrides.find(override => override.institutionId === institution.id);
-    
-    if (existingOverride) {
-      setCurrentOverride(existingOverride);
+    if (institution.pricingOverride) {
+      setCurrentOverride({
+        institutionId: institution.id,
+        customVapiCost: institution.pricingOverride.customVapiCost,
+        customMarkupPercentage: institution.pricingOverride.customMarkupPercentage,
+        customLicenseCost: institution.pricingOverride.customLicenseCost,
+        isEnabled: institution.pricingOverride.isEnabled
+      });
     } else {
       // Set default values based on global settings
       setCurrentOverride({
@@ -167,61 +218,104 @@ const FinancialManagement = () => {
   };
   
   // Handle save institution pricing override
-  const handleSaveOverride = () => {
-    // Update or add the override
-    const updatedOverrides = [...institutionPricingOverrides];
-    const existingIndex = updatedOverrides.findIndex(override => override.institutionId === currentOverride.institutionId);
+  const handleSaveOverride = async () => {
+    if (!editingInstitution) return;
     
-    if (existingIndex >= 0) {
-      updatedOverrides[existingIndex] = currentOverride;
-    } else {
-      updatedOverrides.push(currentOverride);
+    try {
+      // Create the pricing override object
+      const pricingOverride: InstitutionPricingOverride = {
+        customVapiCost: currentOverride.customVapiCost,
+        customMarkupPercentage: currentOverride.customMarkupPercentage,
+        customLicenseCost: currentOverride.customLicenseCost,
+        isEnabled: currentOverride.isEnabled
+      };
+      
+      // Update the institution with the new pricing override
+      await InstitutionService.updatePricingOverride(currentOverride.institutionId, pricingOverride);
+      
+      // Update the local state
+      setInstitutions(prev => prev.map(inst => 
+        inst.id === currentOverride.institutionId 
+          ? { ...inst, pricingOverride } 
+          : inst
+      ));
+      
+      setIsEditDialogOpen(false);
+      
+      toast({
+        title: "Pricing override saved",
+        description: `Custom pricing for ${editingInstitution?.name} has been saved.`,
+      });
+    } catch (error) {
+      console.error('Error saving pricing override:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save pricing override",
+        variant: "destructive",
+      });
     }
-    
-    setInstitutionPricingOverrides(updatedOverrides);
-    setIsEditDialogOpen(false);
-    
-    toast({
-      title: "Pricing override saved",
-      description: `Custom pricing for ${editingInstitution?.name} has been saved.`,
-    });
   };
   
   // Handle custom pricing toggle
-  const handleCustomPricingToggle = (institutionId: string, checked: boolean) => {
-    setInstitutionPricingOverrides(prev => {
-      const updated = [...prev];
-      const index = updated.findIndex(override => override.institutionId === institutionId);
+  const handleCustomPricingToggle = async (institutionId: string, checked: boolean) => {
+    try {
+      const institution = institutions.find(inst => inst.id === institutionId);
+      if (!institution) return;
       
-      if (index >= 0) {
-        updated[index] = { ...updated[index], isEnabled: checked };
-      } else if (checked) {
-        // Add a new override if enabling and none exists
-        const institution = institutions.find(inst => inst.id === institutionId);
-        if (institution) {
-          updated.push({
-            institutionId,
-            customVapiCost: vapiCost,
-            customMarkupPercentage: markupPercentage,
-            customLicenseCost: licenseCost,
-            isEnabled: true
-          });
+      if (checked) {
+        // Enable custom pricing - if no override exists, create one with default values
+        const pricingOverride = institution.pricingOverride || {
+          customVapiCost: vapiCost,
+          customMarkupPercentage: markupPercentage,
+          customLicenseCost: licenseCost,
+          isEnabled: true
+        };
+        
+        // Update the override to be enabled
+        const updatedOverride = { ...pricingOverride, isEnabled: true };
+        
+        // Update in Firebase
+        await InstitutionService.updatePricingOverride(institutionId, updatedOverride);
+        
+        // Update local state
+        setInstitutions(prev => prev.map(inst => 
+          inst.id === institutionId 
+            ? { ...inst, pricingOverride: updatedOverride } 
+            : inst
+        ));
+      } else {
+        // Disable custom pricing - if override exists, update it to disabled
+        if (institution.pricingOverride) {
+          const updatedOverride = { ...institution.pricingOverride, isEnabled: false };
+          
+          // Update in Firebase
+          await InstitutionService.updatePricingOverride(institutionId, updatedOverride);
+          
+          // Update local state
+          setInstitutions(prev => prev.map(inst => 
+            inst.id === institutionId 
+              ? { ...inst, pricingOverride: updatedOverride } 
+              : inst
+          ));
         }
       }
-      
-      return updated;
-    });
+    } catch (error) {
+      console.error('Error toggling custom pricing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update custom pricing",
+        variant: "destructive",
+      });
+    }
   };
   
   // Get pricing for an institution (either override or global)
-  const getInstitutionPricing = (institutionId: string) => {
-    const override = institutionPricingOverrides.find(override => override.institutionId === institutionId);
-    
-    if (override && override.isEnabled) {
+  const getInstitutionPricing = (institution: FinancialInstitution) => {
+    if (institution.pricingOverride && institution.pricingOverride.isEnabled) {
       return {
-        vapiCost: override.customVapiCost,
-        markupPercentage: override.customMarkupPercentage,
-        licenseCost: override.customLicenseCost
+        vapiCost: institution.pricingOverride.customVapiCost,
+        markupPercentage: institution.pricingOverride.customMarkupPercentage,
+        licenseCost: institution.pricingOverride.customLicenseCost
       };
     }
     
@@ -232,6 +326,27 @@ const FinancialManagement = () => {
       licenseCost
     };
   };
+  
+  // Filter institutions based on search term and status
+  useEffect(() => {
+    let filtered = institutions;
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(institution => 
+        institution.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(institution => 
+        institution.status === statusFilter
+      );
+    }
+    
+    setFilteredInstitutions(filtered);
+  }, [searchTerm, statusFilter, institutions]);
   
   if (loading) {
     return (
@@ -338,8 +453,10 @@ const FinancialManagement = () => {
                   </TableHeader>
                   <TableBody>
                     {institutions.map((institution) => {
+                      const pricing = getInstitutionPricing(institution);
+                      const sessionPrice = Number((pricing.vapiCost * (1 + pricing.markupPercentage / 100)).toFixed(2));
                       const totalInst = institution.licenseRevenue + institution.sessionRevenue;
-                      const estVapiCost = totalSessionRevenue > 0 ? totalInst * (vapiCost / calculatedSessionPrice) : 0;
+                      const estVapiCost = totalSessionRevenue > 0 ? totalInst * (pricing.vapiCost / sessionPrice) : 0;
                       const estProfit = totalInst - estVapiCost;
                       const estMargin = totalInst > 0 ? (estProfit / totalInst * 100).toFixed(1) : '0';
                       
@@ -548,12 +665,31 @@ const FinancialManagement = () => {
             <CardContent>
               <div className="flex mb-4 gap-2">
                 <div className="flex-1">
-                  <Input placeholder="Search institutions..." />
+                  <Input 
+                    placeholder="Search institutions..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                </Button>
+                <div className="flex gap-2">
+                  <Select value={statusFilter} onValueChange={(value: 'all' | 'active' | 'pending') => setStatusFilter(value)}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('all');
+                  }}>
+                    <Filter className="h-4 w-4 mr-2" />
+                    Clear Filters
+                  </Button>
+                </div>
               </div>
               
               <div className="rounded-md border">
@@ -571,11 +707,10 @@ const FinancialManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {institutions.map((institution) => {
-                      const pricing = getInstitutionPricing(institution.id);
+                    {filteredInstitutions.map((institution) => {
+                      const pricing = getInstitutionPricing(institution);
                       const sessionPrice = Number((pricing.vapiCost * (1 + pricing.markupPercentage / 100)).toFixed(2));
-                      const override = institutionPricingOverrides.find(override => override.institutionId === institution.id);
-                      const hasCustomPricing = override?.isEnabled || false;
+                      const hasCustomPricing = institution.pricingOverride?.isEnabled || false;
                       
                       return (
                         <TableRow key={institution.id}>
@@ -643,23 +778,47 @@ const FinancialManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell>June 1, 2025</TableCell>
-                    <TableCell>VAPI Cost</TableCell>
-                    <TableCell>All Institutions</TableCell>
-                    <TableCell>$0.11/min</TableCell>
-                    <TableCell>$0.12/min</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700">
-                        Scheduled
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  {scheduledPriceChanges.length > 0 ? (
+                    scheduledPriceChanges.map((change) => (
+                      <TableRow key={change.id}>
+                        <TableCell>{change.changeDate.toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {change.changeType === 'vapiCost' && 'VAPI Cost'}
+                          {change.changeType === 'markupPercentage' && 'Markup Percentage'}
+                          {change.changeType === 'licenseCost' && 'License Cost'}
+                        </TableCell>
+                        <TableCell>
+                          {change.affected === 'all' ? 'All Institutions' : change.affected}
+                        </TableCell>
+                        <TableCell>
+                          {change.changeType === 'vapiCost' && `$${change.currentValue.toFixed(2)}/min`}
+                          {change.changeType === 'markupPercentage' && `${change.currentValue.toFixed(1)}%`}
+                          {change.changeType === 'licenseCost' && `$${change.currentValue.toFixed(2)}/year`}
+                        </TableCell>
+                        <TableCell>
+                          {change.changeType === 'vapiCost' && `$${change.newValue.toFixed(2)}/min`}
+                          {change.changeType === 'markupPercentage' && `${change.newValue.toFixed(1)}%`}
+                          {change.changeType === 'licenseCost' && `$${change.newValue.toFixed(2)}/year`}
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700">
+                            {change.status.charAt(0).toUpperCase() + change.status.slice(1)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm">
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        No scheduled price changes
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -1291,6 +1450,18 @@ const FinancialManagement = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="enable-custom-pricing"
+                    checked={currentOverride.isEnabled}
+                    onCheckedChange={(checked) => setCurrentOverride({
+                      ...currentOverride,
+                      isEnabled: checked
+                    })}
+                  />
+                  <Label htmlFor="enable-custom-pricing">Enable Custom Pricing</Label>
                 </div>
               </div>
             )}
