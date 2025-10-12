@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import InstitutionDashboard from '@/components/InstitutionDashboard';
@@ -8,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useNavigate } from 'react-router-dom';
 
 interface SessionPurchase {
   sessions: number;
@@ -19,6 +20,39 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [sessionPurchases, setSessionPurchases] = useState<SessionPurchase[]>([]);
   const isMobile = useIsMobile();
+  const { user, isLoading } = useFirebaseAuth();
+  const navigate = useNavigate();
+  
+  // Redirect to login if not authenticated
+  if (!isLoading && !user) {
+    navigate('/login');
+    return null;
+  }
+  
+  // Show loading state while auth is checking
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  // Redirect non-institution admins
+  if (user && user.role !== 'institution_admin') {
+    // Redirect to appropriate dashboard based on role
+    switch (user.role) {
+      case 'student':
+        navigate('/student');
+        break;
+      case 'platform_admin':
+        navigate('/admin');
+        break;
+      default:
+        navigate('/');
+    }
+    return null;
+  }
   
   const handleSessionPurchase = (sessions: number, cost: number) => {
     const newPurchase = {
@@ -69,7 +103,7 @@ const Dashboard = () => {
               </TabsList>
               
               <TabsContent value="overview" className="overflow-hidden">
-                <InstitutionDashboard />
+                <InstitutionDashboard user={user} />
               </TabsContent>
               <TabsContent value="session" className="overflow-hidden">
                 <SessionManagement onSessionPurchase={handleSessionPurchase} />

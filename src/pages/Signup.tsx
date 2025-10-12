@@ -58,13 +58,11 @@ const Signup = () => {
   const handleStudentSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateEducationalEmail(studentForm.email)) {
-      toast.error("Please use a valid educational email address (.edu)");
-      return;
-    }
-
-    if (isPersonalEmail(studentForm.email)) {
-      toast.error("Personal emails (Gmail, Yahoo, etc.) are not permitted for student accounts");
+    // Remove email domain validation for students
+    // Students can now sign up with any email address
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(studentForm.email)) {
+      toast.error("Please enter a valid email address");
       return;
     }
 
@@ -73,7 +71,7 @@ const Signup = () => {
         name: studentForm.fullName,
         email: studentForm.email,
         password: studentForm.password,
-        institutionDomain: studentForm.email.split('@')[1],
+        role: 'student', // Explicitly set role to student
         department: studentForm.department,
         yearOfStudy: studentForm.yearOfStudy
       });
@@ -88,13 +86,14 @@ const Signup = () => {
   const handleTeacherSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateGenericEmail(teacherForm.email)) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(teacherForm.email)) {
       toast.error("Please enter a valid email address");
       return;
     }
 
     try {
-      // For teacher signup, we need to pass additional data to indicate the role
+      // For teacher signup, explicitly set role to institution_admin
       const result = await register({
         name: teacherForm.fullName,
         email: teacherForm.email,
@@ -115,18 +114,19 @@ const Signup = () => {
   const handleAdminSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateGenericEmail(adminForm.email)) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminForm.email)) {
       toast.error("Please enter a valid email address");
       return;
     }
 
     try {
-      // For admin signup, we need to pass additional data to indicate the role
+      // For admin signup, explicitly set role to institution_admin (not platform_admin)
       const result = await register({
         name: adminForm.fullName,
         email: adminForm.email,
         password: adminForm.password,
-        role: 'platform_admin' // Platform admin role
+        role: 'institution_admin' // Institution admin role (not platform admin)
       });
       
       // Navigate based on the actual role assigned by Firebase

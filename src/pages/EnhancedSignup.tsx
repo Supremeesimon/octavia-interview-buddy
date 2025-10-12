@@ -10,7 +10,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { Mail, GraduationCap, Users, Shield, Chrome, Building } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
-import type { SignupRequest } from '@/types';
 
 // Mock departments data - in a real app, this would come from an API
 const MOCK_DEPARTMENTS = [
@@ -70,13 +69,11 @@ const EnhancedSignup = () => {
   const handleStudentSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateEducationalEmail(studentForm.email)) {
-      toast.error("Please use a valid educational email address (.edu)");
-      return;
-    }
-
-    if (isPersonalEmail(studentForm.email)) {
-      toast.error("Personal emails (Gmail, Yahoo, etc.) are not permitted for student accounts");
+    // Remove email domain validation for students
+    // Students can now sign up with any email address
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(studentForm.email)) {
+      toast.error("Please enter a valid email address");
       return;
     }
 
@@ -90,7 +87,8 @@ const EnhancedSignup = () => {
         name: studentForm.fullName,
         email: studentForm.email,
         password: studentForm.password,
-        institutionDomain: studentForm.email.split('@')[1]
+        role: 'student', // Explicitly set role to student
+        department: studentForm.department
       });
       
       navigate('/student');
@@ -103,7 +101,8 @@ const EnhancedSignup = () => {
   const handleTeacherSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateGenericEmail(teacherForm.email)) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(teacherForm.email)) {
       toast.error("Please enter a valid email address");
       return;
     }
@@ -114,10 +113,13 @@ const EnhancedSignup = () => {
     }
 
     try {
+      // For teacher signup, explicitly set role to institution_admin
       const result = await register({
         name: teacherForm.fullName,
         email: teacherForm.email,
-        password: teacherForm.password
+        password: teacherForm.password,
+        role: 'institution_admin', // Teachers are institution admins in our system
+        department: teacherForm.department
       });
       
       navigate('/dashboard');
@@ -130,16 +132,19 @@ const EnhancedSignup = () => {
   const handleAdminSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateGenericEmail(adminForm.email)) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminForm.email)) {
       toast.error("Please enter a valid email address");
       return;
     }
 
     try {
+      // For admin signup, explicitly set role to institution_admin (not platform_admin)
       const result = await register({
         name: adminForm.fullName,
         email: adminForm.email,
-        password: adminForm.password
+        password: adminForm.password,
+        role: 'institution_admin' // Institution admin role (not platform admin)
       });
       
       // Navigate based on the actual role assigned by Firebase
@@ -319,7 +324,7 @@ const EnhancedSignup = () => {
                   <p className="text-sm text-muted-foreground">Sign up to manage your students</p>
                 </div>
 
-                <form onSubmit={handleTeacherSignup} className="space-y-4">
+                <form onSubmit={handleTeacherSignup} className="space-y-4 text-left">
                   <div className="text-left">
                     <Label htmlFor="teacher-name" className="text-left">Full Name</Label>
                     <Input

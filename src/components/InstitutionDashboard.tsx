@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -34,19 +34,49 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ResetSettingsDialog from './ResetSettingsDialog';
+import { InstitutionService } from '@/services/institution.service';
+import type { UserProfile, Institution } from '@/types';
 
-const InstitutionDashboard = () => {
+interface InstitutionDashboardProps {
+  user: UserProfile;
+}
+
+const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedStudent, setExpandedStudent] = useState(null);
   const [activeMainTab, setActiveMainTab] = useState('students');
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState('resume');
+  const [institution, setInstitution] = useState<Institution | null>(null);
+  const [loadingInstitution, setLoadingInstitution] = useState(true);
+  
+  // Fetch institution details
+  useEffect(() => {
+    const fetchInstitution = async () => {
+      if (!user || !user.institutionDomain) {
+        setLoadingInstitution(false);
+        return;
+      }
+      
+      try {
+        // In a real implementation, we would fetch the institution by domain or ID
+        // For now, we'll mock this behavior
+        // TODO: Implement proper institution fetching by domain or ID
+        setLoadingInstitution(false);
+      } catch (error) {
+        console.error("Error fetching institution:", error);
+        setLoadingInstitution(false);
+      }
+    };
+    
+    fetchInstitution();
+  }, [user]);
   
   // Generate a unique signup link for the institution
   const generateSignupLink = (userType: 'student' | 'teacher' = 'student') => {
-    // In a real implementation, this would be based on the actual institution ID
-    const institutionId = "institution-xyz"; // This would come from user context
+    // Use the actual institution ID from the user context
+    const institutionId = user?.institutionId || "institution-xyz"; // Fallback for now
     const timestamp = Date.now().toString(36);
     return `https://octavia.ai/signup/${institutionId}?type=${userType}&t=${timestamp}`;
   };

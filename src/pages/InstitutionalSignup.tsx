@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from "sonner";
 import { Mail, GraduationCap } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
-import type { SignupRequest } from '@/types';
+import { InstitutionService } from '@/services/institution.service';
 
 const InstitutionalSignup = () => {
   const { institutionId } = useParams();
@@ -25,22 +25,39 @@ const InstitutionalSignup = () => {
     experience: ''
   });
   
+  const [institution, setInstitution] = useState<any>(null);
+  const [loadingInstitution, setLoadingInstitution] = useState(true);
+  
   const userType = searchParams.get('type') || 'student';
 
-  // In a real implementation, you would fetch institution details from the backend
-  const institutionName = institutionId ? `Institution ${institutionId}` : 'Unknown Institution';
-
+  // Fetch institution details
   useEffect(() => {
-    // Validate institution ID
-    if (!institutionId) {
-      toast.error("Invalid signup link");
-      navigate("/signup");
-    }
+    const fetchInstitution = async () => {
+      if (!institutionId) {
+        toast.error("Invalid signup link");
+        navigate("/signup");
+        return;
+      }
+      
+      try {
+        const institutionData = await InstitutionService.getInstitutionById(institutionId);
+        if (!institutionData) {
+          toast.error("Invalid institution");
+          navigate("/signup");
+          return;
+        }
+        setInstitution(institutionData);
+      } catch (error) {
+        console.error("Error fetching institution:", error);
+        toast.error("Failed to load institution details");
+        navigate("/signup");
+      } finally {
+        setLoadingInstitution(false);
+      }
+    };
+    
+    fetchInstitution();
   }, [institutionId, navigate]);
-
-  const validateEducationalEmail = (email: string): boolean => {
-    return email.endsWith('.edu') || email.includes('.edu.');
-  };
 
   const validateForm = (): boolean => {
     if (!form.fullName.trim()) {
@@ -53,8 +70,9 @@ const InstitutionalSignup = () => {
       return false;
     }
 
-    if (!validateEducationalEmail(form.email)) {
-      toast.error("Please use a valid educational email address (.edu)");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      toast.error("Please enter a valid email address");
       return false;
     }
 
@@ -78,23 +96,41 @@ const InstitutionalSignup = () => {
       return;
     }
 
+    if (!institution) {
+      toast.error("Institution details not loaded");
+      return;
+    }
+
     try {
       const result = await register({
         name: form.fullName,
         email: form.email,
         password: form.password,
-        institutionDomain: form.email.split('@')[1],
-        role: userType === 'teacher' ? 'institution_admin' : 'student', // Teachers are institution admins
+        role: userType === 'teacher' ? 'institution_admin' : 'student', // Set role based on user type
         department: form.department,
-        yearOfStudy: userType === 'teacher' ? form.experience : form.yearOfStudy
+        yearOfStudy: userType === 'teacher' ? form.experience : form.yearOfStudy,
+        institutionDomain: institution.domain // Pass the institution domain
       });
       
-      navigate('/student');
+      // Navigate based on user type
+      if (userType === 'teacher') {
+        navigate('/dashboard');
+      } else {
+        navigate('/student');
+      }
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
     }
   };
+
+  if (loadingInstitution) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -104,7 +140,7 @@ const InstitutionalSignup = () => {
           <Card className="p-8 shadow-lg rounded-xl">
             <div className="text-center mb-8">
               <GraduationCap className="h-12 w-12 mx-auto text-primary mb-4" />
-              <h1 className="text-2xl font-bold mb-2">Join {institutionName}</h1>
+              <h1 className="text-2xl font-bold mb-2">Join {institution?.name || 'Unknown Institution'}</h1>
               <p className="text-muted-foreground">Create your {userType === 'teacher' ? 'teacher' : 'student'} account</p>
             </div>
 
