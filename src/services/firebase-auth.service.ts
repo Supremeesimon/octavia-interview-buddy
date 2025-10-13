@@ -80,7 +80,10 @@ export class FirebaseAuthService {
         await InstitutionHierarchyService.createPlatformAdmin(userProfile);
       } else if (!data.institutionDomain) {
         // External users (no institution affiliation)
-        await InstitutionHierarchyService.createExternalUser(userProfile);
+        await InstitutionHierarchyService.createExternalUser({
+          ...userProfile,
+          authProvider: 'email'
+        });
       } else {
         // Institutional users are created through institutional signup
         // which already uses InstitutionHierarchyService
@@ -141,7 +144,10 @@ export class FirebaseAuthService {
           await InstitutionHierarchyService.createPlatformAdmin(minimalProfile);
         } else {
           // For all other roles without institution domain, create as external user
-          await InstitutionHierarchyService.createExternalUser(minimalProfile);
+          await InstitutionHierarchyService.createExternalUser({
+            ...minimalProfile,
+            authProvider: 'email'
+          });
         }
 
         // Get Firebase token
@@ -218,11 +224,6 @@ export class FirebaseAuthService {
           institutionDomain: user.email?.split('@')[1],
           emailVerified: user.emailVerified,
           isEmailVerified: user.emailVerified,
-          // Only include department and yearOfStudy for institutional users
-          ...(user.email?.split('@')[1] && {
-            department: data?.department || null,
-            yearOfStudy: data?.yearOfStudy || null
-          }),
           createdAt: new Date(),
           updatedAt: new Date(),
           lastLoginAt: new Date(),
@@ -231,7 +232,11 @@ export class FirebaseAuthService {
         };
 
         // OAuth users are external users (not institutional)
-        await InstitutionHierarchyService.createExternalUser(userProfile);
+        // We need to set the authProvider to 'gmail' for Google OAuth users
+        await InstitutionHierarchyService.createExternalUser({
+          ...userProfile,
+          authProvider: 'gmail'
+        });
       } else {
         // Update existing user's last login time
         userProfile = userSearchResult.user;
