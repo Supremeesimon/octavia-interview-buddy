@@ -1,8 +1,8 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getFunctions } from 'firebase/functions';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Helper function to get environment variables in both Vite and Node.js environments
 function getEnvVar(name: string): string | undefined {
@@ -38,13 +38,12 @@ if (!hasValidConfig) {
   console.warn('Using default configuration which may not work in production.');
 }
 
-// Initialize Firebase
+// Initialize Firebase - prevent duplicate app initialization
 let app;
-try {
+if (!getApps().length) {
   app = initializeApp(firebaseConfig);
-} catch (error) {
-  console.error('Firebase initialization error:', error);
-  throw new Error('Failed to initialize Firebase. Please check your configuration.');
+} else {
+  app = getApp();
 }
 
 // Initialize Firebase services
@@ -52,6 +51,14 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+
+// Connect to emulators in development mode
+if (process.env.NODE_ENV === 'development' || process.env.FIREBASE_EMULATOR === 'true') {
+  console.log('Connecting to Firebase emulators...');
+  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+  connectFirestoreEmulator(db, 'localhost', 8080);
+  connectFunctionsEmulator(functions, 'localhost', 5001);
+}
 
 // Export default app
 export default app;

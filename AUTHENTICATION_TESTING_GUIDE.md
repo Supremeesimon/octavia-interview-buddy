@@ -38,6 +38,22 @@ Tests the complete login flow including different user roles and authentication 
 npm run test-login-component
 ```
 
+### 4. Hierarchical User Structure Tests
+Tests the hierarchical user structure including platform admins, external users, and institutional users (admins, teachers, students).
+
+**Run with:**
+```bash
+npm run test-hierarchical-user-structure
+```
+
+### 4. Hierarchical User Structure Tests
+Tests the hierarchical user structure including platform admins, external users, and institutional users (admins, teachers, students).
+
+**Run with:**
+```bash
+npm run test-hierarchical-user-structure
+```
+
 ## Prerequisites
 
 Before running the tests, ensure you have:
@@ -67,6 +83,15 @@ The tests verify authentication for all supported user roles:
 - **Institution Admin**: Administrators of educational institutions
 - **Platform Admin**: System administrators with full access
 
+### Hierarchical Structure
+The tests verify the hierarchical user structure:
+- **Platform Admins**: Stored in `platformAdmins` collection
+- **External Users**: Stored in `externalUsers` collection
+- **Institutional Users**: Stored in hierarchical subcollections
+  - Institution Admins: `institutions/{institutionId}/admins/{adminId}`
+  - Teachers: `institutions/{institutionId}/departments/{departmentId}/teachers/{teacherId}`
+  - Students: `institutions/{institutionId}/departments/{departmentId}/students/{studentId}`
+
 ### Authentication Methods
 - Email/password registration and login
 - Google OAuth login
@@ -94,13 +119,16 @@ npm run test-use-auth
 
 # Test login component functionality
 npm run test-login-component
+
+# Test hierarchical user structure
+npm run test-hierarchical-user-structure
 ```
 
 ### All Authentication Tests
 To run all authentication tests sequentially:
 
 ```bash
-npm run test-auth-service && npm run test-use-auth && npm run test-login-component
+npm run test-auth-service && npm run test-use-auth && npm run test-login-component && npm run test-hierarchical-user-structure
 ```
 
 ## Test Output
