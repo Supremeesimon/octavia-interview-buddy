@@ -80,10 +80,17 @@ export class FirebaseAuthService {
         await InstitutionHierarchyService.createPlatformAdmin(userProfile);
       } else if (!data.institutionDomain) {
         // External users (no institution affiliation)
-        await InstitutionHierarchyService.createExternalUser({
-          ...userProfile,
-          authProvider: 'email'
-        });
+        try {
+          await InstitutionHierarchyService.createExternalUser({
+            ...userProfile,
+            authProvider: 'email'
+          });
+        } catch (error) {
+          // If we fail to create the user document, we should delete the Firebase Auth user
+          // to avoid having orphaned auth users
+          await user.delete();
+          throw error;
+        }
       } else {
         // Institutional users are created through institutional signup
         // which already uses InstitutionHierarchyService
@@ -144,10 +151,16 @@ export class FirebaseAuthService {
           await InstitutionHierarchyService.createPlatformAdmin(minimalProfile);
         } else {
           // For all other roles without institution domain, create as external user
-          await InstitutionHierarchyService.createExternalUser({
-            ...minimalProfile,
-            authProvider: 'email'
-          });
+          try {
+            await InstitutionHierarchyService.createExternalUser({
+              ...minimalProfile,
+              authProvider: 'email'
+            });
+          } catch (error) {
+            // If we fail to create the user document, log the error but don't throw
+            // as the user can still log in, they just won't have a profile
+            console.error('Failed to create minimal external user profile:', error);
+          }
         }
 
         // Get Firebase token
@@ -233,10 +246,17 @@ export class FirebaseAuthService {
 
         // OAuth users are external users (not institutional)
         // We need to set the authProvider to 'gmail' for Google OAuth users
-        await InstitutionHierarchyService.createExternalUser({
-          ...userProfile,
-          authProvider: 'gmail'
-        });
+        try {
+          await InstitutionHierarchyService.createExternalUser({
+            ...userProfile,
+            authProvider: 'gmail'
+          });
+        } catch (error) {
+          // If we fail to create the user document, we should delete the Firebase Auth user
+          // to avoid having orphaned auth users
+          await user.delete();
+          throw error;
+        }
       } else {
         // Update existing user's last login time
         userProfile = userSearchResult.user;
@@ -512,39 +532,58 @@ export class FirebaseAuthService {
   }
 
   // Handle Firebase auth errors
-  private handleAuthError(error: AuthError): Error {
-    switch (error.code) {
-      case 'auth/email-already-in-use':
-        return new Error('This email is already registered. Please try: 1. Using a different email address, or 2. Going to the login page if you already have an account.');
-      case 'auth/weak-password':
-        return new Error('Password is too weak. Please use at least 6 characters');
-      case 'auth/invalid-email':
-        return new Error('Invalid email address');
-      case 'auth/user-not-found':
-        return new Error('No account found with this email address. Please check your email or sign up for a new account.');
-      case 'auth/wrong-password':
-        return new Error('Invalid email or password. Please check your credentials and try again.');
-      case 'auth/too-many-requests':
-        return new Error('Too many failed attempts. Please try again later');
-      case 'auth/network-request-failed':
-        return new Error('Network error. Please check your connection');
-      case 'auth/popup-closed-by-user':
-        return new Error('Sign in popup was closed before completing sign in');
-      case 'auth/cancelled-popup-request':
-        return new Error('Sign in popup was cancelled');
-      case 'auth/multi-factor-auth-required':
-        return new Error('Multi-factor authentication is required');
-      case 'auth/multi-factor-info-not-found':
-        return new Error('Multi-factor information not found');
-      case 'auth/invalid-verification-code':
-        return new Error('Invalid verification code');
-      case 'auth/missing-verification-code':
-        return new Error('Missing verification code');
-      case 'auth/invalid-credential':
-        return new Error('Invalid email or password. Please check your credentials and try again.');
-      default:
-        return new Error(error.message || 'Authentication failed');
+  private handleAuthError(error: AuthError | Error): Error {
+    // Handle our custom errors first
+    if (error instanceof Error) {
+      // Check if it's our custom permission error
+      if (error.message.includes('Missing or insufficient permissions')) {
+        return new Error('Failed to create external user: Missing or insufficient permissions. Please contact support.');
+      }
+      
+      // Check if it's our custom external user creation error
+      if (error.message.includes('Failed to create external user')) {
+        return error;
+      }
     }
+    
+    // Handle Firebase Auth errors
+    if ('code' in error) {
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          return new Error('This email is already registered. Please try: 1. Using a different email address, or 2. Going to the login page if you already have an account.');
+        case 'auth/weak-password':
+          return new Error('Password is too weak. Please use at least 6 characters');
+        case 'auth/invalid-email':
+          return new Error('Invalid email address');
+        case 'auth/user-not-found':
+          return new Error('No account found with this email address. Please check your email or sign up for a new account.');
+        case 'auth/wrong-password':
+          return new Error('Invalid email or password. Please check your credentials and try again.');
+        case 'auth/too-many-requests':
+          return new Error('Too many failed attempts. Please try again later');
+        case 'auth/network-request-failed':
+          return new Error('Network error. Please check your connection');
+        case 'auth/popup-closed-by-user':
+          return new Error('Sign in popup was closed before completing sign in');
+        case 'auth/cancelled-popup-request':
+          return new Error('Sign in popup was cancelled');
+        case 'auth/multi-factor-auth-required':
+          return new Error('Multi-factor authentication is required');
+        case 'auth/multi-factor-info-not-found':
+          return new Error('Multi-factor information not found');
+        case 'auth/invalid-verification-code':
+          return new Error('Invalid verification code');
+        case 'auth/missing-verification-code':
+          return new Error('Missing verification code');
+        case 'auth/invalid-credential':
+          return new Error('Invalid email or password. Please check your credentials and try again.');
+        default:
+          return new Error(error.message || 'Authentication failed');
+      }
+    }
+    
+    // Handle other errors
+    return new Error(error.message || 'Authentication failed');
   }
 }
 

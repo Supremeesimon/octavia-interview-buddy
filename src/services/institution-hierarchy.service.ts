@@ -216,13 +216,13 @@ export class InstitutionHierarchyService {
   static async createExternalUser(userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'> & { authProvider?: string }): Promise<string> {
     try {
       // For external users, we don't include department and yearOfStudy fields
-      const { department, yearOfStudy, ...cleanedUserData } = userData;
+      const { department, yearOfStudy, institutionDomain, ...cleanedUserData } = userData;
       
       const externalUserData = {
         ...cleanedUserData,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-        lastLogin: Timestamp.now()
+        lastLoginAt: Timestamp.now()
       };
 
       const docRef = doc(collection(db, this.EXTERNAL_USERS_COLLECTION));
@@ -233,6 +233,10 @@ export class InstitutionHierarchyService {
       return userId;
     } catch (error) {
       console.error('Error creating external user:', error);
+      // Check if it's a permission error
+      if (error instanceof Error && error.message.includes('permission')) {
+        throw new Error('Missing or insufficient permissions. Please contact support.');
+      }
       throw new Error(`Failed to create external user: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

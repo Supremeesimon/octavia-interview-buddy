@@ -85,37 +85,7 @@
 }
 /* stylelint-enable at-rule-no-unknown */
 
-@font-face {
-  font-family: 'SF Pro Display';
-  src: local('SF Pro Display'), url('/fonts/SF-Pro-Display-Regular.otf');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'SF Pro Display';
-  src: local('SF Pro Display'), url('/fonts/SF-Pro-Display-Medium.otf');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'SF Pro Display';
-  src: local('SF Pro Display'), url('/fonts/SF-Pro-Display-Bold.otf');
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'SF Mono';
-  src: local('SF Mono'), url('/fonts/SFMono-Regular.otf');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
+/* Font declarations removed due to missing font files */
 
 /* Smooth transitions for page changes */
 .page-transition-enter {

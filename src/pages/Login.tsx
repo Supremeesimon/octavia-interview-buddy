@@ -110,6 +110,7 @@ const Login = () => {
                     required 
                     placeholder="Enter your password" 
                     className="mt-1"
+                    autoComplete="current-password"
                   />
                   <div className="flex justify-end mt-2">
                     <Link to="/forgot-password" className="text-xs text-primary hover:underline">
