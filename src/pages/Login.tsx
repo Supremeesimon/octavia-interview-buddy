@@ -15,6 +15,7 @@ const Login = () => {
   const { login, loginWithGoogle, isLoading } = useFirebaseAuth();
   const navigate = useNavigate();
   
+  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -25,6 +26,9 @@ const Login = () => {
       switch (result.user.role) {
         case 'student':
           navigate('/student');
+          break;
+        case 'teacher':
+          navigate('/teacher-dashboard');
           break;
         case 'institution_admin':
           navigate('/dashboard');
@@ -50,6 +54,9 @@ const Login = () => {
       switch (result.user.role) {
         case 'student':
           navigate('/student');
+          break;
+        case 'teacher':
+          navigate('/teacher-dashboard');
           break;
         case 'institution_admin':
           navigate('/dashboard');

@@ -56,6 +56,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     switch (user.role) {
       case 'student':
         return <Navigate to="/student" replace />;
+      case 'teacher':
+        return <Navigate to="/teacher-dashboard" replace />;
       case 'institution_admin':
         return <Navigate to="/dashboard" replace />;
       case 'platform_admin':

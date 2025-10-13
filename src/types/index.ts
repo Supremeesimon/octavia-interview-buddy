@@ -7,7 +7,7 @@
 // USER TYPES
 // =============================================================================
 
-export type UserRole = 'student' | 'institution_admin' | 'platform_admin';
+export type UserRole = 'student' | 'teacher' | 'institution_admin' | 'platform_admin';
 
 export type AdminPermission = 
   | 'manage_students'
@@ -37,6 +37,20 @@ export interface User {
   lastLoginAt?: Date;
 }
 
+export interface SignupRequest {
+  name: string;
+  email: string;
+  password: string;
+  institutionDomain?: string;
+  department?: string;
+  yearOfStudy?: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 export interface UserProfile extends User {
   institutionDomain?: string;
   emailVerified: boolean;
@@ -63,6 +77,13 @@ export interface InstitutionAdmin extends User {
 export interface PlatformAdmin extends User {
   role: 'platform_admin';
   permissions: PlatformPermission[];
+}
+
+export interface Teacher extends User {
+  role: 'teacher';
+  institutionId: string;
+  department: string;
+  permissions: AdminPermission[];
 }
 
 // =============================================================================

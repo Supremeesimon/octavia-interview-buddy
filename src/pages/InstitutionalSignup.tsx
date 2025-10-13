@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Mail, GraduationCap } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { InstitutionService } from '@/services/institution.service';
+import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
 
 const InstitutionalSignup = () => {
   const { institutionId } = useParams();
@@ -40,13 +41,22 @@ const InstitutionalSignup = () => {
       }
       
       try {
-        const institutionData = await InstitutionService.getInstitutionById(institutionId);
-        if (!institutionData) {
+        // First try to get institution by token (new method)
+        const institutionData = await InstitutionHierarchyService.getInstitutionByToken(institutionId);
+        if (institutionData) {
+          setInstitution(institutionData);
+          return;
+        }
+        
+        // Fallback to old method for backward compatibility
+        const oldInstitutionData = await InstitutionService.getInstitutionById(institutionId);
+        console.log("Institution data fetched:", oldInstitutionData); // Debug log
+        if (!oldInstitutionData) {
           toast.error("Invalid institution");
           navigate("/signup");
           return;
         }
-        setInstitution(institutionData);
+        setInstitution(oldInstitutionData);
       } catch (error) {
         console.error("Error fetching institution:", error);
         toast.error("Failed to load institution details");
@@ -97,11 +107,18 @@ const InstitutionalSignup = () => {
     }
 
     if (!institution) {
-      toast.error("Institution details not loaded");
+      toast.error("Institution details not loaded. Please try refreshing the page.");
+      return;
+    }
+
+    // Additional check for institution domain
+    if (!institution.domain) {
+      toast.error("Institution domain information is missing. Please contact support.");
       return;
     }
 
     try {
+      // Register user in the new hierarchical structure
       const result = await register({
         name: form.fullName,
         email: form.email,
@@ -112,15 +129,53 @@ const InstitutionalSignup = () => {
         institutionDomain: institution.domain // Pass the institution domain
       });
       
-      // Navigate based on user type
+      // Create user in the hierarchical structure based on their role
       if (userType === 'teacher') {
+        // For teachers, we need to create a department first
+        const departmentId = await InstitutionHierarchyService.createDepartment(
+          institution.id, 
+          form.department || 'Default Department', 
+          result.user.id
+        );
+        
+        await InstitutionHierarchyService.createTeacher(institution.id, departmentId, result.user);
         navigate('/dashboard');
       } else {
+        // For students, we need to create a department first
+        const departmentId = await InstitutionHierarchyService.createDepartment(
+          institution.id, 
+          form.department || 'Default Department', 
+          result.user.id
+        );
+        
+        await InstitutionHierarchyService.createStudent(institution.id, departmentId, result.user);
         navigate('/student');
       }
+      
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+      // Provide more specific guidance for email already registered error
+      if (error.message === 'Email address is already registered') {
+        toast.error(
+          `This email is already registered. Please try: 
+          1. Using a different email address, or 
+          2. Going to the login page if you already have an account.`,
+          {
+            duration: 10000, // Show for 10 seconds
+          }
+        );
+      } else if (error.message && error.message.includes('Unsupported field value: undefined')) {
+        toast.error(
+          `There was an issue with the institution data. Please try: 
+          1. Using a different signup link, or 
+          2. Contacting support if the problem persists.`,
+          {
+            duration: 10000, // Show for 10 seconds
+          }
+        );
+      } else {
+        toast.error(error.message || 'Registration failed');
+      }
     }
   };
 

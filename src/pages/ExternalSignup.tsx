@@ -71,7 +71,19 @@ const ExternalSignup = () => {
       navigate('/student');
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+      // Provide more specific guidance for email already registered error
+      if (error.message === 'Email address is already registered') {
+        toast.error(
+          `This email is already registered. Please try: 
+          1. Using a different email address, or 
+          2. Going to the login page if you already have an account.`,
+          {
+            duration: 10000, // Show for 10 seconds
+          }
+        );
+      } else {
+        toast.error(error.message || 'Registration failed');
+      }
     }
   };
 
@@ -96,7 +108,19 @@ const ExternalSignup = () => {
       
       toast.success(`Welcome ${result.user.name}!`);
     } catch (error: any) {
-      toast.error(error.message || 'Google sign in failed');
+      // Provide more specific guidance for email already registered error
+      if (error.message === 'Email address is already registered') {
+        toast.error(
+          `This email is already registered. Please try: 
+          1. Using a different email address, or 
+          2. Going to the login page if you already have an account.`,
+          {
+            duration: 10000, // Show for 10 seconds
+          }
+        );
+      } else {
+        toast.error(error.message || 'Google sign in failed');
+      }
     }
   };
 

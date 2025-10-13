@@ -94,7 +94,19 @@ const EnhancedSignup = () => {
       navigate('/student');
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+      // Provide more specific guidance for email already registered error
+      if (error.message === 'Email address is already registered') {
+        toast.error(
+          `This email is already registered. Please try: 
+          1. Using a different email address, or 
+          2. Going to the login page if you already have an account.`,
+          {
+            duration: 10000, // Show for 10 seconds
+          }
+        );
+      } else {
+        toast.error(error.message || 'Registration failed');
+      }
     }
   };
 
@@ -113,19 +125,31 @@ const EnhancedSignup = () => {
     }
 
     try {
-      // For teacher signup, explicitly set role to institution_admin
+      // For teacher signup, explicitly set role to teacher
       const result = await register({
         name: teacherForm.fullName,
         email: teacherForm.email,
         password: teacherForm.password,
-        role: 'institution_admin', // Teachers are institution admins in our system
+        role: 'teacher',
         department: teacherForm.department
       });
       
-      navigate('/dashboard');
+      navigate('/teacher-dashboard');
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+      // Provide more specific guidance for email already registered error
+      if (error.message === 'Email address is already registered') {
+        toast.error(
+          `This email is already registered. Please try: 
+          1. Using a different email address, or 
+          2. Going to the login page if you already have an account.`,
+          {
+            duration: 10000, // Show for 10 seconds
+          }
+        );
+      } else {
+        toast.error(error.message || 'Registration failed');
+      }
     }
   };
 
@@ -155,13 +179,28 @@ const EnhancedSignup = () => {
         case 'institution_admin':
           navigate('/dashboard');
           break;
+        case 'teacher':
+          navigate('/teacher-dashboard');
+          break;
         default:
           navigate('/');
       }
       
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+      // Provide more specific guidance for email already registered error
+      if (error.message === 'Email address is already registered') {
+        toast.error(
+          `This email is already registered. Please try: 
+          1. Using a different email address, or 
+          2. Going to the login page if you already have an account.`,
+          {
+            duration: 10000, // Show for 10 seconds
+          }
+        );
+      } else {
+        toast.error(error.message || 'Registration failed');
+      }
     }
   };
 
@@ -176,6 +215,9 @@ const EnhancedSignup = () => {
           break;
         case 'institution_admin':
           navigate('/dashboard');
+          break;
+        case 'teacher':
+          navigate('/teacher-dashboard');
           break;
         case 'platform_admin':
           navigate('/admin');

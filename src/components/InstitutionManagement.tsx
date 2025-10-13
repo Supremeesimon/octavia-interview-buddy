@@ -78,8 +78,9 @@ const InstitutionManagement = () => {
   
   const handleGenerateLink = (institution: any) => {
     setSelectedInstitution(institution);
-    // Generate a custom signup link for the institution
-    const link = `${window.location.origin}/signup?institutionId=${institution.id}&institutionName=${encodeURIComponent(institution.name)}`;
+    // Generate a custom signup link for the institution with a secure token
+    const token = institution.customSignupToken || institution.id;
+    const link = `${window.location.origin}/signup-institution/${token}`;
     setGeneratedLink(link);
     setShowLinkDialog(true);
   };

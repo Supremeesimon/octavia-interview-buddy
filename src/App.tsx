@@ -35,6 +35,8 @@ import ComprehensiveAnalyticsDashboard from '@/pages/ComprehensiveAnalyticsDashb
 import ExternalSignup from '@/pages/ExternalSignup';
 import EnhancedSignup from '@/pages/EnhancedSignup';
 import InstitutionalSignup from '@/pages/InstitutionalSignup';
+import UserDiagnosticsPage from '@/pages/UserDiagnosticsPage';
+import UserDiagnosticsPage from '@/pages/UserDiagnosticsPage';
 
 // Import components
 import Header from '@/components/Header';
@@ -57,9 +59,9 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/student" element={<StudentDashboardPage />} />
-                <Route path="/teacher" element={<TeacherDashboardPage />} />
+                <Route path="/dashboard" element={<ProtectedRoute requiredRole="institution_admin"><Dashboard /></ProtectedRoute>} />
+                <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
+                <Route path="/teacher-dashboard" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboardPage /></ProtectedRoute>} />
                 <Route path="/interview" element={<Interview />} />
                 <Route path="/resumes" element={<ResumesPage />} />
                 <Route path="/analytics" element={<ProtectedRoute><ComprehensiveAnalyticsDashboard /></ProtectedRoute>} />
@@ -78,6 +80,7 @@ function App() {
                 <Route path="/signup-external" element={<ExternalSignup />} />
                 <Route path="/signup-enhanced" element={<EnhancedSignup />} />
                 <Route path="/signup-institution" element={<InstitutionalSignup />} />
+                <Route path="/diagnostics" element={<ProtectedRoute requiredRole="platform_admin"><UserDiagnosticsPage /></ProtectedRoute>} />
                 {/* Jobs pages are temporarily hidden */}
                 {/* <Route path="/jobs" element={<JobsPage />} /> */}
                 {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}

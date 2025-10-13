@@ -71,8 +71,13 @@ export class FirebaseAuthService {
         profileCompleted: false
       };
 
+      // Filter out undefined values before saving to Firestore
+      const filteredUserProfile = Object.fromEntries(
+        Object.entries(userProfile).filter(([_, value]) => value !== undefined)
+      );
+
       await setDoc(doc(db, 'users', user.uid), {
-        ...userProfile,
+        ...filteredUserProfile,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         lastLoginAt: serverTimestamp()
@@ -105,7 +110,40 @@ export class FirebaseAuthService {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       
       if (!userDoc.exists()) {
-        throw new Error('User profile not found');
+        // User exists in Firebase Auth but not in Firestore
+        // This can happen if registration was interrupted
+        // Create a minimal user profile with a better role determination
+        
+        // Try to determine the user's intended role
+        // First, check if we can get any hints from the email
+        const inferredRole = this.determineUserRole(user.email || '');
+        
+        const minimalProfile: UserProfile = {
+          id: user.uid,
+          name: user.displayName || user.email?.split('@')[0] || 'Anonymous User',
+          email: user.email || '',
+          role: inferredRole,
+          emailVerified: user.emailVerified,
+          isEmailVerified: user.emailVerified,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastLoginAt: new Date(),
+          sessionCount: 0,
+          profileCompleted: false
+        };
+
+        // Save the minimal profile to Firestore
+        await setDoc(doc(db, 'users', user.uid), {
+          ...minimalProfile,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp()
+        });
+
+        // Get Firebase token
+        const token = await user.getIdToken();
+
+        return { user: minimalProfile, token };
       }
 
       const userProfile = userDoc.data() as UserProfile;
@@ -378,16 +416,42 @@ export class FirebaseAuthService {
   }
 
   // Determine user role based on email domain
+  // Note: This is a heuristic and may not always be accurate
+  // Roles should ideally be set during registration based on user selection
   private determineUserRole(email: string, institutionDomain?: string): UserRole {
     const domain = email.split('@')[1]?.toLowerCase();
     
-    // Educational email domains
+    // Educational email domains - most likely students
     if (domain?.endsWith('.edu') || domain?.includes('.edu.')) {
       return 'student';
     }
     
     // Institution admin (specific domain provided)
     if (institutionDomain && domain === institutionDomain.toLowerCase()) {
+      return 'institution_admin';
+    }
+    
+    // Common institutional domains that might indicate teachers/admins
+    const institutionalDomains = [
+      'ac.uk', 'edu.au', 'edu.sg', 'edu.cn', 'edu.in', 
+      'edu.br', 'edu.mx', 'edu.ar', 'edu.cl', 'edu.co',
+      'edu.pe', 'edu.ve', 'edu.ec', 'edu.gt', 'edu.hn',
+      'edu.ni', 'edu.pa', 'edu.py', 'edu.uy', 'edu.do'
+    ];
+    
+    if (domain && institutionalDomains.some(instDomain => domain.endsWith(instDomain))) {
+      return 'institution_admin';
+    }
+    
+    // For common email providers, assume student unless there's other indication
+    const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
+    if (domain && personalDomains.includes(domain)) {
+      return 'student';
+    }
+    
+    // For other domains, make an educated guess
+    // If the domain doesn't look like a personal email, assume institutional role
+    if (domain && !personalDomains.includes(domain)) {
       return 'institution_admin';
     }
     
@@ -424,6 +488,8 @@ export class FirebaseAuthService {
         return new Error('Invalid verification code');
       case 'auth/missing-verification-code':
         return new Error('Missing verification code');
+      case 'auth/invalid-credential':
+        return new Error('Invalid email or password. Please check your credentials and try again.');
       default:
         return new Error(error.message || 'Authentication failed');
     }
