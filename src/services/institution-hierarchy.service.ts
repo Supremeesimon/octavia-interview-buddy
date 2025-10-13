@@ -215,14 +215,15 @@ export class InstitutionHierarchyService {
   // Create external user
   static async createExternalUser(userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
+      // For external users, we don't include department and yearOfStudy fields
+      const { department, yearOfStudy, ...cleanedUserData } = userData;
+      
       const externalUserData = {
-        ...userData,
+        ...cleanedUserData,
         authProvider: 'email', // or 'gmail' for OAuth
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-        lastLogin: Timestamp.now(),
-        department: userData.department || null, // Handle undefined department
-        yearOfStudy: userData.yearOfStudy || null, // Handle undefined yearOfStudy
+        lastLogin: Timestamp.now()
       };
 
       const docRef = doc(collection(db, this.EXTERNAL_USERS_COLLECTION));

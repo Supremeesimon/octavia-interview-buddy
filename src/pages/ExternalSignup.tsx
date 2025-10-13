@@ -16,9 +16,8 @@ const ExternalSignup = () => {
     fullName: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    department: '',
-    yearOfStudy: ''
+    confirmPassword: ''
+    // Removed department and yearOfStudy fields for external users
   });
 
   const validateForm = (): boolean => {
@@ -63,9 +62,8 @@ const ExternalSignup = () => {
         name: form.fullName,
         email: form.email,
         password: form.password,
-        role: 'student', // External users are students by default
-        department: form.department,
-        yearOfStudy: form.yearOfStudy
+        role: 'student' // External users are students by default
+        // Removed department and yearOfStudy fields for external users
       });
       
       navigate('/student');
@@ -188,31 +186,7 @@ const ExternalSignup = () => {
                 />
               </div>
 
-              <div className="text-left">
-                <Label htmlFor="department" className="text-left">Department (Optional)</Label>
-                <Input
-                  id="department"
-                  value={form.department}
-                  onChange={(e) => setForm({...form, department: e.target.value})}
-                  placeholder="Enter your department"
-                  className="mt-1 text-left"
-                />
-              </div>
-
-              <div className="text-left">
-                <Label htmlFor="yearOfStudy" className="text-left">Year of Study (Optional)</Label>
-                <select
-                  id="yearOfStudy"
-                  value={form.yearOfStudy}
-                  onChange={(e) => setForm({...form, yearOfStudy: e.target.value})}
-                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
-                >
-                  <option value="">Select Year (Optional)</option>
-                  {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Removed department and yearOfStudy fields for external users */}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Processing..." : "Sign Up"}

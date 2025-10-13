@@ -63,8 +63,11 @@ export class FirebaseAuthService {
         institutionDomain: data.institutionDomain,
         emailVerified: user.emailVerified,
         isEmailVerified: user.emailVerified,
-        department: data.department,
-        yearOfStudy: data.yearOfStudy,
+        // Only include department and yearOfStudy for institutional users
+        ...(data.institutionDomain && {
+          department: data.department,
+          yearOfStudy: data.yearOfStudy
+        }),
         createdAt: new Date(),
         updatedAt: new Date(),
         lastLoginAt: new Date(),
@@ -215,8 +218,11 @@ export class FirebaseAuthService {
           institutionDomain: user.email?.split('@')[1],
           emailVerified: user.emailVerified,
           isEmailVerified: user.emailVerified,
-          department: data?.department || null, // Handle undefined department
-          yearOfStudy: data?.yearOfStudy || null, // Handle undefined yearOfStudy
+          // Only include department and yearOfStudy for institutional users
+          ...(user.email?.split('@')[1] && {
+            department: data?.department || null,
+            yearOfStudy: data?.yearOfStudy || null
+          }),
           createdAt: new Date(),
           updatedAt: new Date(),
           lastLoginAt: new Date(),
