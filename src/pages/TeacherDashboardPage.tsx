@@ -1,11 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Header from '@/components/Header';
-import TeacherDashboard from '@/components/TeacherDashboard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load components
+const TeacherDashboard = lazy(() => import('@/components/TeacherDashboard'));
+
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-64">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const TeacherDashboardPage = () => {
   const isMobile = useIsMobile();
@@ -105,7 +114,9 @@ const TeacherDashboardPage = () => {
               
               <div className="overflow-hidden">
                 <TabsContent value="dashboard">
-                  <TeacherDashboard />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <TeacherDashboard />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="students">
                   <div className="space-y-6">
@@ -113,7 +124,9 @@ const TeacherDashboardPage = () => {
                       <h2 className="text-2xl font-bold mb-2">Student Management</h2>
                       <p className="text-muted-foreground">Manage your students and their accounts</p>
                     </div>
-                    <TeacherDashboard activeTab="students" />
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <TeacherDashboard activeTab="students" />
+                    </Suspense>
                   </div>
                 </TabsContent>
                 <TabsContent value="interviews">
@@ -122,7 +135,9 @@ const TeacherDashboardPage = () => {
                       <h2 className="text-2xl font-bold mb-2">Interview Management</h2>
                       <p className="text-muted-foreground">View and schedule interview sessions</p>
                     </div>
-                    <TeacherDashboard activeTab="interviews" />
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <TeacherDashboard activeTab="interviews" />
+                    </Suspense>
                   </div>
                 </TabsContent>
                 <TabsContent value="analytics">
@@ -131,7 +146,9 @@ const TeacherDashboardPage = () => {
                       <h2 className="text-2xl font-bold mb-2">Performance Analytics</h2>
                       <p className="text-muted-foreground">Detailed performance analytics and insights</p>
                     </div>
-                    <TeacherDashboard activeTab="analytics" />
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <TeacherDashboard activeTab="analytics" />
+                    </Suspense>
                   </div>
                 </TabsContent>
                 <TabsContent value="resources">
@@ -140,7 +157,9 @@ const TeacherDashboardPage = () => {
                       <h2 className="text-2xl font-bold mb-2">Teaching Resources</h2>
                       <p className="text-muted-foreground">Access materials and guides to help your students</p>
                     </div>
-                    <TeacherDashboard activeTab="resources" />
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <TeacherDashboard activeTab="resources" />
+                    </Suspense>
                   </div>
                 </TabsContent>
               </div>

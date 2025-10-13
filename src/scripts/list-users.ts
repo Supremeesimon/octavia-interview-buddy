@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -22,31 +22,153 @@ const db = getFirestore(app);
 
 async function listUsers() {
   try {
-    console.log('=== Listing Users in Firestore ===');
+    console.log('=== Listing Users in Firestore (Hierarchical Structure) ===');
     
-    // Try to access users collection with limited permissions
-    const usersQuery = query(
-      collection(db, 'users'),
-      orderBy('createdAt', 'desc'),
-      limit(10)
-    );
+    // List platform admins
+    console.log('\n--- Platform Admins ---');
+    try {
+      const platformAdminsQuery = query(
+        collection(db, 'platformAdmins'),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+      );
+      
+      const platformAdminsSnapshot = await getDocs(platformAdminsQuery);
+      
+      console.log('Platform admins count:', platformAdminsSnapshot.size);
+      
+      if (platformAdminsSnapshot.size > 0) {
+        platformAdminsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          console.log(`\nDocument ID: ${doc.id}`);
+          console.log(`  Name: ${data.name || 'N/A'}`);
+          console.log(`  Email: ${data.email || 'N/A'}`);
+          console.log(`  Created At: ${data.createdAt?.toDate?.() || data.createdAt || 'N/A'}`);
+        });
+      } else {
+        console.log('No platform admins found');
+      }
+    } catch (error) {
+      console.error('Error listing platform admins:', error);
+    }
     
-    const usersSnapshot = await getDocs(usersQuery);
+    // List external users
+    console.log('\n--- External Users ---');
+    try {
+      const externalUsersQuery = query(
+        collection(db, 'externalUsers'),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+      );
+      
+      const externalUsersSnapshot = await getDocs(externalUsersQuery);
+      
+      console.log('External users count:', externalUsersSnapshot.size);
+      
+      if (externalUsersSnapshot.size > 0) {
+        externalUsersSnapshot.forEach((doc) => {
+          const data = doc.data();
+          console.log(`\nDocument ID: ${doc.id}`);
+          console.log(`  Name: ${data.name || 'N/A'}`);
+          console.log(`  Email: ${data.email || 'N/A'}`);
+          console.log(`  Created At: ${data.createdAt?.toDate?.() || data.createdAt || 'N/A'}`);
+        });
+      } else {
+        console.log('No external users found');
+      }
+    } catch (error) {
+      console.error('Error listing external users:', error);
+    }
     
-    console.log('Users count:', usersSnapshot.size);
-    
-    if (usersSnapshot.size > 0) {
-      console.log('\nUsers data:');
-      usersSnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log(`\nDocument ID: ${doc.id}`);
-        console.log(`  Name: ${data.name || 'N/A'}`);
-        console.log(`  Email: ${data.email || 'N/A'}`);
-        console.log(`  Role: ${data.role || 'N/A'}`);
-        console.log(`  Created At: ${data.createdAt?.toDate?.() || data.createdAt || 'N/A'}`);
-      });
-    } else {
-      console.log('No users found in Firestore');
+    // List institutional users
+    console.log('\n--- Institutional Users ---');
+    try {
+      const institutionsRef = collection(db, 'institutions');
+      const institutionsSnapshot = await getDocs(institutionsRef);
+      
+      let totalInstitutionalUsers = 0;
+      
+      for (const institutionDoc of institutionsSnapshot.docs) {
+        const institutionId = institutionDoc.id;
+        console.log(`\nInstitution: ${institutionId}`);
+        
+        // List institution admins
+        try {
+          const adminsRef = collection(db, 'institutions', institutionId, 'admins');
+          const adminsSnapshot = await getDocs(adminsRef);
+          
+          if (adminsSnapshot.size > 0) {
+            console.log(`  Admins (${adminsSnapshot.size}):`);
+            adminsSnapshot.forEach((doc) => {
+              totalInstitutionalUsers++;
+              const data = doc.data();
+              console.log(`    Document ID: ${doc.id}`);
+              console.log(`      Name: ${data.name || 'N/A'}`);
+              console.log(`      Email: ${data.email || 'N/A'}`);
+              console.log(`      Created At: ${data.createdAt?.toDate?.() || data.createdAt || 'N/A'}`);
+            });
+          }
+        } catch (error) {
+          console.error(`  Error listing admins for institution ${institutionId}:`, error);
+        }
+        
+        // List departments and their users
+        try {
+          const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+          const departmentsSnapshot = await getDocs(departmentsRef);
+          
+          for (const departmentDoc of departmentsSnapshot.docs) {
+            const departmentId = departmentDoc.id;
+            console.log(`  Department: ${departmentId}`);
+            
+            // List teachers
+            try {
+              const teachersRef = collection(db, 'institutions', institutionId, 'departments', departmentId, 'teachers');
+              const teachersSnapshot = await getDocs(teachersRef);
+              
+              if (teachersSnapshot.size > 0) {
+                console.log(`    Teachers (${teachersSnapshot.size}):`);
+                teachersSnapshot.forEach((doc) => {
+                  totalInstitutionalUsers++;
+                  const data = doc.data();
+                  console.log(`      Document ID: ${doc.id}`);
+                  console.log(`        Name: ${data.name || 'N/A'}`);
+                  console.log(`        Email: ${data.email || 'N/A'}`);
+                  console.log(`        Created At: ${data.createdAt?.toDate?.() || data.createdAt || 'N/A'}`);
+                });
+              }
+            } catch (error) {
+              console.error(`    Error listing teachers for department ${departmentId}:`, error);
+            }
+            
+            // List students
+            try {
+              const studentsRef = collection(db, 'institutions', institutionId, 'departments', departmentId, 'students');
+              const studentsSnapshot = await getDocs(studentsRef);
+              
+              if (studentsSnapshot.size > 0) {
+                console.log(`    Students (${studentsSnapshot.size}):`);
+                studentsSnapshot.forEach((doc) => {
+                  totalInstitutionalUsers++;
+                  const data = doc.data();
+                  console.log(`      Document ID: ${doc.id}`);
+                  console.log(`        Name: ${data.name || 'N/A'}`);
+                  console.log(`        Email: ${data.email || 'N/A'}`);
+                  console.log(`        Created At: ${data.createdAt?.toDate?.() || data.createdAt || 'N/A'}`);
+                });
+              }
+            } catch (error) {
+              console.error(`    Error listing students for department ${departmentId}:`, error);
+            }
+          }
+        } catch (error) {
+          console.error(`  Error listing departments for institution ${institutionId}:`, error);
+        }
+      }
+      
+      console.log(`\nTotal institutional users: ${totalInstitutionalUsers}`);
+    } catch (error) {
+      console.error('Error listing institutional users:', error);
     }
     
     // Also check if we can access system_config

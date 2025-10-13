@@ -1,14 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import Header from '@/components/Header';
-import AdminDashboard from '@/components/AdminDashboard';
-import InstitutionManagement from '@/components/InstitutionManagement';
-import StudentManagement from '@/components/StudentManagement';
-import ResourceManagement from '@/components/ResourceManagement';
-import BroadcastSystem from '@/components/BroadcastSystem';
-import AIAnalytics from '@/components/AIAnalytics';
-import FinancialManagement from '@/components/FinancialManagement';
-import GeminiTest from '@/components/GeminiTest';
 import { aiAnalyticsService } from '@/services/ai-analytics.service';
 import { InstitutionService } from '@/services/institution.service';
 import { ResourceService } from '@/services/resource.service';
@@ -27,6 +19,23 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from '@/components/ui/alert-dialog';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load components
+const AdminDashboard = lazy(() => import('@/components/AdminDashboard'));
+const InstitutionManagement = lazy(() => import('@/components/InstitutionManagement'));
+const StudentManagement = lazy(() => import('@/components/StudentManagement'));
+const ResourceManagement = lazy(() => import('@/components/ResourceManagement'));
+const BroadcastSystem = lazy(() => import('@/components/BroadcastSystem'));
+const AIAnalytics = lazy(() => import('@/components/AIAnalytics'));
+const FinancialManagement = lazy(() => import('@/components/FinancialManagement'));
+const GeminiTest = lazy(() => import('@/components/GeminiTest'));
+
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-64">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const AdminControlPanel = () => {
   const isMobile = useIsMobile();
@@ -197,32 +206,48 @@ const AdminControlPanel = () => {
               
               <div className="overflow-hidden">
                 <TabsContent value="dashboard">
-                  <AdminDashboard />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <AdminDashboard />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="institutions">
-                  <InstitutionManagement />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <InstitutionManagement />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="students">
-                  <StudentManagement />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <StudentManagement />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="resources">
-                  <ResourceManagement 
-                    institutionCount={institutionCount}
-                    totalResources={totalResources}
-                    institutions={formattedInstitutions}
-                  />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <ResourceManagement 
+                      institutionCount={institutionCount}
+                      totalResources={totalResources}
+                      institutions={formattedInstitutions}
+                    />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="broadcasting">
-                  <BroadcastSystem />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <BroadcastSystem />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="analytics">
-                  <AIAnalytics />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <AIAnalytics />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="financial">
-                  <FinancialManagement />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <FinancialManagement />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="gemini-test">
-                  <GeminiTest />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <GeminiTest />
+                  </Suspense>
                 </TabsContent>
               </div>
             </Tabs>

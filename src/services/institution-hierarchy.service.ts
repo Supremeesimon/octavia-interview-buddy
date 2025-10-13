@@ -329,4 +329,121 @@ export class InstitutionHierarchyService {
       throw new Error(`Failed to delete institution: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  // Search for user across all collections in the hierarchical structure
+  static async findUserById(userId: string): Promise<{user: UserProfile, role: UserRole, institutionId?: string, departmentId?: string} | null> {
+    try {
+      // Check platform admins first
+      const platformAdminDoc = await getDoc(doc(db, this.PLATFORM_ADMINS_COLLECTION, userId));
+      if (platformAdminDoc.exists()) {
+        const data = platformAdminDoc.data();
+        return {
+          user: {
+            id: platformAdminDoc.id,
+            ...data,
+            role: 'platform_admin',
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date()
+          } as UserProfile,
+          role: 'platform_admin'
+        };
+      }
+
+      // Check external users
+      const externalUserDoc = await getDoc(doc(db, this.EXTERNAL_USERS_COLLECTION, userId));
+      if (externalUserDoc.exists()) {
+        const data = externalUserDoc.data();
+        return {
+          user: {
+            id: externalUserDoc.id,
+            ...data,
+            role: 'student',
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date()
+          } as UserProfile,
+          role: 'student'
+        };
+      }
+
+      // Check institutions for admins, teachers, and students
+      const institutionsRef = collection(db, this.INSTITUTIONS_COLLECTION);
+      const institutionsSnapshot = await getDocs(institutionsRef);
+
+      for (const institutionDoc of institutionsSnapshot.docs) {
+        const institutionId = institutionDoc.id;
+        
+        // Check admins subcollection
+        const adminDoc = await getDoc(
+          doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'admins', userId)
+        );
+        if (adminDoc.exists()) {
+          const data = adminDoc.data();
+          return {
+            user: {
+              id: adminDoc.id,
+              ...data,
+              role: 'institution_admin',
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate() || new Date()
+            } as UserProfile,
+            role: 'institution_admin',
+            institutionId
+          };
+        }
+        
+        // Check departments for teachers and students
+        const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+        const departmentsSnapshot = await getDocs(departmentsRef);
+        
+        for (const departmentDoc of departmentsSnapshot.docs) {
+          const departmentId = departmentDoc.id;
+          
+          // Check teachers
+          const teacherDoc = await getDoc(
+            doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers', userId)
+          );
+          if (teacherDoc.exists()) {
+            const data = teacherDoc.data();
+            return {
+              user: {
+                id: teacherDoc.id,
+                ...data,
+                role: 'teacher',
+                createdAt: data.createdAt?.toDate() || new Date(),
+                updatedAt: data.updatedAt?.toDate() || new Date()
+              } as UserProfile,
+              role: 'teacher',
+              institutionId,
+              departmentId
+            };
+          }
+          
+          // Check students
+          const studentDoc = await getDoc(
+            doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students', userId)
+          );
+          if (studentDoc.exists()) {
+            const data = studentDoc.data();
+            return {
+              user: {
+                id: studentDoc.id,
+                ...data,
+                role: 'student',
+                createdAt: data.createdAt?.toDate() || new Date(),
+                updatedAt: data.updatedAt?.toDate() || new Date()
+              } as UserProfile,
+              role: 'student',
+              institutionId,
+              departmentId
+            };
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error finding user:', error);
+      return null;
+    }
+  }
 }

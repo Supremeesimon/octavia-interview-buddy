@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Header from '@/components/Header';
-import StudentDashboard from '@/components/StudentDashboard';
-import SimpleResumesList from '@/components/SimpleResumesList';
-import InterviewInterface from '@/components/InterviewInterface';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load components
+const StudentDashboard = lazy(() => import('@/components/StudentDashboard'));
+const SimpleResumesList = lazy(() => import('@/components/SimpleResumesList'));
+const InterviewInterface = lazy(() => import('@/components/InterviewInterface'));
+
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-64">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const StudentDashboardPage = () => {
   const isMobile = useIsMobile();
@@ -76,7 +85,9 @@ const StudentDashboardPage = () => {
               
               <TabsContent value="dashboard" className="mt-6">
                 <div className="overflow-hidden">
-                  <StudentDashboard />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <StudentDashboard />
+                  </Suspense>
                 </div>
               </TabsContent>
               
@@ -86,12 +97,16 @@ const StudentDashboardPage = () => {
                     <h2 className="text-2xl font-bold mb-2">Interview Practice</h2>
                     <p className="text-muted-foreground">Start your AI-powered interview practice session</p>
                   </div>
-                  <InterviewInterface />
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <InterviewInterface />
+                  </Suspense>
                 </div>
               </TabsContent>
               
               <TabsContent value="resumes" className="mt-6">
-                <SimpleResumesList />
+                <Suspense fallback={<LoadingSpinner />}>
+                  <SimpleResumesList />
+                </Suspense>
               </TabsContent>
             </Tabs>
           </div>

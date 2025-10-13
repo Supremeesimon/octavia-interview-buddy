@@ -34,32 +34,193 @@ async function setPlatformAdmin(email: string) {
   try {
     console.log(`Setting user with email ${email} as platform admin...`);
     
-    // Query for the user document
+    // First, let's try to find the user in the old 'users' collection for backward compatibility
+    console.log('Searching in legacy users collection...');
     const usersRef = db.collection('users');
     const snapshot = await usersRef.where('email', '==', email).limit(1).get();
     
-    if (snapshot.empty) {
-      console.log(`No user found with email ${email}`);
+    if (!snapshot.empty) {
+      const userDoc = snapshot.docs[0];
+      const userData = userDoc.data();
+      
+      console.log('Found user in legacy collection:', {
+        id: userDoc.id,
+        name: userData.name,
+        email: userData.email,
+        currentRole: userData.role
+      });
+      
+      // Create a new platform admin document with the same data
+      const platformAdminData = {
+        ...userData,
+        role: 'platform_admin',
+        createdAt: userData.createdAt || new Date(),
+        updatedAt: new Date()
+      };
+      
+      await db.collection('platformAdmins').doc(userDoc.id).set(platformAdminData);
+      console.log('Successfully created platform admin in new collection');
+      
+      // Optionally, you might want to delete the old document
+      // await userDoc.ref.delete();
+      // console.log('Deleted user from legacy collection');
+      
       return;
     }
     
-    const userDoc = snapshot.docs[0];
-    const userData = userDoc.data();
+    // If not found in legacy collection, search in the new hierarchical structure
+    console.log('User not found in legacy collection. Searching in new structure...');
     
-    console.log('Found user:', {
-      id: userDoc.id,
-      name: userData.name,
-      email: userData.email,
-      currentRole: userData.role
-    });
+    // Search in externalUsers collection
+    console.log('Searching in externalUsers collection...');
+    const externalUsersRef = db.collection('externalUsers');
+    const externalSnapshot = await externalUsersRef.where('email', '==', email).limit(1).get();
     
-    // Update the user's role to platform_admin
-    await userDoc.ref.update({
-      role: 'platform_admin',
-      updatedAt: new Date()
-    });
+    if (!externalSnapshot.empty) {
+      const userDoc = externalSnapshot.docs[0];
+      const userData = userDoc.data();
+      
+      console.log('Found user in externalUsers collection:', {
+        id: userDoc.id,
+        name: userData.name,
+        email: userData.email
+      });
+      
+      // Move user to platformAdmins collection
+      const platformAdminData = {
+        ...userData,
+        role: 'platform_admin',
+        createdAt: userData.createdAt || new Date(),
+        updatedAt: new Date()
+      };
+      
+      await db.collection('platformAdmins').doc(userDoc.id).set(platformAdminData);
+      console.log('Successfully moved user to platformAdmins collection');
+      
+      // Delete from externalUsers collection
+      await userDoc.ref.delete();
+      console.log('Deleted user from externalUsers collection');
+      
+      return;
+    }
     
-    console.log('Successfully updated user role to platform_admin');
+    // Search in institutions collection (admins, teachers, students)
+    console.log('Searching in institutions collection...');
+    const institutionsSnapshot = await db.collection('institutions').get();
+    
+    for (const institutionDoc of institutionsSnapshot.docs) {
+      const institutionId = institutionDoc.id;
+      
+      // Check admins subcollection
+      const adminsRef = db.collection('institutions').doc(institutionId).collection('admins');
+      const adminSnapshot = await adminsRef.where('email', '==', email).limit(1).get();
+      
+      if (!adminSnapshot.empty) {
+        const userDoc = adminSnapshot.docs[0];
+        const userData = userDoc.data();
+        
+        console.log('Found user in institution admins:', {
+          id: userDoc.id,
+          name: userData.name,
+          email: userData.email,
+          institutionId
+        });
+        
+        // Move user to platformAdmins collection
+        const platformAdminData = {
+          ...userData,
+          role: 'platform_admin',
+          createdAt: userData.createdAt || new Date(),
+          updatedAt: new Date()
+        };
+        
+        await db.collection('platformAdmins').doc(userDoc.id).set(platformAdminData);
+        console.log('Successfully moved user to platformAdmins collection');
+        
+        // Delete from institution admins collection
+        await userDoc.ref.delete();
+        console.log('Deleted user from institution admins collection');
+        
+        return;
+      }
+      
+      // Check departments for teachers and students
+      const departmentsSnapshot = await db.collection('institutions').doc(institutionId).collection('departments').get();
+      
+      for (const departmentDoc of departmentsSnapshot.docs) {
+        const departmentId = departmentDoc.id;
+        
+        // Check teachers
+        const teachersRef = db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).collection('teachers');
+        const teacherSnapshot = await teachersRef.where('email', '==', email).limit(1).get();
+        
+        if (!teacherSnapshot.empty) {
+          const userDoc = teacherSnapshot.docs[0];
+          const userData = userDoc.data();
+          
+          console.log('Found user in institution teachers:', {
+            id: userDoc.id,
+            name: userData.name,
+            email: userData.email,
+            institutionId,
+            departmentId
+          });
+          
+          // Move user to platformAdmins collection
+          const platformAdminData = {
+            ...userData,
+            role: 'platform_admin',
+            createdAt: userData.createdAt || new Date(),
+            updatedAt: new Date()
+          };
+          
+          await db.collection('platformAdmins').doc(userDoc.id).set(platformAdminData);
+          console.log('Successfully moved user to platformAdmins collection');
+          
+          // Delete from institution teachers collection
+          await userDoc.ref.delete();
+          console.log('Deleted user from institution teachers collection');
+          
+          return;
+        }
+        
+        // Check students
+        const studentsRef = db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).collection('students');
+        const studentSnapshot = await studentsRef.where('email', '==', email).limit(1).get();
+        
+        if (!studentSnapshot.empty) {
+          const userDoc = studentSnapshot.docs[0];
+          const userData = userDoc.data();
+          
+          console.log('Found user in institution students:', {
+            id: userDoc.id,
+            name: userData.name,
+            email: userData.email,
+            institutionId,
+            departmentId
+          });
+          
+          // Move user to platformAdmins collection
+          const platformAdminData = {
+            ...userData,
+            role: 'platform_admin',
+            createdAt: userData.createdAt || new Date(),
+            updatedAt: new Date()
+          };
+          
+          await db.collection('platformAdmins').doc(userDoc.id).set(platformAdminData);
+          console.log('Successfully moved user to platformAdmins collection');
+          
+          // Delete from institution students collection
+          await userDoc.ref.delete();
+          console.log('Deleted user from institution students collection');
+          
+          return;
+        }
+      }
+    }
+    
+    console.log(`No user found with email ${email}`);
   } catch (error) {
     console.error('Error setting platform admin:', error);
   }

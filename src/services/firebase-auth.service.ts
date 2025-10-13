@@ -18,7 +18,7 @@ import {
   TotpSecret,
   RecaptchaVerifier
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { SignupRequest, LoginRequest, UserProfile, UserRole } from '@/types';
 import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
@@ -75,16 +75,13 @@ export class FirebaseAuthService {
       // Save user to appropriate collection based on role
       if (userRole === 'platform_admin') {
         await InstitutionHierarchyService.createPlatformAdmin(userProfile);
-      } else if (userRole === 'student' && !data.institutionDomain) {
-        // External student
+      } else if (!data.institutionDomain) {
+        // External users (no institution affiliation)
         await InstitutionHierarchyService.createExternalUser(userProfile);
-      } else if (userRole === 'institution_admin' || userRole === 'teacher' || userRole === 'student') {
-        // Institutional users - they should be created through the institutional signup process
-        // For now, we'll create them in the external users collection if no institution domain is provided
-        if (!data.institutionDomain) {
-          await InstitutionHierarchyService.createExternalUser(userProfile);
-        }
-        // If institutionDomain is provided, the institutional signup process will handle creation
+      } else {
+        // Institutional users are created through institutional signup
+        // which already uses InstitutionHierarchyService
+        // This path should not be hit for institutional signups
       }
 
       // Send email verification
@@ -110,10 +107,10 @@ export class FirebaseAuthService {
 
       const { user } = userCredential;
 
-      // Get user profile from Firestore
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      // Get user profile from Firestore by searching all possible locations
+      const userSearchResult = await InstitutionHierarchyService.findUserById(user.uid);
       
-      if (!userDoc.exists()) {
+      if (!userSearchResult) {
         // User exists in Firebase Auth but not in Firestore
         // This can happen if registration was interrupted
         // Create a minimal user profile with a better role determination
@@ -136,13 +133,13 @@ export class FirebaseAuthService {
           profileCompleted: false
         };
 
-        // Save the minimal profile to Firestore
-        await setDoc(doc(db, 'users', user.uid), {
-          ...minimalProfile,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          lastLoginAt: serverTimestamp()
-        });
+        // Save the minimal profile to appropriate collection based on role
+        if (inferredRole === 'platform_admin') {
+          await InstitutionHierarchyService.createPlatformAdmin(minimalProfile);
+        } else {
+          // For all other roles without institution domain, create as external user
+          await InstitutionHierarchyService.createExternalUser(minimalProfile);
+        }
 
         // Get Firebase token
         const token = await user.getIdToken();
@@ -150,12 +147,34 @@ export class FirebaseAuthService {
         return { user: minimalProfile, token };
       }
 
-      const userProfile = userDoc.data() as UserProfile;
+      const userProfile = userSearchResult.user;
 
-      // Update last login time
-      await setDoc(doc(db, 'users', user.uid), {
-        lastLoginAt: serverTimestamp()
-      }, { merge: true });
+      // Update last login time in the appropriate collection
+      if (userSearchResult.role === 'platform_admin') {
+        await setDoc(doc(db, 'platformAdmins', user.uid), {
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
+      } else if (userSearchResult.role === 'student' && !userSearchResult.institutionId) {
+        // External student
+        await setDoc(doc(db, 'externalUsers', user.uid), {
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
+      } else if (userSearchResult.institutionId) {
+        // Institutional user
+        if (userSearchResult.role === 'institution_admin') {
+          await setDoc(doc(db, 'institutions', userSearchResult.institutionId, 'admins', user.uid), {
+            lastLoginAt: serverTimestamp()
+          }, { merge: true });
+        } else if (userSearchResult.role === 'teacher' && userSearchResult.departmentId) {
+          await setDoc(doc(db, 'institutions', userSearchResult.institutionId, 'departments', userSearchResult.departmentId, 'teachers', user.uid), {
+            lastLoginAt: serverTimestamp()
+          }, { merge: true });
+        } else if (userSearchResult.role === 'student' && userSearchResult.departmentId) {
+          await setDoc(doc(db, 'institutions', userSearchResult.institutionId, 'departments', userSearchResult.departmentId, 'students', user.uid), {
+            lastLoginAt: serverTimestamp()
+          }, { merge: true });
+        }
+      }
 
       // Get Firebase token
       const token = await user.getIdToken();
@@ -179,12 +198,12 @@ export class FirebaseAuthService {
       const userCredential: UserCredential = await signInWithPopup(auth, provider);
       const { user } = userCredential;
 
-      // Check if user already exists in our Firestore
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      // Check if user already exists in our Firestore by searching all possible locations
+      const userSearchResult = await InstitutionHierarchyService.findUserById(user.uid);
       
       let userProfile: UserProfile;
       
-      if (!userDoc.exists()) {
+      if (!userSearchResult) {
         // Create new user profile for OAuth user
         const userRole: UserRole = this.determineUserRole(user.email || '');
         
@@ -205,18 +224,37 @@ export class FirebaseAuthService {
           profileCompleted: false
         };
 
-        await setDoc(doc(db, 'users', user.uid), {
-          ...userProfile,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          lastLoginAt: serverTimestamp()
-        });
+        // OAuth users are external users (not institutional)
+        await InstitutionHierarchyService.createExternalUser(userProfile);
       } else {
         // Update existing user's last login time
-        userProfile = userDoc.data() as UserProfile;
-        await setDoc(doc(db, 'users', user.uid), {
-          lastLoginAt: serverTimestamp()
-        }, { merge: true });
+        userProfile = userSearchResult.user;
+        
+        if (userSearchResult.role === 'platform_admin') {
+          await setDoc(doc(db, 'platformAdmins', user.uid), {
+            lastLoginAt: serverTimestamp()
+          }, { merge: true });
+        } else if (userSearchResult.role === 'student' && !userSearchResult.institutionId) {
+          // External student
+          await setDoc(doc(db, 'externalUsers', user.uid), {
+            lastLoginAt: serverTimestamp()
+          }, { merge: true });
+        } else if (userSearchResult.institutionId) {
+          // Institutional user
+          if (userSearchResult.role === 'institution_admin') {
+            await setDoc(doc(db, 'institutions', userSearchResult.institutionId, 'admins', user.uid), {
+              lastLoginAt: serverTimestamp()
+            }, { merge: true });
+          } else if (userSearchResult.role === 'teacher' && userSearchResult.departmentId) {
+            await setDoc(doc(db, 'institutions', userSearchResult.institutionId, 'departments', userSearchResult.departmentId, 'teachers', user.uid), {
+              lastLoginAt: serverTimestamp()
+            }, { merge: true });
+          } else if (userSearchResult.role === 'student' && userSearchResult.departmentId) {
+            await setDoc(doc(db, 'institutions', userSearchResult.institutionId, 'departments', userSearchResult.departmentId, 'students', user.uid), {
+              lastLoginAt: serverTimestamp()
+            }, { merge: true });
+          }
+        }
       }
 
       // Get Firebase token
@@ -397,17 +435,16 @@ export class FirebaseAuthService {
     }
 
     try {
-      console.log('FirebaseAuthService: Fetching user document for', user.uid);
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      console.log('FirebaseAuthService: Searching for user document for', user.uid);
+      const userSearchResult = await InstitutionHierarchyService.findUserById(user.uid);
       
-      if (!userDoc.exists()) {
+      if (!userSearchResult) {
         console.log('FirebaseAuthService: User document does not exist for', user.uid);
         return null;
       }
 
-      const userData = userDoc.data();
-      console.log('FirebaseAuthService: User data fetched', { userId: user.uid, hasData: !!userData });
-      return userData as UserProfile;
+      console.log('FirebaseAuthService: User data fetched', { userId: user.uid, hasData: !!userSearchResult.user });
+      return userSearchResult.user;
     } catch (error) {
       console.error('FirebaseAuthService: Error getting current user:', error);
       return null;

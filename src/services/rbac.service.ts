@@ -1,6 +1,7 @@
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserRole, UserProfile } from '@/types';
+import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
 
 export class RBACService {
   private static readonly INSTITUTIONS_COLLECTION = 'institutions';
@@ -33,9 +34,46 @@ export class RBACService {
         return 'student'; // External users are always students
       }
 
-      // Check institutions collection for admins, teachers, and students
-      // This is a simplified approach - in a real implementation, we'd need to search subcollections
-      // For now, we'll return null to indicate we couldn't determine the role
+      // Check institutions for admins, teachers, and students
+      const institutionsRef = collection(db, this.INSTITUTIONS_COLLECTION);
+      const institutionsSnapshot = await getDocs(institutionsRef);
+
+      for (const institutionDoc of institutionsSnapshot.docs) {
+        const institutionId = institutionDoc.id;
+        
+        // Check admins subcollection
+        const adminDoc = await getDoc(
+          doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'admins', userId)
+        );
+        if (adminDoc.exists()) {
+          return 'institution_admin';
+        }
+        
+        // Check departments for teachers and students
+        const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+        const departmentsSnapshot = await getDocs(departmentsRef);
+        
+        for (const departmentDoc of departmentsSnapshot.docs) {
+          const departmentId = departmentDoc.id;
+          
+          // Check teachers
+          const teacherDoc = await getDoc(
+            doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers', userId)
+          );
+          if (teacherDoc.exists()) {
+            return 'teacher';
+          }
+          
+          // Check students
+          const studentDoc = await getDoc(
+            doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students', userId)
+          );
+          if (studentDoc.exists()) {
+            return 'student';
+          }
+        }
+      }
+
       return null;
     } catch (error) {
       console.error('Error getting user role:', error);
@@ -94,35 +132,8 @@ export class RBACService {
   // Get user profile from the new hierarchical structure
   static async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
-      // Check platform admins first
-      const platformAdminDoc = await getDoc(doc(db, this.PLATFORM_ADMINS_COLLECTION, userId));
-      if (platformAdminDoc.exists()) {
-        const data = platformAdminDoc.data();
-        return {
-          id: platformAdminDoc.id,
-          ...data,
-          role: 'platform_admin',
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        } as UserProfile;
-      }
-
-      // Check external users
-      const externalUserDoc = await getDoc(doc(db, this.EXTERNAL_USERS_COLLECTION, userId));
-      if (externalUserDoc.exists()) {
-        const data = externalUserDoc.data();
-        return {
-          id: externalUserDoc.id,
-          ...data,
-          role: 'student',
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        } as UserProfile;
-      }
-
-      // Check institutions collection for admins, teachers, and students
-      // This is a simplified approach - in a real implementation, we'd need to search subcollections
-      return null;
+      const result = await InstitutionHierarchyService.findUserById(userId);
+      return result ? result.user : null;
     } catch (error) {
       console.error('Error getting user profile:', error);
       return null;
@@ -132,10 +143,14 @@ export class RBACService {
   // Check if user belongs to specific institution
   static async userBelongsToInstitution(userId: string, institutionId: string): Promise<boolean> {
     try {
-      // This is a simplified approach - in a real implementation, we'd need to check subcollections
-      // For now, we'll return true for platform admins and false for others
-      const userRole = await this.getUserRole(userId);
-      return userRole === 'platform_admin';
+      const result = await InstitutionHierarchyService.findUserById(userId);
+      if (!result) return false;
+      
+      // Platform admins belong to all institutions
+      if (result.role === 'platform_admin') return true;
+      
+      // Check if user's institution matches the provided institution
+      return result.institutionId === institutionId;
     } catch (error) {
       console.error('Error checking institution membership:', error);
       return false;
@@ -145,10 +160,14 @@ export class RBACService {
   // Check if user belongs to specific department
   static async userBelongsToDepartment(userId: string, institutionId: string, departmentId: string): Promise<boolean> {
     try {
-      // This is a simplified approach - in a real implementation, we'd need to check subcollections
-      // For now, we'll return true for platform admins and false for others
-      const userRole = await this.getUserRole(userId);
-      return userRole === 'platform_admin';
+      const result = await InstitutionHierarchyService.findUserById(userId);
+      if (!result) return false;
+      
+      // Platform admins belong to all departments
+      if (result.role === 'platform_admin') return true;
+      
+      // Check if user's institution and department match the provided values
+      return result.institutionId === institutionId && result.departmentId === departmentId;
     } catch (error) {
       console.error('Error checking department membership:', error);
       return false;

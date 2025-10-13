@@ -1,20 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import Header from '@/components/Header';
-import InstitutionDashboard from '@/components/InstitutionDashboard';
-import SessionManagement from '@/components/SessionManagement';
-import BillingControls from '@/components/BillingControls';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load components
+const InstitutionDashboard = lazy(() => import('@/components/InstitutionDashboard'));
+const SessionManagement = lazy(() => import('@/components/SessionManagement'));
+const BillingControls = lazy(() => import('@/components/BillingControls'));
 
 interface SessionPurchase {
   sessions: number;
   cost: number;
   date: Date;
 }
+
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-64">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -103,13 +112,19 @@ const Dashboard = () => {
               </TabsList>
               
               <TabsContent value="overview" className="overflow-hidden">
-                <InstitutionDashboard user={user} />
+                <Suspense fallback={<LoadingSpinner />}>
+                  <InstitutionDashboard user={user} />
+                </Suspense>
               </TabsContent>
               <TabsContent value="session" className="overflow-hidden">
-                <SessionManagement onSessionPurchase={handleSessionPurchase} />
+                <Suspense fallback={<LoadingSpinner />}>
+                  <SessionManagement onSessionPurchase={handleSessionPurchase} />
+                </Suspense>
               </TabsContent>
               <TabsContent value="billing" className="overflow-hidden">
-                <BillingControls sessionPurchases={sessionPurchases} />
+                <Suspense fallback={<LoadingSpinner />}>
+                  <BillingControls sessionPurchases={sessionPurchases} />
+                </Suspense>
               </TabsContent>
             </Tabs>
           </div>
