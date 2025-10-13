@@ -1,28 +1,20 @@
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, getDocs, doc, getDoc } = require('firebase/firestore');
+const admin = require('firebase-admin');
+const serviceAccount = require('./functions/service-account-key.json');
 
-// Firebase configuration from environment variables
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY || "AIzaSyCn847Eo_wh90MCJWYwW7K01rihUl8h2-Q",
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "octavia-practice-interviewer.firebaseapp.com",
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID || "octavia-practice-interviewer",
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "octavia-practice-interviewer.firebasestorage.app",
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "475685845155",
-  appId: process.env.VITE_FIREBASE_APP_ID || "1:475685845155:web:ff55f944f48fc987bae716",
-  measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || "G-YYHF1TW9MM"
-};
+// Initialize Firebase Admin SDK with service account
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = admin.firestore();
 
 async function testMultiTenantIsolation() {
   try {
     console.log('🔍 Testing multi-tenant data isolation...');
     
     // Get all institutions
-    const institutionsRef = collection(db, 'institutions');
-    const institutionsSnapshot = await getDocs(institutionsRef);
+    const institutionsRef = db.collection('institutions');
+    const institutionsSnapshot = await institutionsRef.get();
     
     if (institutionsSnapshot.empty) {
       console.log('❌ No institutions found to test isolation');
@@ -47,8 +39,8 @@ async function testMultiTenantIsolation() {
       console.log(`\nInstitution ${i + 1}: ${institution1.name} (${institution1.id})`);
       
       // Get departments for this institution
-      const departmentsRef = collection(doc(db, 'institutions', institution1.id), 'departments');
-      const departmentsSnapshot = await getDocs(departmentsRef);
+      const departmentsRef = db.collection('institutions').doc(institution1.id).collection('departments');
+      const departmentsSnapshot = await departmentsRef.get();
       console.log(`  Departments: ${departmentsSnapshot.size}`);
       
       // Check that departments don't exist in other institutions
@@ -58,10 +50,10 @@ async function testMultiTenantIsolation() {
           
           // Try to access departments from institution2 using institution1's department IDs
           for (const departmentDoc of departmentsSnapshot.docs) {
-            const departmentRef = doc(db, 'institutions', institution2.id, 'departments', departmentDoc.id);
-            const departmentSnap = await getDoc(departmentRef);
+            const departmentRef = db.collection('institutions').doc(institution2.id).collection('departments').doc(departmentDoc.id);
+            const departmentSnap = await departmentRef.get();
             
-            if (departmentSnap.exists()) {
+            if (departmentSnap.exists) {
               console.log(`  ❌ WARNING: Department ${departmentDoc.id} from ${institution1.name} is accessible from ${institution2.name}`);
             }
           }
@@ -78,8 +70,8 @@ async function testMultiTenantIsolation() {
       console.log(`\nChecking users in ${firstInstitution.name} (${firstInstitution.id})`);
       
       // Get departments
-      const departmentsRef = collection(doc(db, 'institutions', firstInstitution.id), 'departments');
-      const departmentsSnapshot = await getDocs(departmentsRef);
+      const departmentsRef = db.collection('institutions').doc(firstInstitution.id).collection('departments');
+      const departmentsSnapshot = await departmentsRef.get();
       
       let totalUsers = 0;
       
@@ -88,14 +80,14 @@ async function testMultiTenantIsolation() {
         console.log(`\n  Department: ${departmentData.departmentName} (${departmentDoc.id})`);
         
         // Check teachers
-        const teachersRef = collection(doc(db, 'institutions', firstInstitution.id, 'departments', departmentDoc.id), 'teachers');
-        const teachersSnapshot = await getDocs(teachersRef);
+        const teachersRef = db.collection('institutions').doc(firstInstitution.id).collection('departments').doc(departmentDoc.id).collection('teachers');
+        const teachersSnapshot = await teachersRef.get();
         console.log(`    Teachers: ${teachersSnapshot.size}`);
         totalUsers += teachersSnapshot.size;
         
         // Check students
-        const studentsRef = collection(doc(db, 'institutions', firstInstitution.id, 'departments', departmentDoc.id), 'students');
-        const studentsSnapshot = await getDocs(studentsRef);
+        const studentsRef = db.collection('institutions').doc(firstInstitution.id).collection('departments').doc(departmentDoc.id).collection('students');
+        const studentsSnapshot = await studentsRef.get();
         console.log(`    Students: ${studentsSnapshot.size}`);
         totalUsers += studentsSnapshot.size;
       }
@@ -110,15 +102,15 @@ async function testMultiTenantIsolation() {
         // Try to access a teacher from first institution in second institution
         if (departmentsSnapshot.size > 0) {
           const firstDepartment = departmentsSnapshot.docs[0];
-          const teachersRef = collection(doc(db, 'institutions', firstInstitution.id, 'departments', firstDepartment.id), 'teachers');
-          const teachersSnapshot = await getDocs(teachersRef);
+          const teachersRef = db.collection('institutions').doc(firstInstitution.id).collection('departments').doc(firstDepartment.id).collection('teachers');
+          const teachersSnapshot = await teachersRef.get();
           
           if (!teachersSnapshot.empty) {
             const teacherDoc = teachersSnapshot.docs[0];
-            const teacherRef = doc(db, 'institutions', secondInstitution.id, 'departments', firstDepartment.id, 'teachers', teacherDoc.id);
-            const teacherSnap = await getDoc(teacherRef);
+            const teacherRef = db.collection('institutions').doc(secondInstitution.id).collection('departments').doc(firstDepartment.id).collection('teachers').doc(teacherDoc.id);
+            const teacherSnap = await teacherRef.get();
             
-            if (teacherSnap.exists()) {
+            if (teacherSnap.exists) {
               console.log(`  ❌ WARNING: Teacher ${teacherDoc.id} from ${firstInstitution.name} is accessible from ${secondInstitution.name}`);
             } else {
               console.log(`  ✅ Teacher ${teacherDoc.id} is properly isolated`);
@@ -132,10 +124,10 @@ async function testMultiTenantIsolation() {
     
   } catch (error) {
     console.error('❌ Error during multi-tenant isolation test:', error);
+  } finally {
+    // Clean up
+    await admin.app().delete();
   }
 }
-
-// Load environment variables
-require('dotenv').config({ path: '.env.local' });
 
 testMultiTenantIsolation();

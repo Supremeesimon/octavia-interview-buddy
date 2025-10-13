@@ -1,21 +1,13 @@
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, getDocs, doc, setDoc, Timestamp } = require('firebase/firestore');
+const admin = require('firebase-admin');
+const serviceAccount = require('./functions/service-account-key.json');
 const { v4: uuidv4 } = require('uuid');
 
-// Firebase configuration from environment variables
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY || "AIzaSyCn847Eo_wh90MCJWYwW7K01rihUl8h2-Q",
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "octavia-practice-interviewer.firebaseapp.com",
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID || "octavia-practice-interviewer",
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "octavia-practice-interviewer.firebasestorage.app",
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "475685845155",
-  appId: process.env.VITE_FIREBASE_APP_ID || "1:475685845155:web:ff55f944f48fc987bae716",
-  measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || "G-YYHF1TW9MM"
-};
+// Initialize Firebase Admin SDK with service account
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = admin.firestore();
 
 async function testAutomaticCreation() {
   try {
@@ -29,11 +21,11 @@ async function testAutomaticCreation() {
       domain: 'testuniversity.edu',
       customSignupLink: '',
       customSignupToken: '',
-      partnershipRequestDate: Timestamp.now(),
+      partnershipRequestDate: admin.firestore.FieldValue.serverTimestamp(),
       approvalStatus: 'pending',
       contactEmail: 'admin@testuniversity.edu',
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       isActive: true
     };
     
@@ -43,19 +35,18 @@ async function testAutomaticCreation() {
     newInstitution.customSignupLink = `https://octavia.ai/signup-institution/${signupToken}`;
     
     // Create the institution
-    const institutionDocRef = doc(collection(db, 'institutions'));
-    await setDoc(institutionDocRef, newInstitution);
+    const institutionDocRef = db.collection('institutions').doc();
+    await institutionDocRef.set(newInstitution);
     const institutionId = institutionDocRef.id;
     
     console.log(`✅ Created institution: ${newInstitution.name} (${institutionId})`);
     console.log(`  Signup Link: ${newInstitution.customSignupLink}`);
     
     // Verify the institution was created with correct structure
-    const institutionDoc = await doc(db, 'institutions', institutionId);
-    const institutionSnap = await getDoc(institutionDoc);
+    const institutionDoc = await db.collection('institutions').doc(institutionId).get();
     
-    if (institutionSnap.exists()) {
-      const data = institutionSnap.data();
+    if (institutionDoc.exists) {
+      const data = institutionDoc.data();
       if (data.customSignupToken && data.customSignupLink) {
         console.log(`✅ Institution has correct signup structure`);
       } else {
@@ -72,25 +63,24 @@ async function testAutomaticCreation() {
       role: 'institution_admin',
       isEmailVerified: true,
       emailVerified: true,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-      lastLogin: Timestamp.now(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLogin: admin.firestore.FieldValue.serverTimestamp(),
       sessionCount: 0,
       profileCompleted: true
     };
     
     // Create admin in the institution's admins subcollection
-    const adminDocRef = doc(collection(db, 'institutions', institutionId, 'admins'));
-    await setDoc(adminDocRef, adminData);
+    const adminDocRef = db.collection('institutions').doc(institutionId).collection('admins').doc();
+    await adminDocRef.set(adminData);
     const adminId = adminDocRef.id;
     
     console.log(`✅ Created admin: ${adminData.name} (${adminId})`);
     
     // Verify the admin was created
-    const adminDoc = await doc(db, 'institutions', institutionId, 'admins', adminId);
-    const adminSnap = await getDoc(adminDoc);
+    const adminDoc = await db.collection('institutions').doc(institutionId).collection('admins').doc(adminId).get();
     
-    if (adminSnap.exists()) {
+    if (adminDoc.exists) {
       console.log(`✅ Admin creation verified`);
     } else {
       console.log(`❌ Admin creation failed`);
@@ -104,25 +94,24 @@ async function testAutomaticCreation() {
       departmentName,
       departmentSignupToken: uuidv4(),
       departmentSignupLink: '',
-      createdAt: Timestamp.now(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
       createdBy: adminId
     };
     
     departmentData.departmentSignupLink = `https://octavia.ai/signup-institution/${institutionId}?department=${encodeURIComponent(departmentName)}&token=${departmentData.departmentSignupToken}`;
     
     // Create department
-    const departmentDocRef = doc(collection(db, 'institutions', institutionId, 'departments'));
-    await setDoc(departmentDocRef, departmentData);
+    const departmentDocRef = db.collection('institutions').doc(institutionId).collection('departments').doc();
+    await departmentDocRef.set(departmentData);
     const departmentId = departmentDocRef.id;
     
     console.log(`✅ Created department: ${departmentName} (${departmentId})`);
     console.log(`  Signup Link: ${departmentData.departmentSignupLink}`);
     
     // Verify the department was created
-    const departmentDoc = await doc(db, 'institutions', institutionId, 'departments', departmentId);
-    const departmentSnap = await getDoc(departmentDoc);
+    const departmentDoc = await db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).get();
     
-    if (departmentSnap.exists()) {
+    if (departmentDoc.exists) {
       console.log(`✅ Department creation verified`);
     } else {
       console.log(`❌ Department creation failed`);
@@ -137,24 +126,23 @@ async function testAutomaticCreation() {
       departmentId: departmentId,
       isEmailVerified: true,
       emailVerified: true,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-      lastLogin: Timestamp.now(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLogin: admin.firestore.FieldValue.serverTimestamp(),
       sessionCount: 0,
       profileCompleted: true
     };
     
-    const teacherDocRef = doc(collection(db, 'institutions', institutionId, 'departments', departmentId, 'teachers'));
-    await setDoc(teacherDocRef, teacherData);
+    const teacherDocRef = db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).collection('teachers').doc();
+    await teacherDocRef.set(teacherData);
     const teacherId = teacherDocRef.id;
     
     console.log(`✅ Created teacher: ${teacherData.name} (${teacherId})`);
     
     // Verify the teacher was created
-    const teacherDoc = await doc(db, 'institutions', institutionId, 'departments', departmentId, 'teachers', teacherId);
-    const teacherSnap = await getDoc(teacherDoc);
+    const teacherDoc = await db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).collection('teachers').doc(teacherId).get();
     
-    if (teacherSnap.exists()) {
+    if (teacherDoc.exists) {
       console.log(`✅ Teacher creation verified`);
     } else {
       console.log(`❌ Teacher creation failed`);
@@ -173,24 +161,23 @@ async function testAutomaticCreation() {
       enrollmentStatus: 'active',
       isEmailVerified: true,
       emailVerified: true,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-      lastLogin: Timestamp.now(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLogin: admin.firestore.FieldValue.serverTimestamp(),
       sessionCount: 0,
       profileCompleted: true
     };
     
-    const studentDocRef = doc(collection(db, 'institutions', institutionId, 'departments', departmentId, 'students'));
-    await setDoc(studentDocRef, studentData);
+    const studentDocRef = db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).collection('students').doc();
+    await studentDocRef.set(studentData);
     const studentId = studentDocRef.id;
     
     console.log(`✅ Created student: ${studentData.name} (${studentId})`);
     
     // Verify the student was created
-    const studentDoc = await doc(db, 'institutions', institutionId, 'departments', departmentId, 'students', studentId);
-    const studentSnap = await getDoc(studentDoc);
+    const studentDoc = await db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).collection('students').doc(studentId).get();
     
-    if (studentSnap.exists()) {
+    if (studentDoc.exists) {
       console.log(`✅ Student creation verified`);
     } else {
       console.log(`❌ Student creation failed`);
@@ -200,25 +187,24 @@ async function testAutomaticCreation() {
     console.log('\n=== Testing Complete Hierarchy Structure ===');
     
     // Check institutions
-    const institutionsQuery = collection(db, 'institutions');
-    const institutionsSnapshot = await getDocs(institutionsQuery);
+    const institutionsQuery = db.collection('institutions');
+    const institutionsSnapshot = await institutionsQuery.get();
     console.log(`Total institutions: ${institutionsSnapshot.size}`);
     
     // Check our test institution
-    const testInstitutionDoc = await doc(db, 'institutions', institutionId);
-    const testInstitutionSnap = await getDoc(testInstitutionDoc);
+    const testInstitutionDoc = await db.collection('institutions').doc(institutionId).get();
     
-    if (testInstitutionSnap.exists()) {
+    if (testInstitutionDoc.exists) {
       console.log(`✅ Test institution exists`);
       
       // Check admins subcollection
-      const adminsQuery = collection(db, 'institutions', institutionId, 'admins');
-      const adminsSnapshot = await getDocs(adminsQuery);
+      const adminsQuery = db.collection('institutions').doc(institutionId).collection('admins');
+      const adminsSnapshot = await adminsQuery.get();
       console.log(`  Admins: ${adminsSnapshot.size}`);
       
       // Check departments subcollection
-      const departmentsQuery = collection(db, 'institutions', institutionId, 'departments');
-      const departmentsSnapshot = await getDocs(departmentsQuery);
+      const departmentsQuery = db.collection('institutions').doc(institutionId).collection('departments');
+      const departmentsSnapshot = await departmentsQuery.get();
       console.log(`  Departments: ${departmentsSnapshot.size}`);
       
       if (!departmentsSnapshot.empty) {
@@ -226,26 +212,34 @@ async function testAutomaticCreation() {
         console.log(`  ✅ Department exists: ${testDepartmentDoc.data().departmentName}`);
         
         // Check teachers subcollection
-        const teachersQuery = collection(db, 'institutions', institutionId, 'departments', testDepartmentDoc.id, 'teachers');
-        const teachersSnapshot = await getDocs(teachersQuery);
+        const teachersQuery = db.collection('institutions').doc(institutionId).collection('departments').doc(testDepartmentDoc.id).collection('teachers');
+        const teachersSnapshot = await teachersQuery.get();
         console.log(`    Teachers: ${teachersSnapshot.size}`);
         
         // Check students subcollection
-        const studentsQuery = collection(db, 'institutions', institutionId, 'departments', testDepartmentDoc.id, 'students');
-        const studentsSnapshot = await getDocs(studentsQuery);
+        const studentsQuery = db.collection('institutions').doc(institutionId).collection('departments').doc(testDepartmentDoc.id).collection('students');
+        const studentsSnapshot = await studentsQuery.get();
         console.log(`    Students: ${studentsSnapshot.size}`);
       }
     }
     
+    // Clean up test data
+    console.log('\n=== Cleaning Up Test Data ===');
+    await db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).collection('students').doc(studentId).delete();
+    await db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).collection('teachers').doc(teacherId).delete();
+    await db.collection('institutions').doc(institutionId).collection('departments').doc(departmentId).delete();
+    await db.collection('institutions').doc(institutionId).collection('admins').doc(adminId).delete();
+    await db.collection('institutions').doc(institutionId).delete();
+    
+    console.log('✅ Test data cleaned up successfully!');
     console.log('\n✅ Automatic collection creation test completed!');
-    console.log('\n📝 Note: In a real implementation, you would want to clean up test data after testing.');
     
   } catch (error) {
     console.error('❌ Error during automatic collection creation test:', error);
+  } finally {
+    // Clean up
+    await admin.app().delete();
   }
 }
-
-// Load environment variables
-require('dotenv').config({ path: '.env.local' });
 
 testAutomaticCreation();
