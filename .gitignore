@@ -37,3 +37,4 @@ test-*.js
 temp-clone/
 temp-clone/
 functions/service-account-key.json
+src/service-account-key.json
