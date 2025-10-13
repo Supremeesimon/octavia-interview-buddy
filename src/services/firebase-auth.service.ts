@@ -18,7 +18,7 @@ import {
   TotpSecret,
   RecaptchaVerifier
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, collection, getDocs, query, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { SignupRequest, LoginRequest, UserProfile, UserRole } from '@/types';
 import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
@@ -88,13 +88,140 @@ export class FirebaseAuthService {
         } catch (error) {
           // If we fail to create the user document, we should delete the Firebase Auth user
           // to avoid having orphaned auth users
-          await user.delete();
+          try {
+            await user.delete();
+          } catch (deleteError) {
+            // If we can't delete the user (e.g., token expired), log the error but continue
+            console.warn('Failed to delete Firebase Auth user:', deleteError);
+          }
           throw error;
         }
       } else {
-        // Institutional users are created through institutional signup
-        // which already uses InstitutionHierarchyService
-        // This path should not be hit for institutional signups
+        // For institutional users, we need to create them in the proper hierarchy
+        try {
+          // First, find the institution by name (trim to handle any extra spaces)
+          const trimmedInstitutionName = data.institutionDomain?.trim() || '';
+          const institutionsRef = collection(db, 'institutions');
+          const q = query(institutionsRef, where('name', '==', trimmedInstitutionName));
+          const querySnapshot = await getDocs(q);
+          
+          if (querySnapshot.empty) {
+            // If institution doesn't exist, delete the Firebase Auth user and throw error
+            console.log('Institution not found, deleting user');
+            try {
+              await user.delete();
+            } catch (deleteError) {
+              // If we can't delete the user (e.g., token expired), log the error but continue
+              console.warn('Failed to delete Firebase Auth user:', deleteError);
+            }
+            throw new Error(`Institution "${trimmedInstitutionName}" not found.`);
+          }
+          
+          const institutionDoc = querySnapshot.docs[0];
+          const institutionId = institutionDoc.id;
+          console.log(`Found institution "${trimmedInstitutionName}" with ID: ${institutionId}`);
+          
+          // Find or create department based on user input
+          let targetDepartmentId = null;
+          
+          // Check if department name is provided and not empty
+          if (data.department && data.department.trim()) {
+            // If user specified a department, try to find an existing one with the same name
+            // Trim the department name to handle any extra spaces and make it case-insensitive
+            const trimmedDepartmentName = data.department.trim();
+            const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+            const departmentQuery = query(departmentsRef, where('departmentName', '==', trimmedDepartmentName));
+            let departmentSnapshot = await getDocs(departmentQuery);
+            
+            // If not found, try case-insensitive search
+            if (departmentSnapshot.empty) {
+              const allDepartmentsSnapshot = await getDocs(departmentsRef);
+              const matchingDepartment = allDepartmentsSnapshot.docs.find(doc => 
+                doc.data().departmentName.toLowerCase() === trimmedDepartmentName.toLowerCase()
+              );
+              
+              if (matchingDepartment) {
+                departmentSnapshot = {
+                  empty: false,
+                  docs: [matchingDepartment]
+                } as any;
+              }
+            }
+            
+            if (!departmentSnapshot.empty) {
+              // Found existing department with the same name
+              targetDepartmentId = departmentSnapshot.docs[0].id;
+              console.log(`Found existing department "${trimmedDepartmentName}" with ID: ${targetDepartmentId}`);
+            } else {
+              // Create a new department with the specified name
+              const newDepartmentRef = doc(departmentsRef);
+              await setDoc(newDepartmentRef, {
+                departmentName: trimmedDepartmentName,
+                createdAt: serverTimestamp(),
+                createdBy: 'user-registration'
+              });
+              targetDepartmentId = newDepartmentRef.id;
+              console.log(`Created new department "${trimmedDepartmentName}" with ID: ${targetDepartmentId}`);
+            }
+          } else {
+            // No department specified, try to find an existing department or create a default one
+            const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+            const departmentsSnapshot = await getDocs(departmentsRef);
+            
+            if (!departmentsSnapshot.empty) {
+              targetDepartmentId = departmentsSnapshot.docs[0].id;
+            } else {
+              // Create a default department if none exists
+              const defaultDepartmentRef = doc(departmentsRef);
+              await setDoc(defaultDepartmentRef, {
+                departmentName: 'General',
+                createdAt: serverTimestamp(),
+                createdBy: 'system'
+              });
+              targetDepartmentId = defaultDepartmentRef.id;
+            }
+          }
+          
+          // Create user based on role
+          const { id, ...userData } = userProfile;
+          if (userRole === 'institution_admin') {
+            // Trim the department name for admins
+            const adminDepartment = (data.department || 'General').trim() || 'General';
+            await InstitutionHierarchyService.createInstitutionAdmin(institutionId, id, {
+              ...userData,
+              role: 'institution_admin',
+              department: adminDepartment
+            });
+          } else if (userRole === 'teacher') {
+            // Trim the department name for teachers
+            const teacherDepartment = (data.department || 'General').trim() || 'General';
+            await InstitutionHierarchyService.createTeacher(institutionId, targetDepartmentId, id, {
+              ...userData,
+              role: 'teacher',
+              department: teacherDepartment
+            });
+          } else {
+            // Default to student role
+            // Trim the department name for students
+            const studentDepartment = (data.department || 'General').trim() || 'General';
+            await InstitutionHierarchyService.createStudent(institutionId, targetDepartmentId, id, {
+              ...userData,
+              role: 'student',
+              department: studentDepartment,
+              yearOfStudy: data.yearOfStudy || new Date().getFullYear().toString()
+            });
+          }
+        } catch (error) {
+          // If we fail to create the institutional user, delete the Firebase Auth user
+          // to avoid having orphaned auth users
+          try {
+            await user.delete();
+          } catch (deleteError) {
+            // If we can't delete the user (e.g., token expired), log the error but continue
+            console.warn('Failed to delete Firebase Auth user:', deleteError);
+          }
+          throw error;
+        }
       }
 
       // Send email verification
@@ -208,7 +335,9 @@ export class FirebaseAuthService {
   }
 
   // OAuth login with Google
-  async loginWithGoogle(institutionContext?: { institutionName?: string }): Promise<{ user: UserProfile; token: string }> {
+  async loginWithGoogle(institutionContext?: { institutionName?: string, userType?: string }): Promise<{ user: UserProfile; token: string }> {
+    console.log('loginWithGoogle called with context:', institutionContext);
+    
     try {
       const provider = new GoogleAuthProvider();
       
@@ -219,15 +348,18 @@ export class FirebaseAuthService {
       
       const userCredential: UserCredential = await signInWithPopup(auth, provider);
       const { user } = userCredential;
+      console.log('Google authentication successful for user:', user);
 
       // Check if user already exists in our Firestore by searching all possible locations
       const userSearchResult = await InstitutionHierarchyService.findUserById(user.uid);
+      console.log('User search result:', userSearchResult);
       
       let userProfile: UserProfile;
       
       if (!userSearchResult) {
         // Create new user profile for OAuth user
         const userRole: UserRole = this.determineUserRole(user.email || '');
+        console.log('Creating new user profile with role:', userRole);
         
         userProfile = {
           id: user.uid,
@@ -244,25 +376,338 @@ export class FirebaseAuthService {
           profileCompleted: false
         };
 
-        // If we have institutional context, we should create the user as an institutional user
-        // Otherwise, create as external user
+        // If we have institutional context, create user in the institutional hierarchy
         if (institutionContext?.institutionName) {
+          console.log('Institutional context provided:', institutionContext);
           // For institutional signup via Google, we need to determine the proper role
-          // For now, we'll create them as students in the institution
-          // In a real implementation, we would need to look up the institution and assign proper role
-          throw new Error('Institutional Google signup not fully implemented yet. Please use email signup for institutional accounts.');
+          // based on the userType parameter or default to student
+          const userType = institutionContext.userType || 'student';
+          console.log('User type:', userType);
+          
+          try {
+            // First, we need to find the institution by name
+            // Trim the institution name to handle any trailing/leading spaces
+            const trimmedInstitutionName = institutionContext.institutionName.trim();
+            const institutionsRef = collection(db, 'institutions');
+            const q = query(institutionsRef, where('name', '==', trimmedInstitutionName));
+            console.log('Searching for institution:', trimmedInstitutionName);
+            const querySnapshot = await getDocs(q);
+            console.log('Query results:', querySnapshot.size);
+            
+            if (querySnapshot.empty) {
+              // If institution doesn't exist, delete the Firebase Auth user and throw error
+              console.log('Institution not found, deleting user');
+              try {
+                await user.delete();
+              } catch (deleteError) {
+                // If we can't delete the user (e.g., token expired), log the error but continue
+                console.warn('Failed to delete Firebase Auth user:', deleteError);
+              }
+              throw new Error(`Institution "${trimmedInstitutionName}" not found.`);
+            }
+            
+            const institutionDoc = querySnapshot.docs[0];
+            const institutionId = institutionDoc.id;
+            console.log('Found institution with ID:', institutionId);
+            
+            // For now, we'll create users without specific departments
+            // In a real implementation, you might want to prompt for department selection
+            const departmentId = null;
+            
+            // Create user based on user type and store the result
+            let createdUser: UserProfile | null = null;
+            
+            if (userType === 'student') {
+              console.log('Creating student user');
+              // For students, we need to place them in a department
+              // Find or create department based on user profile data
+              let targetDepartmentId = null;
+              
+              // Check if user profile has department info
+              const userDepartment = userProfile.department;
+              if (userDepartment) {
+                // Try to find an existing department with the same name (case-insensitive)
+                const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+                const departmentQuery = query(departmentsRef, where('departmentName', '==', userDepartment));
+                let departmentSnapshot = await getDocs(departmentQuery);
+                
+                // If not found, try case-insensitive search
+                if (departmentSnapshot.empty) {
+                  const allDepartmentsSnapshot = await getDocs(departmentsRef);
+                  const matchingDepartment = allDepartmentsSnapshot.docs.find(doc => 
+                    doc.data().departmentName.toLowerCase() === userDepartment.toLowerCase()
+                  );
+                  
+                  if (matchingDepartment) {
+                    departmentSnapshot = {
+                      empty: false,
+                      docs: [matchingDepartment]
+                    } as any;
+                  }
+                }
+                
+                if (!departmentSnapshot.empty) {
+                  // Found existing department with the same name
+                  targetDepartmentId = departmentSnapshot.docs[0].id;
+                  console.log(`Found existing department "${userDepartment}" with ID: ${targetDepartmentId}`);
+                } else {
+                  // Create a new department with the specified name
+                  const newDepartmentRef = doc(departmentsRef);
+                  await setDoc(newDepartmentRef, {
+                    departmentName: userDepartment,
+                    createdAt: serverTimestamp(),
+                    createdBy: 'oauth-registration'
+                  });
+                  targetDepartmentId = newDepartmentRef.id;
+                  console.log(`Created new department "${userDepartment}" with ID: ${targetDepartmentId}`);
+                }
+              } else {
+                // No department specified, try to find an existing department or create a default one
+                const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+                const departmentsSnapshot = await getDocs(departmentsRef);
+                console.log('Department search results:', departmentsSnapshot.size);
+                
+                if (!departmentsSnapshot.empty) {
+                  targetDepartmentId = departmentsSnapshot.docs[0].id;
+                } else {
+                  // Create a default department if none exists
+                  console.log('Creating default department');
+                  const defaultDepartmentRef = doc(departmentsRef);
+                  await setDoc(defaultDepartmentRef, {
+                    departmentName: 'General',
+                    createdAt: serverTimestamp(),
+                    createdBy: 'system'
+                  });
+                  targetDepartmentId = defaultDepartmentRef.id;
+                }
+              }
+              console.log('Target department ID:', targetDepartmentId);
+              
+              // Extract the user ID and pass it separately
+              const { id, ...studentData } = userProfile;
+              await InstitutionHierarchyService.createStudent(institutionId, targetDepartmentId, id, {
+                ...studentData,
+                role: 'student',
+                department: userDepartment || 'General',
+                yearOfStudy: new Date().getFullYear().toString()
+              });
+              
+              // Set the created user profile with the correct role and institution info
+              createdUser = {
+                ...userProfile,
+                role: 'student'
+              };
+            } else if (userType === 'teacher') {
+              console.log('Creating teacher user');
+              // For teachers, we need to place them in a department
+              // Find or create department based on user profile data
+              let targetDepartmentId = null;
+              
+              // Check if user profile has department info
+              const userDepartment = userProfile.department;
+              if (userDepartment) {
+                // Try to find an existing department with the same name (case-insensitive)
+                const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+                const departmentQuery = query(departmentsRef, where('departmentName', '==', userDepartment));
+                let departmentSnapshot = await getDocs(departmentQuery);
+                
+                // If not found, try case-insensitive search
+                if (departmentSnapshot.empty) {
+                  const allDepartmentsSnapshot = await getDocs(departmentsRef);
+                  const matchingDepartment = allDepartmentsSnapshot.docs.find(doc => 
+                    doc.data().departmentName.toLowerCase() === userDepartment.toLowerCase()
+                  );
+                  
+                  if (matchingDepartment) {
+                    departmentSnapshot = {
+                      empty: false,
+                      docs: [matchingDepartment]
+                    } as any;
+                  }
+                }
+                
+                if (!departmentSnapshot.empty) {
+                  // Found existing department with the same name
+                  targetDepartmentId = departmentSnapshot.docs[0].id;
+                  console.log(`Found existing department "${userDepartment}" with ID: ${targetDepartmentId}`);
+                } else {
+                  // Create a new department with the specified name
+                  const newDepartmentRef = doc(departmentsRef);
+                  await setDoc(newDepartmentRef, {
+                    departmentName: userDepartment,
+                    createdAt: serverTimestamp(),
+                    createdBy: 'oauth-registration'
+                  });
+                  targetDepartmentId = newDepartmentRef.id;
+                  console.log(`Created new department "${userDepartment}" with ID: ${targetDepartmentId}`);
+                }
+              } else {
+                // No department specified, try to find an existing department or create a default one
+                const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+                const departmentsSnapshot = await getDocs(departmentsRef);
+                console.log('Department search results:', departmentsSnapshot.size);
+                
+                if (!departmentsSnapshot.empty) {
+                  targetDepartmentId = departmentsSnapshot.docs[0].id;
+                } else {
+                  // Create a default department if none exists
+                  console.log('Creating default department');
+                  const defaultDepartmentRef = doc(departmentsRef);
+                  await setDoc(defaultDepartmentRef, {
+                    departmentName: 'General',
+                    createdAt: serverTimestamp(),
+                    createdBy: 'system'
+                  });
+                  targetDepartmentId = defaultDepartmentRef.id;
+                }
+              }
+              console.log('Target department ID:', targetDepartmentId);
+              
+              // Extract the user ID and pass it separately
+              const { id, ...teacherData } = userProfile;
+              await InstitutionHierarchyService.createTeacher(institutionId, targetDepartmentId, id, {
+                ...teacherData,
+                role: 'teacher',
+                department: userDepartment || 'General'
+              });
+              
+              // Set the created user profile with the correct role and institution info
+              createdUser = {
+                ...userProfile,
+                role: 'teacher'
+              };
+            } else if (userType === 'admin') {
+              console.log('Creating admin user');
+              // For admins, create in the institution's admins subcollection
+              // Extract the user ID and pass it separately
+              const { id, ...adminData } = userProfile;
+              await InstitutionHierarchyService.createInstitutionAdmin(institutionId, id, {
+                ...adminData,
+                role: 'institution_admin'
+              });
+              
+              // Set the created user profile with the correct role and institution info
+              createdUser = {
+                ...userProfile,
+                role: 'institution_admin'
+              };
+            } else {
+              console.log('Creating default student user');
+              // For unknown user types, default to student
+              // For students, we need to place them in a department
+              // Find or create department based on user profile data
+              let targetDepartmentId = null;
+              
+              // Check if user profile has department info
+              const userDepartment = userProfile.department;
+              if (userDepartment) {
+                // Try to find an existing department with the same name (case-insensitive)
+                const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+                const departmentQuery = query(departmentsRef, where('departmentName', '==', userDepartment));
+                let departmentSnapshot = await getDocs(departmentQuery);
+                
+                // If not found, try case-insensitive search
+                if (departmentSnapshot.empty) {
+                  const allDepartmentsSnapshot = await getDocs(departmentsRef);
+                  const matchingDepartment = allDepartmentsSnapshot.docs.find(doc => 
+                    doc.data().departmentName.toLowerCase() === userDepartment.toLowerCase()
+                  );
+                  
+                  if (matchingDepartment) {
+                    departmentSnapshot = {
+                      empty: false,
+                      docs: [matchingDepartment]
+                    } as any;
+                  }
+                }
+                
+                if (!departmentSnapshot.empty) {
+                  // Found existing department with the same name
+                  targetDepartmentId = departmentSnapshot.docs[0].id;
+                  console.log(`Found existing department "${userDepartment}" with ID: ${targetDepartmentId}`);
+                } else {
+                  // Create a new department with the specified name
+                  const newDepartmentRef = doc(departmentsRef);
+                  await setDoc(newDepartmentRef, {
+                    departmentName: userDepartment,
+                    createdAt: serverTimestamp(),
+                    createdBy: 'oauth-registration'
+                  });
+                  targetDepartmentId = newDepartmentRef.id;
+                  console.log(`Created new department "${userDepartment}" with ID: ${targetDepartmentId}`);
+                }
+              } else {
+                // No department specified, try to find an existing department or create a default one
+                const departmentsRef = collection(db, 'institutions', institutionId, 'departments');
+                const departmentsSnapshot = await getDocs(departmentsRef);
+                console.log('Department search results:', departmentsSnapshot.size);
+                
+                if (!departmentsSnapshot.empty) {
+                  targetDepartmentId = departmentsSnapshot.docs[0].id;
+                } else {
+                  // Create a default department if none exists
+                  console.log('Creating default department');
+                  const defaultDepartmentRef = doc(departmentsRef);
+                  await setDoc(defaultDepartmentRef, {
+                    departmentName: 'General',
+                    createdAt: serverTimestamp(),
+                    createdBy: 'system'
+                  });
+                  targetDepartmentId = defaultDepartmentRef.id;
+                }
+              }
+              console.log('Target department ID:', targetDepartmentId);
+              
+              // Extract the user ID and pass it separately
+              const { id, ...studentData } = userProfile;
+              await InstitutionHierarchyService.createStudent(institutionId, targetDepartmentId, id, {
+                ...studentData,
+                role: 'student',
+                department: userDepartment || 'General',
+                yearOfStudy: new Date().getFullYear().toString()
+              });
+              
+              // Set the created user profile with the correct role and institution info
+              createdUser = {
+                ...userProfile,
+                role: 'student'
+              };
+            }
+            
+            // Use the created user profile instead of searching again
+            userProfile = createdUser || userProfile;
+          } catch (error) {
+            console.error('Error creating institutional user:', error);
+            // If we fail to create the institutional user, delete the Firebase Auth user
+            // to avoid having orphaned auth users
+            try {
+              await user.delete();
+            } catch (deleteError) {
+              // If we can't delete the user (e.g., token expired), log the error but continue
+              console.warn('Failed to delete Firebase Auth user:', deleteError);
+            }
+            throw error;
+          }
         } else {
+          console.log('No institutional context, creating external user');
           // OAuth users are external users (not institutional)
           // We need to set the authProvider to 'gmail' for Google OAuth users
           try {
+            const { id, ...externalUserData } = userProfile;
             await InstitutionHierarchyService.createExternalUser({
-              ...userProfile,
+              ...externalUserData,
               authProvider: 'gmail'
             });
           } catch (error) {
+            console.error('Error creating external user:', error);
             // If we fail to create the user document, we should delete the Firebase Auth user
             // to avoid having orphaned auth users
-            await user.delete();
+            try {
+              await user.delete();
+            } catch (deleteError) {
+              // If we can't delete the user (e.g., token expired), log the error but continue
+              console.warn('Failed to delete Firebase Auth user:', deleteError);
+            }
             throw error;
           }
         }
@@ -487,7 +932,22 @@ export class FirebaseAuthService {
       return userSearchResult.user;
     } catch (error) {
       console.error('FirebaseAuthService: Error getting current user:', error);
-      return null;
+      // Even if we can't find the user in Firestore, we can still return a minimal profile
+      // based on the Firebase Auth user data
+      const minimalProfile: UserProfile = {
+        id: user.uid,
+        name: user.displayName || user.email?.split('@')[0] || 'Anonymous User',
+        email: user.email || '',
+        role: 'student', // Default role
+        emailVerified: user.emailVerified,
+        isEmailVerified: user.emailVerified,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastLoginAt: new Date(),
+        sessionCount: 0,
+        profileCompleted: false
+      };
+      return minimalProfile;
     }
   }
 

@@ -48,6 +48,7 @@ const ComprehensiveAnalyticsDashboard = React.lazy(() => import('@/pages/Compreh
 const ExternalSignup = React.lazy(() => import('@/pages/ExternalSignup'));
 const EnhancedSignup = React.lazy(() => import('@/pages/EnhancedSignup'));
 const InstitutionalSignup = React.lazy(() => import('@/pages/InstitutionalSignup'));
+const InstitutionalLogin = React.lazy(() => import('@/pages/InstitutionalLogin'));
 const InstitutionalSignupRedirect = React.lazy(() => import('@/pages/InstitutionalSignupRedirect'));
 const UserDiagnosticsPage = React.lazy(() => import('@/pages/UserDiagnosticsPage'));
 
@@ -91,6 +92,7 @@ function App() {
                   <Route path="/signup-enhanced" element={<EnhancedSignup />} />
                   <Route path="/signup-institution" element={<InstitutionalSignup />} />
                   <Route path="/signup-institution/:institutionId" element={<InstitutionalSignup />} />
+                  <Route path="/login-institution" element={<InstitutionalLogin />} />
                   <Route path="/diagnostics" element={<ProtectedRoute requiredRole="platform_admin"><UserDiagnosticsPage /></ProtectedRoute>} />
                   {/* Jobs pages are temporarily hidden */}
                   {/* <Route path="/jobs" element={<JobsPage />} /> */}
