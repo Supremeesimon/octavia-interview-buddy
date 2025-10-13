@@ -36,7 +36,10 @@
     "test-data-saving": "npx tsx src/scripts/test-data-saving.ts",
     "debug-firebase": "npx tsx src/scripts/debug-firebase-collections.ts",
     "debug-firebase-data": "npx tsx src/scripts/debug-firebase-data.ts",
-    "set-platform-admin": "npx tsx src/scripts/set-platform-admin.ts"
+    "set-platform-admin": "npx tsx src/scripts/set-platform-admin.ts",
+    "count-users": "npx tsx src/scripts/count-all-users.ts",
+    "get-user-details": "npx tsx src/scripts/get-user-details.ts",
+    "delete-users": "npx tsx src/scripts/delete-users.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

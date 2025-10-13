@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { firebaseAuthService } from '@/services/firebase-auth.service';
-import type { UserProfile } from '@/types';
+import type { UserProfile, UserRole } from '@/types';
 
 interface UseFirebaseAuthReturn {
   user: UserProfile | null;
@@ -10,8 +10,8 @@ interface UseFirebaseAuthReturn {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ user: UserProfile; token: string }>;
-  register: (data: { name: string; email: string; password: string; institutionDomain?: string; role?: string; department?: string; yearOfStudy?: string; }) => Promise<{ user: UserProfile; token: string }>;
-  loginWithGoogle: () => Promise<{ user: UserProfile; token: string }>;
+  register: (data: { name: string; email: string; password: string; institutionDomain?: string; role?: UserRole; department?: string; yearOfStudy?: string; }) => Promise<{ user: UserProfile; token: string }>;
+  loginWithGoogle: (institutionContext?: { institutionName?: string }) => Promise<{ user: UserProfile; token: string }>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
 }
@@ -73,7 +73,7 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     }
   };
 
-  const register = async (data: { name: string; email: string; password: string; institutionDomain?: string; role?: string; department?: string; yearOfStudy?: string; }) => {
+  const register = async (data: { name: string; email: string; password: string; institutionDomain?: string; role?: UserRole; department?: string; yearOfStudy?: string; }) => {
     setIsLoading(true);
     try {
       const result = await firebaseAuthService.register(data);
@@ -86,10 +86,10 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     }
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (institutionContext?: { institutionName?: string }) => {
     setIsLoading(true);
     try {
-      const result = await firebaseAuthService.loginWithGoogle();
+      const result = await firebaseAuthService.loginWithGoogle(institutionContext);
       return result;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Google login failed');

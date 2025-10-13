@@ -1,19 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from "sonner";
 import { Mail, GraduationCap, Users, Shield, Chrome } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 
 const Signup = () => {
   const [activeTab, setActiveTab] = useState('student');
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { register, loginWithGoogle, isLoading } = useFirebaseAuth();
+
+  // Check if this is an institutional signup link
+  const institutionParam = searchParams.get('institution');
+
+  // Redirect to institutional signup redirect page if institution parameter is present
+  useEffect(() => {
+    if (institutionParam) {
+      navigate('/signup-institutional-redirect');
+    }
+  }, [institutionParam, navigate]);
 
   // Student form state
   const [studentForm, setStudentForm] = useState({
@@ -58,11 +70,13 @@ const Signup = () => {
   const handleStudentSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Remove email domain validation for students
-    // Students can now sign up with any email address
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(studentForm.email)) {
-      toast.error("Please enter a valid email address");
+    if (!validateEducationalEmail(studentForm.email)) {
+      toast.error("Please use a valid educational email address (.edu)");
+      return;
+    }
+
+    if (isPersonalEmail(studentForm.email)) {
+      toast.error("Personal emails (Gmail, Yahoo, etc.) are not permitted for student accounts");
       return;
     }
 
@@ -71,7 +85,7 @@ const Signup = () => {
         name: studentForm.fullName,
         email: studentForm.email,
         password: studentForm.password,
-        role: 'student', // Explicitly set role to student
+        institutionDomain: studentForm.email.split('@')[1],
         department: studentForm.department,
         yearOfStudy: studentForm.yearOfStudy
       });
@@ -79,33 +93,20 @@ const Signup = () => {
       navigate('/student');
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      // Provide more specific guidance for email already registered error
-      if (error.message === 'Email address is already registered') {
-        toast.error(
-          `This email is already registered. Please try: 
-          1. Using a different email address, or 
-          2. Going to the login page if you already have an account.`,
-          {
-            duration: 10000, // Show for 10 seconds
-          }
-        );
-      } else {
-        toast.error(error.message || 'Registration failed');
-      }
+      toast.error(error.message || 'Registration failed');
     }
   };
 
   const handleTeacherSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(teacherForm.email)) {
+    if (!validateGenericEmail(teacherForm.email)) {
       toast.error("Please enter a valid email address");
       return;
     }
 
     try {
-      // For teacher signup, explicitly set role to institution_admin
+      // For teacher signup, we need to pass additional data to indicate the role
       const result = await register({
         name: teacherForm.fullName,
         email: teacherForm.email,
@@ -119,38 +120,25 @@ const Signup = () => {
       navigate('/dashboard');
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      // Provide more specific guidance for email already registered error
-      if (error.message === 'Email address is already registered') {
-        toast.error(
-          `This email is already registered. Please try: 
-          1. Using a different email address, or 
-          2. Going to the login page if you already have an account.`,
-          {
-            duration: 10000, // Show for 10 seconds
-          }
-        );
-      } else {
-        toast.error(error.message || 'Registration failed');
-      }
+      toast.error(error.message || 'Registration failed');
     }
   };
 
   const handleAdminSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(adminForm.email)) {
+    if (!validateGenericEmail(adminForm.email)) {
       toast.error("Please enter a valid email address");
       return;
     }
 
     try {
-      // For admin signup, explicitly set role to institution_admin (not platform_admin)
+      // For admin signup, we need to pass additional data to indicate the role
       const result = await register({
         name: adminForm.fullName,
         email: adminForm.email,
         password: adminForm.password,
-        role: 'institution_admin' // Institution admin role (not platform admin)
+        role: 'platform_admin' // Platform admin role
       });
       
       // Navigate based on the actual role assigned by Firebase
@@ -167,25 +155,16 @@ const Signup = () => {
       
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      // Provide more specific guidance for email already registered error
-      if (error.message === 'Email address is already registered') {
-        toast.error(
-          `This email is already registered. Please try: 
-          1. Using a different email address, or 
-          2. Going to the login page if you already have an account.`,
-          {
-            duration: 10000, // Show for 10 seconds
-          }
-        );
-      } else {
-        toast.error(error.message || 'Registration failed');
-      }
+      toast.error(error.message || 'Registration failed');
     }
   };
 
   const handleGoogleSignup = async () => {
     try {
-      const result = await loginWithGoogle();
+      // Pass institutional context if present
+      const result = await loginWithGoogle(
+        institutionParam ? { institutionName: institutionParam } : undefined
+      );
       
       // Navigate based on user role
       switch (result.user.role) {
@@ -242,21 +221,21 @@ const Signup = () => {
                   <p className="text-sm text-muted-foreground">Sign up with your educational email</p>
                 </div>
 
-                <form onSubmit={handleStudentSignup} className="space-y-4 text-left">
-                  <div className="text-left">
-                    <Label htmlFor="student-name" className="text-left">Full Name</Label>
+                <form onSubmit={handleStudentSignup} className="space-y-4">
+                  <div>
+                    <Label htmlFor="student-name">Full Name</Label>
                     <Input
                       id="student-name"
                       value={studentForm.fullName}
                       onChange={(e) => setStudentForm({...studentForm, fullName: e.target.value})}
                       required
                       placeholder="Enter your full name"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="student-email" className="text-left">Email</Label>
+                  <div>
+                    <Label htmlFor="student-email">Email</Label>
                     <Input
                       id="student-email"
                       type="email"
@@ -264,15 +243,15 @@ const Signup = () => {
                       onChange={(e) => setStudentForm({...studentForm, email: e.target.value})}
                       required
                       placeholder="your.name@university.edu"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
-                    <p className="text-xs text-muted-foreground mt-2 text-left">
+                    <p className="text-xs text-muted-foreground mt-2">
                       Please use your institutional email. Personal emails (e.g., Gmail, Yahoo) are not permitted for student accounts.
                     </p>
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="student-password" className="text-left">Password</Label>
+                  <div>
+                    <Label htmlFor="student-password">Password</Label>
                     <Input
                       id="student-password"
                       type="password"
@@ -280,30 +259,30 @@ const Signup = () => {
                       onChange={(e) => setStudentForm({...studentForm, password: e.target.value})}
                       required
                       placeholder="Create a secure password"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="student-department" className="text-left">Department</Label>
+                  <div>
+                    <Label htmlFor="student-department">Department</Label>
                     <Input
                       id="student-department"
                       value={studentForm.department}
                       onChange={(e) => setStudentForm({...studentForm, department: e.target.value})}
                       required
                       placeholder="Enter your department"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="student-year" className="text-left">Year of Study</Label>
+                  <div>
+                    <Label htmlFor="student-year">Year of Study</Label>
                     <select
                       id="student-year"
                       value={studentForm.yearOfStudy}
                       onChange={(e) => setStudentForm({...studentForm, yearOfStudy: e.target.value})}
                       required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">Select Year</option>
                       {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
@@ -334,21 +313,21 @@ const Signup = () => {
                   <p className="text-sm text-muted-foreground">Sign up to manage your students</p>
                 </div>
 
-                <form onSubmit={handleTeacherSignup} className="space-y-4 text-left">
-                  <div className="text-left">
-                    <Label htmlFor="teacher-name" className="text-left">Full Name</Label>
+                <form onSubmit={handleTeacherSignup} className="space-y-4">
+                  <div>
+                    <Label htmlFor="teacher-name">Full Name</Label>
                     <Input
                       id="teacher-name"
                       value={teacherForm.fullName}
                       onChange={(e) => setTeacherForm({...teacherForm, fullName: e.target.value})}
                       required
                       placeholder="Enter your full name"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="teacher-email" className="text-left">Email</Label>
+                  <div>
+                    <Label htmlFor="teacher-email">Email</Label>
                     <Input
                       id="teacher-email"
                       type="email"
@@ -356,12 +335,12 @@ const Signup = () => {
                       onChange={(e) => setTeacherForm({...teacherForm, email: e.target.value})}
                       required
                       placeholder="your.name@email.com"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="teacher-password" className="text-left">Password</Label>
+                  <div>
+                    <Label htmlFor="teacher-password">Password</Label>
                     <Input
                       id="teacher-password"
                       type="password"
@@ -369,30 +348,30 @@ const Signup = () => {
                       onChange={(e) => setTeacherForm({...teacherForm, password: e.target.value})}
                       required
                       placeholder="Create a secure password"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="teacher-department" className="text-left">Department</Label>
+                  <div>
+                    <Label htmlFor="teacher-department">Department</Label>
                     <Input
                       id="teacher-department"
                       value={teacherForm.department}
                       onChange={(e) => setTeacherForm({...teacherForm, department: e.target.value})}
                       required
                       placeholder="Enter your department"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="teacher-year" className="text-left">Years of Teaching Experience</Label>
+                  <div>
+                    <Label htmlFor="teacher-year">Years of Teaching Experience</Label>
                     <select
                       id="teacher-year"
                       value={teacherForm.yearOfStudy}
                       onChange={(e) => setTeacherForm({...teacherForm, yearOfStudy: e.target.value})}
                       required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">Select Year</option>
                       {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
@@ -423,21 +402,21 @@ const Signup = () => {
                   <p className="text-sm text-muted-foreground">Sign up to manage the institution</p>
                 </div>
 
-                <form onSubmit={handleAdminSignup} className="space-y-4 text-left">
-                  <div className="text-left">
-                    <Label htmlFor="admin-name" className="text-left">Full Name</Label>
+                <form onSubmit={handleAdminSignup} className="space-y-4">
+                  <div>
+                    <Label htmlFor="admin-name">Full Name</Label>
                     <Input
                       id="admin-name"
                       value={adminForm.fullName}
                       onChange={(e) => setAdminForm({...adminForm, fullName: e.target.value})}
                       required
                       placeholder="Enter your full name"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="admin-email" className="text-left">Email</Label>
+                  <div>
+                    <Label htmlFor="admin-email">Email</Label>
                     <Input
                       id="admin-email"
                       type="email"
@@ -445,12 +424,12 @@ const Signup = () => {
                       onChange={(e) => setAdminForm({...adminForm, email: e.target.value})}
                       required
                       placeholder="your.name@email.com"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
-                  <div className="text-left">
-                    <Label htmlFor="admin-password" className="text-left">Password</Label>
+                  <div>
+                    <Label htmlFor="admin-password">Password</Label>
                     <Input
                       id="admin-password"
                       type="password"
@@ -458,7 +437,7 @@ const Signup = () => {
                       onChange={(e) => setAdminForm({...adminForm, password: e.target.value})}
                       required
                       placeholder="Create a secure password"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
 
@@ -506,6 +485,7 @@ const Signup = () => {
           </Card>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

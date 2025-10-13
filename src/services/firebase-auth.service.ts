@@ -208,7 +208,7 @@ export class FirebaseAuthService {
   }
 
   // OAuth login with Google
-  async loginWithGoogle(data?: { department?: string, yearOfStudy?: string }): Promise<{ user: UserProfile; token: string }> {
+  async loginWithGoogle(institutionContext?: { institutionName?: string }): Promise<{ user: UserProfile; token: string }> {
     try {
       const provider = new GoogleAuthProvider();
       
@@ -244,18 +244,27 @@ export class FirebaseAuthService {
           profileCompleted: false
         };
 
-        // OAuth users are external users (not institutional)
-        // We need to set the authProvider to 'gmail' for Google OAuth users
-        try {
-          await InstitutionHierarchyService.createExternalUser({
-            ...userProfile,
-            authProvider: 'gmail'
-          });
-        } catch (error) {
-          // If we fail to create the user document, we should delete the Firebase Auth user
-          // to avoid having orphaned auth users
-          await user.delete();
-          throw error;
+        // If we have institutional context, we should create the user as an institutional user
+        // Otherwise, create as external user
+        if (institutionContext?.institutionName) {
+          // For institutional signup via Google, we need to determine the proper role
+          // For now, we'll create them as students in the institution
+          // In a real implementation, we would need to look up the institution and assign proper role
+          throw new Error('Institutional Google signup not fully implemented yet. Please use email signup for institutional accounts.');
+        } else {
+          // OAuth users are external users (not institutional)
+          // We need to set the authProvider to 'gmail' for Google OAuth users
+          try {
+            await InstitutionHierarchyService.createExternalUser({
+              ...userProfile,
+              authProvider: 'gmail'
+            });
+          } catch (error) {
+            // If we fail to create the user document, we should delete the Firebase Auth user
+            // to avoid having orphaned auth users
+            await user.delete();
+            throw error;
+          }
         }
       } else {
         // Update existing user's last login time

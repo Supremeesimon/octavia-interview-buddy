@@ -1,5 +1,5 @@
-import React, { Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
@@ -48,6 +48,7 @@ const ComprehensiveAnalyticsDashboard = React.lazy(() => import('@/pages/Compreh
 const ExternalSignup = React.lazy(() => import('@/pages/ExternalSignup'));
 const EnhancedSignup = React.lazy(() => import('@/pages/EnhancedSignup'));
 const InstitutionalSignup = React.lazy(() => import('@/pages/InstitutionalSignup'));
+const InstitutionalSignupRedirect = React.lazy(() => import('@/pages/InstitutionalSignupRedirect'));
 const UserDiagnosticsPage = React.lazy(() => import('@/pages/UserDiagnosticsPage'));
 
 // Create a client
@@ -66,6 +67,7 @@ function App() {
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
+                  <Route path="/signup-institutional-redirect" element={<InstitutionalSignupRedirect />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/dashboard" element={<ProtectedRoute requiredRole="institution_admin"><Dashboard /></ProtectedRoute>} />
                   <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
@@ -88,6 +90,7 @@ function App() {
                   <Route path="/signup-external" element={<ExternalSignup />} />
                   <Route path="/signup-enhanced" element={<EnhancedSignup />} />
                   <Route path="/signup-institution" element={<InstitutionalSignup />} />
+                  <Route path="/signup-institution/:institutionId" element={<InstitutionalSignup />} />
                   <Route path="/diagnostics" element={<ProtectedRoute requiredRole="platform_admin"><UserDiagnosticsPage /></ProtectedRoute>} />
                   {/* Jobs pages are temporarily hidden */}
                   {/* <Route path="/jobs" element={<JobsPage />} /> */}

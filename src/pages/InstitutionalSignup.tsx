@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from "sonner";
 import { Mail, GraduationCap } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
-import { InstitutionService } from '@/services/institution.service';
-import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
+import type { SignupRequest } from '@/types';
 
 const InstitutionalSignup = () => {
   const { institutionId } = useParams();
@@ -26,48 +26,22 @@ const InstitutionalSignup = () => {
     experience: ''
   });
   
-  const [institution, setInstitution] = useState<any>(null);
-  const [loadingInstitution, setLoadingInstitution] = useState(true);
-  
   const userType = searchParams.get('type') || 'student';
 
-  // Fetch institution details
+  // In a real implementation, you would fetch institution details from the backend
+  const institutionName = institutionId ? `Institution ${institutionId}` : 'Unknown Institution';
+
   useEffect(() => {
-    const fetchInstitution = async () => {
-      if (!institutionId) {
-        toast.error("Invalid signup link");
-        navigate("/signup");
-        return;
-      }
-      
-      try {
-        // First try to get institution by token (new method)
-        const institutionData = await InstitutionHierarchyService.getInstitutionByToken(institutionId);
-        if (institutionData) {
-          setInstitution(institutionData);
-          return;
-        }
-        
-        // Fallback to old method for backward compatibility
-        const oldInstitutionData = await InstitutionService.getInstitutionById(institutionId);
-        console.log("Institution data fetched:", oldInstitutionData); // Debug log
-        if (!oldInstitutionData) {
-          toast.error("Invalid institution");
-          navigate("/signup");
-          return;
-        }
-        setInstitution(oldInstitutionData);
-      } catch (error) {
-        console.error("Error fetching institution:", error);
-        toast.error("Failed to load institution details");
-        navigate("/signup");
-      } finally {
-        setLoadingInstitution(false);
-      }
-    };
-    
-    fetchInstitution();
+    // Validate institution ID
+    if (!institutionId) {
+      toast.error("Invalid signup link");
+      navigate("/signup");
+    }
   }, [institutionId, navigate]);
+
+  const validateEducationalEmail = (email: string): boolean => {
+    return email.endsWith('.edu') || email.includes('.edu.');
+  };
 
   const validateForm = (): boolean => {
     if (!form.fullName.trim()) {
@@ -80,9 +54,8 @@ const InstitutionalSignup = () => {
       return false;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(form.email)) {
-      toast.error("Please enter a valid email address");
+    if (!validateEducationalEmail(form.email)) {
+      toast.error("Please use a valid educational email address (.edu)");
       return false;
     }
 
@@ -106,107 +79,23 @@ const InstitutionalSignup = () => {
       return;
     }
 
-    if (!institution) {
-      toast.error("Institution details not loaded. Please try refreshing the page.");
-      return;
-    }
-
-    // Additional check for institution domain
-    if (!institution.domain) {
-      toast.error("Institution domain information is missing. Please contact support.");
-      return;
-    }
-
     try {
-      // Register user in Firebase Auth
       const result = await register({
         name: form.fullName,
         email: form.email,
         password: form.password,
-        role: userType === 'teacher' ? 'institution_admin' : 'student', // Set role based on user type
+        institutionDomain: form.email.split('@')[1],
+        role: userType === 'teacher' ? 'institution_admin' : 'student', // Teachers are institution admins
         department: form.department,
-        yearOfStudy: userType === 'teacher' ? form.experience : form.yearOfStudy,
-        institutionDomain: institution.domain // Pass the institution domain
+        yearOfStudy: userType === 'teacher' ? form.experience : form.yearOfStudy
       });
       
-      // Create user in the hierarchical structure based on their role
-      if (userType === 'teacher') {
-        // For teachers, create a department first if it doesn't exist
-        let departmentId = '';
-        
-        // Check if department already exists
-        // In a real implementation, we'd search for existing departments with the same name
-        // For now, we'll create a new department
-        departmentId = await InstitutionHierarchyService.createDepartment(
-          institution.id, 
-          form.department || 'Default Department', 
-          result.user.id
-        );
-        
-        // Create the teacher in the department
-        await InstitutionHierarchyService.createTeacher(institution.id, departmentId, {
-          ...result.user,
-          department: form.department
-        });
-        
-        navigate('/dashboard');
-      } else {
-        // For students, find or create a department
-        let departmentId = '';
-        
-        // Check if department already exists
-        // In a real implementation, we'd search for existing departments with the same name
-        // For now, we'll create a new department
-        departmentId = await InstitutionHierarchyService.createDepartment(
-          institution.id, 
-          form.department || 'Default Department', 
-          result.user.id
-        );
-        
-        // Create the student in the department
-        await InstitutionHierarchyService.createStudent(institution.id, departmentId, {
-          ...result.user,
-          department: form.department,
-          yearOfStudy: form.yearOfStudy
-        });
-        
-        navigate('/student');
-      }
-      
+      navigate('/student');
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {
-      // Provide more specific guidance for email already registered error
-      if (error.message === 'Email address is already registered') {
-        toast.error(
-          `This email is already registered. Please try: 
-          1. Using a different email address, or 
-          2. Going to the login page if you already have an account.`,
-          {
-            duration: 10000, // Show for 10 seconds
-          }
-        );
-      } else if (error.message && error.message.includes('Unsupported field value: undefined')) {
-        toast.error(
-          `There was an issue with the institution data. Please try: 
-          1. Using a different signup link, or 
-          2. Contacting support if the problem persists.`,
-          {
-            duration: 10000, // Show for 10 seconds
-          }
-        );
-      } else {
-        toast.error(error.message || 'Registration failed');
-      }
+      toast.error(error.message || 'Registration failed');
     }
   };
-
-  if (loadingInstitution) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -216,25 +105,25 @@ const InstitutionalSignup = () => {
           <Card className="p-8 shadow-lg rounded-xl">
             <div className="text-center mb-8">
               <GraduationCap className="h-12 w-12 mx-auto text-primary mb-4" />
-              <h1 className="text-2xl font-bold mb-2">Join {institution?.name || 'Unknown Institution'}</h1>
+              <h1 className="text-2xl font-bold mb-2">Join {institutionName}</h1>
               <p className="text-muted-foreground">Create your {userType === 'teacher' ? 'teacher' : 'student'} account</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-left">
-              <div className="text-left">
-                <Label htmlFor="full-name" className="text-left">Full Name</Label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="full-name">Full Name</Label>
                 <Input
                   id="full-name"
                   value={form.fullName}
                   onChange={(e) => setForm({...form, fullName: e.target.value})}
                   required
                   placeholder="Enter your full name"
-                  className="mt-1 text-left"
+                  className="mt-1"
                 />
               </div>
 
-              <div className="text-left">
-                <Label htmlFor="email" className="text-left">Email</Label>
+              <div>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -242,35 +131,35 @@ const InstitutionalSignup = () => {
                   onChange={(e) => setForm({...form, email: e.target.value})}
                   required
                   placeholder="your.name@university.edu"
-                  className="mt-1 text-left"
+                  className="mt-1"
                 />
-                <p className="text-xs text-muted-foreground mt-2 text-left">
+                <p className="text-xs text-muted-foreground mt-2">
                   Please use your institutional email (.edu domain)
                 </p>
               </div>
               
               {userType === 'teacher' && (
                 <>
-                  <div className="text-left">
-                    <Label htmlFor="department" className="text-left">Department</Label>
+                  <div>
+                    <Label htmlFor="department">Department</Label>
                     <Input
                       id="department"
                       value={form.department || ''}
                       onChange={(e) => setForm({...form, department: e.target.value})}
                       required
                       placeholder="Enter your department"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
                   
-                  <div className="text-left">
-                    <Label htmlFor="experience" className="text-left">Years of Teaching Experience</Label>
+                  <div>
+                    <Label htmlFor="experience">Years of Teaching Experience</Label>
                     <select
                       id="experience"
                       value={form.experience || ''}
                       onChange={(e) => setForm({...form, experience: e.target.value})}
                       required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">Select Year</option>
                       {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
@@ -283,26 +172,26 @@ const InstitutionalSignup = () => {
               
               {userType === 'student' && (
                 <>
-                  <div className="text-left">
-                    <Label htmlFor="department" className="text-left">Department</Label>
+                  <div>
+                    <Label htmlFor="department">Department</Label>
                     <Input
                       id="department"
                       value={form.department || ''}
                       onChange={(e) => setForm({...form, department: e.target.value})}
                       required
                       placeholder="Enter your department"
-                      className="mt-1 text-left"
+                      className="mt-1"
                     />
                   </div>
                   
-                  <div className="text-left">
-                    <Label htmlFor="yearOfStudy" className="text-left">Year of Study</Label>
+                  <div>
+                    <Label htmlFor="yearOfStudy">Year of Study</Label>
                     <select
                       id="yearOfStudy"
                       value={form.yearOfStudy || ''}
                       onChange={(e) => setForm({...form, yearOfStudy: e.target.value})}
                       required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">Select Year</option>
                       {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
@@ -313,8 +202,8 @@ const InstitutionalSignup = () => {
                 </>
               )}
 
-              <div className="text-left">
-                <Label htmlFor="password" className="text-left">Password</Label>
+              <div>
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -322,12 +211,12 @@ const InstitutionalSignup = () => {
                   onChange={(e) => setForm({...form, password: e.target.value})}
                   required
                   placeholder="Create a secure password"
-                  className="mt-1 text-left"
+                  className="mt-1"
                 />
               </div>
 
-              <div className="text-left">
-                <Label htmlFor="confirm-password" className="text-left">Confirm Password</Label>
+              <div>
+                <Label htmlFor="confirm-password">Confirm Password</Label>
                 <Input
                   id="confirm-password"
                   type="password"
@@ -335,7 +224,7 @@ const InstitutionalSignup = () => {
                   onChange={(e) => setForm({...form, confirmPassword: e.target.value})}
                   required
                   placeholder="Confirm your password"
-                  className="mt-1 text-left"
+                  className="mt-1"
                 />
               </div>
 
@@ -355,6 +244,7 @@ const InstitutionalSignup = () => {
           </Card>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };
