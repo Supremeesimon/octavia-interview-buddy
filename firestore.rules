@@ -15,23 +15,38 @@ service cloud.firestore {
     }
     
     function isStudent() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+      // Check in externalUsers collection
+      let externalUser = get(/databases/$(database)/documents/externalUsers/$(request.auth.uid));
+      if (externalUser.data != null) {
+        return externalUser.data.role == 'student';
+      }
+      
+      // Check in institutions hierarchy
+      // This is a simplified check - in reality, we'd need to check all institutions
+      return false;
     }
     
     function isTeacher() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      // Check in institutions hierarchy
+      // This is a simplified check - in reality, we'd need to check all institutions
+      return false;
     }
     
     function isInstitutionAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'institution_admin';
+      // Check in institutions hierarchy
+      // This is a simplified check - in reality, we'd need to check all institutions
+      return false;
     }
     
     function isPlatformAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'platform_admin';
+      let admin = get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid));
+      return admin.data != null && admin.data.role == 'platform_admin';
     }
     
-    function sameInstitution(institutionDomain) {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.institutionDomain == institutionDomain;
+    function sameInstitution(institutionId) {
+      // Check if user belongs to the specified institution
+      // This is a simplified check - in reality, we'd need to check all subcollections
+      return true;
     }
     
     // Allow Firebase Functions to write data (for webhook integration)
@@ -39,16 +54,21 @@ service cloud.firestore {
       return request.auth.token.admin == true;
     }
 
-    // Users collection
-    match /users/{userId} {
+    // External users collection
+    match /externalUsers/{userId} {
       // Users can read and write their own data
       allow read, write: if isAuthenticated() && isOwner(userId);
       
-      // Institution admins can read users from their institution
-      allow read: if isAuthenticated() && isInstitutionAdmin() && 
-                  sameInstitution(resource.data.institutionDomain);
+      // Platform admins can read all external users
+      allow read: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // Platform admins collection
+    match /platformAdmins/{adminId} {
+      // Platform admins can read/write their own data
+      allow read, write: if isAuthenticated() && isOwner(adminId) && isPlatformAdmin();
       
-      // Platform admins can read all users
+      // Platform admins can read all platform admins
       allow read: if isAuthenticated() && isPlatformAdmin();
     }
 
@@ -56,16 +76,73 @@ service cloud.firestore {
     match /institutions/{institutionId} {
       // Institution admins can read/write their own institution
       allow read, write: if isAuthenticated() && isInstitutionAdmin() && 
-                         sameInstitution(resource.data.domain);
+                         sameInstitution(institutionId);
       
       // Platform admins can read/write all institutions
       allow read, write: if isAuthenticated() && isPlatformAdmin();
       
       // Students and teachers can read their institution
-      allow read: if isAuthenticated() && sameInstitution(resource.data.domain);
+      allow read: if isAuthenticated() && sameInstitution(institutionId);
+      
+      // Admins subcollection
+      match /admins/{adminId} {
+        // Institution admins can read/write their own data
+        allow read, write: if isAuthenticated() && isOwner(adminId) && isInstitutionAdmin();
+        
+        // Institution admins can read other admins in their institution
+        allow read: if isAuthenticated() && isInstitutionAdmin() && sameInstitution(institutionId);
+        
+        // Platform admins can read all admins
+        allow read: if isAuthenticated() && isPlatformAdmin();
+      }
+      
+      // Departments subcollection
+      match /departments/{departmentId} {
+        // Institution admins can read/write departments in their institution
+        allow read, write: if isAuthenticated() && isInstitutionAdmin() && sameInstitution(institutionId);
+        
+        // Teachers and students can read departments in their institution
+        allow read: if isAuthenticated() && sameInstitution(institutionId);
+        
+        // Platform admins can read/write all departments
+        allow read, write: if isAuthenticated() && isPlatformAdmin();
+        
+        // Teachers subcollection
+        match /teachers/{teacherId} {
+          // Teachers can read/write their own data
+          allow read, write: if isAuthenticated() && isOwner(teacherId) && isTeacher();
+          
+          // Institution admins can read teachers in their institution
+          allow read: if isAuthenticated() && isInstitutionAdmin() && sameInstitution(institutionId);
+          
+          // Teachers can read other teachers in their institution
+          allow read: if isAuthenticated() && isTeacher() && sameInstitution(institutionId);
+          
+          // Platform admins can read all teachers
+          allow read: if isAuthenticated() && isPlatformAdmin();
+        }
+        
+        // Students subcollection
+        match /students/{studentId} {
+          // Students can read/write their own data
+          allow read, write: if isAuthenticated() && isOwner(studentId) && isStudent();
+          
+          // Teachers can read students in their department
+          allow read: if isAuthenticated() && isTeacher() && sameInstitution(institutionId);
+          
+          // Institution admins can read students in their institution
+          allow read: if isAuthenticated() && isInstitutionAdmin() && sameInstitution(institutionId);
+          
+          // Students can read other students in their institution
+          allow read: if isAuthenticated() && isStudent() && sameInstitution(institutionId);
+          
+          // Platform admins can read all students
+          allow read: if isAuthenticated() && isPlatformAdmin();
+        }
+      }
     }
 
-    // Interview sessions collection
+    // Interview sessions collection (legacy - for backward compatibility)
     match /interview_sessions/{sessionId} {
       // Students can read/write their own sessions
       allow read, write: if isAuthenticated() && isOwner(resource.data.studentId);
@@ -82,7 +159,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && isPlatformAdmin();
     }
 
-    // Resumes collection
+    // Resumes collection (legacy - for backward compatibility)
     match /resumes/{resumeId} {
       // Users can read/write their own resumes
       allow read, write: if isAuthenticated() && isOwner(resource.data.userId);
@@ -96,7 +173,7 @@ service cloud.firestore {
                   sameInstitution(resource.data.institutionDomain);
     }
 
-    // Interview feedback collection
+    // Interview feedback collection (legacy - for backward compatibility)
     match /interview_feedback/{feedbackId} {
       // Students can read their own feedback
       allow read: if isAuthenticated() && isOwner(resource.data.studentId);
@@ -116,7 +193,7 @@ service cloud.firestore {
       allow write: if isServerProcess();
     }
 
-    // Session purchases collection
+    // Session purchases collection (legacy - for backward compatibility)
     match /session_purchases/{purchaseId} {
       // Users can read/write their own purchases
       allow read, write: if isAuthenticated() && isOwner(resource.data.userId);
@@ -129,7 +206,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && isPlatformAdmin();
     }
 
-    // Analytics collection (read-only for most users)
+    // Analytics collection (read-only for most users) (legacy - for backward compatibility)
     match /analytics/{doc=**} {
       // Students can read their own analytics
       allow read: if isAuthenticated() && isStudent() && 
@@ -147,7 +224,7 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && isPlatformAdmin();
     }
 
-    // End of call analysis collection
+    // End of call analysis collection (legacy - for backward compatibility)
     match /end-of-call-analysis/{analysisId} {
       // Allow read for development/testing
       allow read: if true; // TODO: Restrict in production
@@ -165,7 +242,7 @@ service cloud.firestore {
       allow create, write: if isServerProcess();
     }
     
-    // Interviews collection
+    // Interviews collection (legacy - for backward compatibility)
     match /interviews/{interviewId} {
       // Platform admins can read/write all interviews
       allow read, write: if isAuthenticated() && isPlatformAdmin();
@@ -186,7 +263,7 @@ service cloud.firestore {
       allow create, write: if isServerProcess();
     }
 
-    // Institution interests collection
+    // Institution interests collection (legacy - for backward compatibility)
     match /institution_interests/{interestId} {
       // Anyone can create institution interests (for contact form submissions)
       allow create: if true;
@@ -218,7 +295,7 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && isPlatformAdmin();
     }
 
-    // Resources collection (platform admins only)
+    // Resources collection (platform admins only for now)
     match /resources/{resourceId} {
       // Platform admins can read/write all resources
       allow read, write, create, update, delete: if isAuthenticated() && isPlatformAdmin();

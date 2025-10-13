@@ -118,7 +118,7 @@ const InstitutionalSignup = () => {
     }
 
     try {
-      // Register user in the new hierarchical structure
+      // Register user in Firebase Auth
       const result = await register({
         name: form.fullName,
         email: form.email,
@@ -131,24 +131,45 @@ const InstitutionalSignup = () => {
       
       // Create user in the hierarchical structure based on their role
       if (userType === 'teacher') {
-        // For teachers, we need to create a department first
-        const departmentId = await InstitutionHierarchyService.createDepartment(
+        // For teachers, create a department first if it doesn't exist
+        let departmentId = '';
+        
+        // Check if department already exists
+        // In a real implementation, we'd search for existing departments with the same name
+        // For now, we'll create a new department
+        departmentId = await InstitutionHierarchyService.createDepartment(
           institution.id, 
           form.department || 'Default Department', 
           result.user.id
         );
         
-        await InstitutionHierarchyService.createTeacher(institution.id, departmentId, result.user);
+        // Create the teacher in the department
+        await InstitutionHierarchyService.createTeacher(institution.id, departmentId, {
+          ...result.user,
+          department: form.department
+        });
+        
         navigate('/dashboard');
       } else {
-        // For students, we need to create a department first
-        const departmentId = await InstitutionHierarchyService.createDepartment(
+        // For students, find or create a department
+        let departmentId = '';
+        
+        // Check if department already exists
+        // In a real implementation, we'd search for existing departments with the same name
+        // For now, we'll create a new department
+        departmentId = await InstitutionHierarchyService.createDepartment(
           institution.id, 
           form.department || 'Default Department', 
           result.user.id
         );
         
-        await InstitutionHierarchyService.createStudent(institution.id, departmentId, result.user);
+        // Create the student in the department
+        await InstitutionHierarchyService.createStudent(institution.id, departmentId, {
+          ...result.user,
+          department: form.department,
+          yearOfStudy: form.yearOfStudy
+        });
+        
         navigate('/student');
       }
       

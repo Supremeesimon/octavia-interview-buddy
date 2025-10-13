@@ -26,7 +26,8 @@ export class InstitutionHierarchyService {
         isActive: true
       };
 
-      const docRef = await setDoc(doc(collection(db, this.INSTITUTIONS_COLLECTION)), institutionData);
+      const docRef = doc(collection(db, this.INSTITUTIONS_COLLECTION));
+      await setDoc(docRef, institutionData);
       const institutionId = docRef.id;
       
       console.log(`Created institution with ID: ${institutionId}`);
@@ -99,10 +100,8 @@ export class InstitutionHierarchyService {
         lastLogin: Timestamp.now()
       };
 
-      const docRef = await setDoc(
-        doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'admins')),
-        adminData
-      );
+      const docRef = doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'admins'));
+      await setDoc(docRef, adminData);
       
       const adminId = docRef.id;
       console.log(`Created institution admin with ID: ${adminId} for institution: ${institutionId}`);
@@ -116,16 +115,19 @@ export class InstitutionHierarchyService {
   // Create department in the hierarchical structure
   static async createDepartment(institutionId: string, departmentName: string, createdBy: string): Promise<string> {
     try {
+      // Generate a unique signup token for this department
+      const signupToken = uuidv4();
+      
       const departmentData = {
         departmentName,
+        departmentSignupToken: signupToken,
+        departmentSignupLink: `${window.location.origin}/signup-institution/${institutionId}?department=${encodeURIComponent(departmentName)}&token=${signupToken}`,
         createdAt: Timestamp.now(),
         createdBy
       };
 
-      const docRef = await setDoc(
-        doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments')),
-        departmentData
-      );
+      const docRef = doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments'));
+      await setDoc(docRef, departmentData);
       
       const departmentId = docRef.id;
       console.log(`Created department with ID: ${departmentId} for institution: ${institutionId}`);
@@ -133,6 +135,30 @@ export class InstitutionHierarchyService {
     } catch (error) {
       console.error('Error creating department:', error);
       throw new Error(`Failed to create department: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Get department by signup token
+  static async getDepartmentByToken(institutionId: string, token: string): Promise<any | null> {
+    try {
+      const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+      const q = query(departmentsRef, where('departmentSignupToken', '==', token));
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const docSnap = querySnapshot.docs[0];
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching department by token:', error);
+      return null;
     }
   }
 
@@ -148,10 +174,8 @@ export class InstitutionHierarchyService {
         lastLogin: Timestamp.now()
       };
 
-      const docRef = await setDoc(
-        doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers')),
-        teacherData
-      );
+      const docRef = doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers'));
+      await setDoc(docRef, teacherData);
       
       const teacherId = docRef.id;
       console.log(`Created teacher with ID: ${teacherId} for department: ${departmentId} in institution: ${institutionId}`);
@@ -176,10 +200,8 @@ export class InstitutionHierarchyService {
         lastLogin: Timestamp.now()
       };
 
-      const docRef = await setDoc(
-        doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students')),
-        studentData
-      );
+      const docRef = doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students'));
+      await setDoc(docRef, studentData);
       
       const studentId = docRef.id;
       console.log(`Created student with ID: ${studentId} for department: ${departmentId} in institution: ${institutionId}`);
@@ -201,10 +223,8 @@ export class InstitutionHierarchyService {
         lastLogin: Timestamp.now()
       };
 
-      const docRef = await setDoc(
-        doc(collection(db, this.EXTERNAL_USERS_COLLECTION)),
-        externalUserData
-      );
+      const docRef = doc(collection(db, this.EXTERNAL_USERS_COLLECTION));
+      await setDoc(docRef, externalUserData);
       
       const userId = docRef.id;
       console.log(`Created external user with ID: ${userId}`);
@@ -225,10 +245,8 @@ export class InstitutionHierarchyService {
         updatedAt: Timestamp.now()
       };
 
-      const docRef = await setDoc(
-        doc(collection(db, this.PLATFORM_ADMINS_COLLECTION)),
-        platformAdminData
-      );
+      const docRef = doc(collection(db, this.PLATFORM_ADMINS_COLLECTION));
+      await setDoc(docRef, platformAdminData);
       
       const adminId = docRef.id;
       console.log(`Created platform admin with ID: ${adminId}`);
@@ -261,12 +279,22 @@ export class InstitutionHierarchyService {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        const data = docSnap.data();
+        const data: any = docSnap.data();
         return {
           id: docSnap.id,
-          ...data,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          institutionDomain: data.institutionDomain,
+          emailVerified: data.emailVerified,
+          isEmailVerified: data.isEmailVerified,
+          department: data.department,
+          yearOfStudy: data.yearOfStudy,
           createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          lastLoginAt: data.lastLoginAt?.toDate() || new Date(),
+          sessionCount: data.sessionCount || 0,
+          profileCompleted: data.profileCompleted || false
         } as UserProfile;
       }
       

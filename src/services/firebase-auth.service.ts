@@ -21,6 +21,7 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { SignupRequest, LoginRequest, UserProfile, UserRole } from '@/types';
+import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
 
 export class FirebaseAuthService {
   // Register new user
@@ -45,7 +46,7 @@ export class FirebaseAuthService {
       
       if (data.role) {
         // If an explicit role is provided, use it (with validation)
-        if (data.role === 'platform_admin' || data.role === 'institution_admin' || data.role === 'student') {
+        if (data.role === 'platform_admin' || data.role === 'institution_admin' || data.role === 'student' || data.role === 'teacher') {
           userRole = data.role;
         }
       } else {
@@ -53,7 +54,7 @@ export class FirebaseAuthService {
         userRole = this.determineUserRole(data.email, data.institutionDomain);
       }
 
-      // Create user document in Firestore
+      // Create user document in the appropriate collection based on role
       const userProfile: UserProfile = {
         id: user.uid,
         name: data.name,
@@ -71,17 +72,20 @@ export class FirebaseAuthService {
         profileCompleted: false
       };
 
-      // Filter out undefined values before saving to Firestore
-      const filteredUserProfile = Object.fromEntries(
-        Object.entries(userProfile).filter(([_, value]) => value !== undefined)
-      );
-
-      await setDoc(doc(db, 'users', user.uid), {
-        ...filteredUserProfile,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp()
-      });
+      // Save user to appropriate collection based on role
+      if (userRole === 'platform_admin') {
+        await InstitutionHierarchyService.createPlatformAdmin(userProfile);
+      } else if (userRole === 'student' && !data.institutionDomain) {
+        // External student
+        await InstitutionHierarchyService.createExternalUser(userProfile);
+      } else if (userRole === 'institution_admin' || userRole === 'teacher' || userRole === 'student') {
+        // Institutional users - they should be created through the institutional signup process
+        // For now, we'll create them in the external users collection if no institution domain is provided
+        if (!data.institutionDomain) {
+          await InstitutionHierarchyService.createExternalUser(userProfile);
+        }
+        // If institutionDomain is provided, the institutional signup process will handle creation
+      }
 
       // Send email verification
       await sendEmailVerification(user);

@@ -35,6 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
 
 const TeacherDashboard = () => {
   const [copiedLink, setCopiedLink] = useState(false);
@@ -43,16 +44,39 @@ const TeacherDashboard = () => {
   const [expandedStudent, setExpandedStudent] = useState(null);
   const [activeMainTab, setActiveMainTab] = useState('students');
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState('performance');
+  const [signupLink, setSignupLink] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [institutionId, setInstitutionId] = useState('');
   
-  // Generate a unique signup link for the teacher's students
-  const generateSignupLink = () => {
-    // In a real implementation, this would be based on the actual teacher and institution ID
-    const teacherId = "teacher-xyz"; // This would come from user context
-    const timestamp = Date.now().toString(36);
-    return `https://octavia.ai/signup/student?teacher=${teacherId}&t=${timestamp}`;
+  // Generate a unique signup link for the teacher's students using the new hierarchical structure
+  const generateSignupLink = async () => {
+    try {
+      // In a real implementation, these would come from user context
+      const teacherId = "teacher-xyz"; // This would come from user context
+      const instId = institutionId || "institution-abc"; // This would come from user context
+      const deptId = departmentId || "department-def"; // This would come from user context
+      
+      // Create a department-specific signup link
+      const department = await InstitutionHierarchyService.getDepartmentByToken(instId, deptId);
+      if (department && department.departmentSignupLink) {
+        return department.departmentSignupLink;
+      }
+      
+      // Fallback to a generic link
+      const timestamp = Date.now().toString(36);
+      return `https://octavia.ai/signup-institution/${instId}?department=${deptId}&t=${timestamp}`;
+    } catch (error) {
+      console.error('Error generating signup link:', error);
+      // Fallback to a generic link
+      const timestamp = Date.now().toString(36);
+      return `https://octavia.ai/signup/student?t=${timestamp}`;
+    }
   };
   
-  const [signupLink, setSignupLink] = useState(generateSignupLink());
+  // Initialize the signup link when component mounts
+  React.useEffect(() => {
+    generateSignupLink().then(link => setSignupLink(link));
+  }, [departmentId, institutionId]);
   
   // Mock data for the teacher's students
   const students = [
