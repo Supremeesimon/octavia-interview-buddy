@@ -78,7 +78,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
     // Use the actual institution ID from the user context
     const institutionId = user?.institutionId || "institution-xyz"; // Fallback for now
     const timestamp = Date.now().toString(36);
-    return `https://octavia.ai/signup/${institutionId}?type=${userType}&t=${timestamp}`;
+    return `https://octavia.ai/signup-institution/${institutionId}?type=${userType}&t=${timestamp}`;
   };
   
   const [signupLink, setSignupLink] = useState(generateSignupLink());

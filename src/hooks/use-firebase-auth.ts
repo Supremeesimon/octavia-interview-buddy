@@ -11,7 +11,7 @@ interface UseFirebaseAuthReturn {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ user: UserProfile; token: string }>;
   register: (data: { name: string; email: string; password: string; institutionDomain?: string; role?: UserRole; department?: string; yearOfStudy?: string; }) => Promise<{ user: UserProfile; token: string }>;
-  loginWithGoogle: (institutionContext?: { institutionName?: string }) => Promise<{ user: UserProfile; token: string }>;
+  loginWithGoogle: (institutionContext?: { institutionName?: string, userType?: string }) => Promise<{ user: UserProfile; token: string }>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
 }
@@ -86,7 +86,7 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     }
   };
 
-  const loginWithGoogle = async (institutionContext?: { institutionName?: string }) => {
+  const loginWithGoogle = async (institutionContext?: { institutionName?: string, userType?: string }) => {
     setIsLoading(true);
     try {
       const result = await firebaseAuthService.loginWithGoogle(institutionContext);

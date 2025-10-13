@@ -161,10 +161,16 @@ const Signup = () => {
 
   const handleGoogleSignup = async () => {
     try {
-      // Pass institutional context if present
-      const result = await loginWithGoogle(
-        institutionParam ? { institutionName: institutionParam } : undefined
-      );
+      // Check if this is an institutional signup
+      if (institutionParam) {
+        // For institutional signup, Google signup is not fully implemented
+        // Show an error message and prevent the signup
+        toast.error('Institutional Google signup is not fully implemented yet. Please use email signup for institutional accounts.');
+        return;
+      }
+      
+      // For non-institutional signup, proceed with Google signup
+      const result = await loginWithGoogle();
       
       // Navigate based on user role
       switch (result.user.role) {
@@ -446,24 +452,29 @@ const Signup = () => {
                   </Button>
                 </form>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
+                {/* Only show Google signup option if this is not an institutional signup */}
+                {!institutionParam && (
+                  <>
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                      </div>
+                    </div>
 
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={handleGoogleSignup}
-                  disabled={isLoading}
-                >
-                  <Chrome className="h-4 w-4 mr-2" />
-                  Sign up with Google
-                </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={handleGoogleSignup}
+                      disabled={isLoading}
+                    >
+                      <Chrome className="h-4 w-4 mr-2" />
+                      Sign up with Google
+                    </Button>
+                  </>
+                )}
 
                 <p className="text-xs text-center text-muted-foreground">
                   By signing up, you agree to our{' '}

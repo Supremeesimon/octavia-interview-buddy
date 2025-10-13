@@ -69,7 +69,7 @@ const TeacherDashboard = () => {
       console.error('Error generating signup link:', error);
       // Fallback to a generic link
       const timestamp = Date.now().toString(36);
-      return `https://octavia.ai/signup/student?t=${timestamp}`;
+      return `https://octavia.ai/signup-institution?institution=generic&t=${timestamp}`;
     }
   };
   

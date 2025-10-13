@@ -153,7 +153,7 @@ export class DataMigrationService {
               userDoc.id
             );
             
-            await InstitutionHierarchyService.createStudent(userData.institutionId, studentDepartmentId, {
+            await InstitutionHierarchyService.createStudent(userData.institutionId, studentDepartmentId, userDoc.id, {
               id: userDoc.id,
               name: userData.name,
               email: userData.email,

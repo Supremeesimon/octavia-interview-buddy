@@ -8,15 +8,54 @@ export class InstitutionHierarchyService {
   private static readonly EXTERNAL_USERS_COLLECTION = 'externalUsers';
   private static readonly PLATFORM_ADMINS_COLLECTION = 'platformAdmins';
 
+  // Get all departments for an institution by institution name
+  static async getDepartmentsByInstitutionName(institutionName: string): Promise<{id: string, name: string}[]> {
+    try {
+      // First, find the institution by name (trim to handle any extra spaces)
+      const trimmedInstitutionName = institutionName?.trim() || '';
+      const institutionsRef = collection(db, this.INSTITUTIONS_COLLECTION);
+      const q = query(institutionsRef, where('name', '==', trimmedInstitutionName));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        console.log('No institution found with name:', trimmedInstitutionName);
+        return [];
+      }
+      
+      const institutionDoc = querySnapshot.docs[0];
+      const institutionId = institutionDoc.id;
+      console.log('Found institution:', institutionDoc.data().name, 'ID:', institutionId, 'using name:', trimmedInstitutionName);
+      
+      // Get all departments for this institution
+      const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+      const departmentsSnapshot = await getDocs(departmentsRef);
+      console.log('Found', departmentsSnapshot.size, 'departments');
+      
+      const departments = departmentsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().departmentName || 'Unnamed Department'
+      }));
+      
+      console.log('Departments list:', departments);
+      return departments;
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      return [];
+    }
+  }
+
   // Create a new institution with proper hierarchical structure
   static async createInstitution(data: Omit<Institution, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
       // Generate a unique signup token for this institution
+      // Trim the institution name to avoid trailing/leading spaces
+      const trimmedName = data.name.trim();
       const signupToken = uuidv4();
       
       // Create the institution document
       const institutionData = {
         ...data,
+        name: trimmedName,
         customSignupLink: `${window.location.origin}/signup-institution/${signupToken}`,
         customSignupToken: signupToken,
         partnershipRequestDate: Timestamp.now(),
@@ -90,17 +129,19 @@ export class InstitutionHierarchyService {
   }
 
   // Create institution admin in the hierarchical structure
-  static async createInstitutionAdmin(institutionId: string, userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  static async createInstitutionAdmin(institutionId: string, userId: string, userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
       // Create the admin document in the institution's admins subcollection
       const adminData = {
         ...userData,
+        institutionId, // Add the institutionId field
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         lastLogin: Timestamp.now()
       };
 
-      const docRef = doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'admins'));
+      // Use the user's ID as the document ID to match the Firestore rule
+      const docRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'admins', userId);
       await setDoc(docRef, adminData);
       
       const adminId = docRef.id;
@@ -163,18 +204,20 @@ export class InstitutionHierarchyService {
   }
 
   // Create teacher in the hierarchical structure
-  static async createTeacher(institutionId: string, departmentId: string, userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  static async createTeacher(institutionId: string, departmentId: string, userId: string, userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
       // Create the teacher document in the department's teachers subcollection
       const teacherData = {
         ...userData,
+        institutionId, // Add the institutionId field
         departmentId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         lastLogin: Timestamp.now()
       };
 
-      const docRef = doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers'));
+      // Use the user's ID as the document ID to match the Firestore rule
+      const docRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers', userId);
       await setDoc(docRef, teacherData);
       
       const teacherId = docRef.id;
@@ -187,20 +230,22 @@ export class InstitutionHierarchyService {
   }
 
   // Create student in the hierarchical structure
-  static async createStudent(institutionId: string, departmentId: string, userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>, teacherId?: string): Promise<string> {
+  static async createStudent(institutionId: string, departmentId: string, userId: string, userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>, teacherId?: string): Promise<string> {
     try {
       // Create the student document in the department's students subcollection
       const studentData = {
         ...userData,
+        institutionId, // Add the institutionId field
         departmentId,
-        teacherId,
+        ...(teacherId !== undefined && { teacherId }), // Only include teacherId if it's defined
         enrollmentStatus: 'active',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         lastLogin: Timestamp.now()
       };
 
-      const docRef = doc(collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students'));
+      // Use the user's ID as the document ID to match the Firestore rule
+      const docRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students', userId);
       await setDoc(docRef, studentData);
       
       const studentId = docRef.id;
@@ -340,110 +385,149 @@ export class InstitutionHierarchyService {
   static async findUserById(userId: string): Promise<{user: UserProfile, role: UserRole, institutionId?: string, departmentId?: string} | null> {
     try {
       // Check platform admins first
-      const platformAdminDoc = await getDoc(doc(db, this.PLATFORM_ADMINS_COLLECTION, userId));
-      if (platformAdminDoc.exists()) {
-        const data = platformAdminDoc.data();
-        return {
-          user: {
-            id: platformAdminDoc.id,
-            ...data,
-            role: 'platform_admin',
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date()
-          } as UserProfile,
-          role: 'platform_admin'
-        };
-      }
-
-      // Check external users
-      const externalUserDoc = await getDoc(doc(db, this.EXTERNAL_USERS_COLLECTION, userId));
-      if (externalUserDoc.exists()) {
-        const data = externalUserDoc.data();
-        return {
-          user: {
-            id: externalUserDoc.id,
-            ...data,
-            role: 'student',
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date()
-          } as UserProfile,
-          role: 'student'
-        };
-      }
-
-      // Check institutions for admins, teachers, and students
-      const institutionsRef = collection(db, this.INSTITUTIONS_COLLECTION);
-      const institutionsSnapshot = await getDocs(institutionsRef);
-
-      for (const institutionDoc of institutionsSnapshot.docs) {
-        const institutionId = institutionDoc.id;
-        
-        // Check admins subcollection
-        const adminDoc = await getDoc(
-          doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'admins', userId)
-        );
-        if (adminDoc.exists()) {
-          const data = adminDoc.data();
+      try {
+        const platformAdminDoc = await getDoc(doc(db, this.PLATFORM_ADMINS_COLLECTION, userId));
+        if (platformAdminDoc.exists()) {
+          const data = platformAdminDoc.data();
           return {
             user: {
-              id: adminDoc.id,
+              id: platformAdminDoc.id,
               ...data,
-              role: 'institution_admin',
+              role: 'platform_admin',
               createdAt: data.createdAt?.toDate() || new Date(),
               updatedAt: data.updatedAt?.toDate() || new Date()
             } as UserProfile,
-            role: 'institution_admin',
-            institutionId
+            role: 'platform_admin'
           };
         }
-        
-        // Check departments for teachers and students
-        const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
-        const departmentsSnapshot = await getDocs(departmentsRef);
-        
-        for (const departmentDoc of departmentsSnapshot.docs) {
-          const departmentId = departmentDoc.id;
+      } catch (error) {
+        // If we don't have permission to read platform admins, continue to next collection
+        console.debug('No permission to read platform admins collection, continuing...');
+      }
+
+      // Check external users
+      try {
+        const externalUserDoc = await getDoc(doc(db, this.EXTERNAL_USERS_COLLECTION, userId));
+        if (externalUserDoc.exists()) {
+          const data = externalUserDoc.data();
+          return {
+            user: {
+              id: externalUserDoc.id,
+              ...data,
+              role: 'student',
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate() || new Date()
+            } as UserProfile,
+            role: 'student'
+          };
+        }
+      } catch (error) {
+        // If we don't have permission to read external users, continue to next collection
+        console.debug('No permission to read external users collection, continuing...');
+      }
+
+      // Check institutions for admins, teachers, and students
+      try {
+        const institutionsRef = collection(db, this.INSTITUTIONS_COLLECTION);
+        const institutionsSnapshot = await getDocs(institutionsRef);
+
+        for (const institutionDoc of institutionsSnapshot.docs) {
+          const institutionId = institutionDoc.id;
           
-          // Check teachers
-          const teacherDoc = await getDoc(
-            doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers', userId)
-          );
-          if (teacherDoc.exists()) {
-            const data = teacherDoc.data();
-            return {
-              user: {
-                id: teacherDoc.id,
-                ...data,
-                role: 'teacher',
-                createdAt: data.createdAt?.toDate() || new Date(),
-                updatedAt: data.updatedAt?.toDate() || new Date()
-              } as UserProfile,
-              role: 'teacher',
-              institutionId,
-              departmentId
-            };
+          try {
+            // Check admins subcollection
+            const adminDoc = await getDoc(
+              doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'admins', userId)
+            );
+            if (adminDoc.exists()) {
+              const data = adminDoc.data();
+              return {
+                user: {
+                  id: adminDoc.id,
+                  ...data,
+                  role: 'institution_admin',
+                  createdAt: data.createdAt?.toDate() || new Date(),
+                  updatedAt: data.updatedAt?.toDate() || new Date()
+                } as UserProfile,
+                role: 'institution_admin',
+                institutionId
+              };
+            }
+          } catch (error) {
+            // If we don't have permission to read this institution's admins, continue to next institution
+            console.debug(`No permission to read admins for institution ${institutionId}, continuing...`);
+            continue;
           }
           
-          // Check students
-          const studentDoc = await getDoc(
-            doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students', userId)
-          );
-          if (studentDoc.exists()) {
-            const data = studentDoc.data();
-            return {
-              user: {
-                id: studentDoc.id,
-                ...data,
-                role: 'student',
-                createdAt: data.createdAt?.toDate() || new Date(),
-                updatedAt: data.updatedAt?.toDate() || new Date()
-              } as UserProfile,
-              role: 'student',
-              institutionId,
-              departmentId
-            };
+          try {
+            // Check departments for teachers and students
+            const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+            const departmentsSnapshot = await getDocs(departmentsRef);
+            
+            for (const departmentDoc of departmentsSnapshot.docs) {
+              const departmentId = departmentDoc.id;
+              
+              try {
+                // Check teachers
+                const teacherDoc = await getDoc(
+                  doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers', userId)
+                );
+                if (teacherDoc.exists()) {
+                  const data = teacherDoc.data();
+                  return {
+                    user: {
+                      id: teacherDoc.id,
+                      ...data,
+                      role: 'teacher',
+                      createdAt: data.createdAt?.toDate() || new Date(),
+                      updatedAt: data.updatedAt?.toDate() || new Date()
+                    } as UserProfile,
+                    role: 'teacher',
+                    institutionId,
+                    departmentId
+                  };
+                }
+              } catch (error) {
+                // If we don't have permission to read this department's teachers, continue to next department
+                console.debug(`No permission to read teachers for department ${departmentId}, continuing...`);
+                continue;
+              }
+              
+              try {
+                // Check students
+                const studentDoc = await getDoc(
+                  doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students', userId)
+                );
+                if (studentDoc.exists()) {
+                  const data = studentDoc.data();
+                  return {
+                    user: {
+                      id: studentDoc.id,
+                      ...data,
+                      role: 'student',
+                      createdAt: data.createdAt?.toDate() || new Date(),
+                      updatedAt: data.updatedAt?.toDate() || new Date()
+                    } as UserProfile,
+                    role: 'student',
+                    institutionId,
+                    departmentId
+                  };
+                }
+              } catch (error) {
+                // If we don't have permission to read this department's students, continue to next department
+                console.debug(`No permission to read students for department ${departmentId}, continuing...`);
+                continue;
+              }
+            }
+          } catch (error) {
+            // If we don't have permission to read this institution's departments, continue to next institution
+            console.debug(`No permission to read departments for institution ${institutionId}, continuing...`);
+            continue;
           }
         }
+      } catch (error) {
+        // If we don't have permission to read institutions, log it but don't fail
+        console.debug('No permission to read institutions collection, continuing...');
       }
 
       return null;

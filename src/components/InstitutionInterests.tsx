@@ -1,37 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Link as LinkIcon, 
-  Copy, 
-  CheckCircle, 
-  Clock, 
-  UserPlus, 
-  Phone, 
-  Mail,
-  Trash2,
-  Eye
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { InstitutionInterestService } from '@/services/institution-interest.service';
-import { InstitutionService } from '@/services/institution.service';
-import { InstitutionInterest, Institution } from '@/types';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from "sonner";
+import { Clock, UserPlus, Mail, Phone, Eye, LinkIcon, CheckCircle, Trash2 } from 'lucide-react';
+import { InstitutionInterestService } from '@/services/institution-interest.service';
+import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
+
+// Define the InstitutionInterest interface locally since it's not in the types file
+interface InstitutionInterest {
+  id?: string;
+  institutionName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  studentCapacity: string;
+  message: string;
+  createdAt: Date;
+  status: 'pending' | 'contacted' | 'processed';
+}
 
 const InstitutionInterests = () => {
   const [interests, setInterests] = useState<InstitutionInterest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedInterest, setSelectedInterest] = useState<InstitutionInterest | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchInterests();
@@ -60,14 +61,15 @@ const InstitutionInterests = () => {
     }
   };
 
-  const handleGenerateLink = (institutionName: string) => {
+  const handleGenerateLink = (institutionName: string, userType: 'student' | 'teacher' | 'admin' = 'student') => {
     // Generate a custom signup link for the institution
-    const cleanName = institutionName.toLowerCase().replace(/\s+/g, '-');
-    const link = `${window.location.origin}/signup?institution=${encodeURIComponent(institutionName)}`;
+    // Trim the institution name to handle any trailing/leading spaces
+    const trimmedInstitutionName = institutionName.trim();
+    const link = `${window.location.origin}/signup-institution?institution=${encodeURIComponent(trimmedInstitutionName)}&type=${userType}`;
     
     // Copy to clipboard
     navigator.clipboard.writeText(link);
-    toast.success("Custom signup link copied to clipboard!");
+    toast.success(`Custom ${userType} signup link copied to clipboard!`);
   };
 
   const handleViewMessage = (interest: InstitutionInterest) => {
@@ -82,8 +84,10 @@ const InstitutionInterests = () => {
         await InstitutionInterestService.updateInterestStatus(interest.id, 'processed');
         
         // Create the institution in the institutions collection
-        const institutionData: Omit<Institution, 'id' | 'createdAt' | 'updatedAt'> = {
-          name: interest.institutionName,
+        // Trim the institution name to avoid trailing/leading spaces
+        const trimmedInstitutionName = interest.institutionName.trim();
+        const institutionData = {
+          name: trimmedInstitutionName,
           domain: '', // This would need to be set by the admin later
           adminId: '', // This would need to be set when an admin is assigned
           settings: {
@@ -119,19 +123,17 @@ const InstitutionInterests = () => {
             topPerformingDepartments: [],
             monthlyUsage: []
           },
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          isActive: true
         };
         
-        await InstitutionService.createInstitution(institutionData);
+        await InstitutionHierarchyService.createInstitution(institutionData);
         
         // Update the local state to reflect the status change
         setInterests(interests.map(i => 
           i.id === interest.id ? { ...i, status: 'processed' } : i
         ));
         
-        toast.success(`Marked as processed and added ${interest.institutionName} to institutions`);
+        toast.success(`Marked as processed and added ${trimmedInstitutionName} to institutions`);
       }
     } catch (error) {
       toast.error("Failed to mark as processed or add institution");
@@ -246,14 +248,28 @@ const InstitutionInterests = () => {
                             <Eye className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          tooltip="Generate custom signup link"
-                          onClick={() => handleGenerateLink(interest.institutionName)}
-                        >
-                          <LinkIcon className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              tooltip="Generate custom signup link"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => handleGenerateLink(interest.institutionName, 'student')}>
+                              Student Signup Link
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleGenerateLink(interest.institutionName, 'teacher')}>
+                              Teacher Signup Link
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleGenerateLink(interest.institutionName, 'admin')}>
+                              Admin Signup Link
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button
                           size="sm"
                           variant="outline"

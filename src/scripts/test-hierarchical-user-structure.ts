@@ -140,7 +140,7 @@ async function testHierarchicalUserStructure() {
       profileCompleted: false,
     };
     
-    const createdTeacherId = await InstitutionHierarchyService.createTeacher(institutionId, departmentId, teacherData);
+    const createdTeacherId = await InstitutionHierarchyService.createTeacher(institutionId, departmentId, teacherId, teacherData);
     console.log('✓ Teacher created in hierarchical structure');
     console.log(`  Teacher ID: ${createdTeacherId}`);
     
@@ -175,7 +175,7 @@ async function testHierarchicalUserStructure() {
       profileCompleted: false,
     };
     
-    const createdStudentId = await InstitutionHierarchyService.createStudent(institutionId, departmentId, studentData);
+    const createdStudentId = await InstitutionHierarchyService.createStudent(institutionId, departmentId, studentId, studentData);
     console.log('✓ Student created in hierarchical structure');
     console.log(`  Student ID: ${createdStudentId}`);
     
