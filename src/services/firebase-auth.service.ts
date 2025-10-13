@@ -209,14 +209,14 @@ export class FirebaseAuthService {
         
         userProfile = {
           id: user.uid,
-          name: user.displayName || 'Anonymous User',
+          name: user.displayName || user.email?.split('@')[0] || 'Anonymous User',
           email: user.email || '',
           role: userRole,
           institutionDomain: user.email?.split('@')[1],
           emailVerified: user.emailVerified,
           isEmailVerified: user.emailVerified,
-          department: data?.department,
-          yearOfStudy: data?.yearOfStudy,
+          department: data?.department || null, // Handle undefined department
+          yearOfStudy: data?.yearOfStudy || null, // Handle undefined yearOfStudy
           createdAt: new Date(),
           updatedAt: new Date(),
           lastLoginAt: new Date(),
@@ -504,15 +504,15 @@ export class FirebaseAuthService {
   private handleAuthError(error: AuthError): Error {
     switch (error.code) {
       case 'auth/email-already-in-use':
-        return new Error('Email address is already registered');
+        return new Error('This email is already registered. Please try: 1. Using a different email address, or 2. Going to the login page if you already have an account.');
       case 'auth/weak-password':
         return new Error('Password is too weak. Please use at least 6 characters');
       case 'auth/invalid-email':
         return new Error('Invalid email address');
       case 'auth/user-not-found':
-        return new Error('No account found with this email address');
+        return new Error('No account found with this email address. Please check your email or sign up for a new account.');
       case 'auth/wrong-password':
-        return new Error('Incorrect password');
+        return new Error('Invalid email or password. Please check your credentials and try again.');
       case 'auth/too-many-requests':
         return new Error('Too many failed attempts. Please try again later');
       case 'auth/network-request-failed':

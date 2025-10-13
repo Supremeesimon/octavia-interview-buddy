@@ -8,8 +8,24 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config({ path: '.env.local' });
 
+// Set environment to production for this test
+process.env.NODE_ENV = 'production';
+
 async function testAuthService() {
-  console.log('=== Testing Authentication Service ===\n');
+  console.log('=== Testing Authentication Service (Production Mode) ===\n');
+  
+  // Check if we have valid Firebase configuration
+  const hasValidConfig = process.env.VITE_FIREBASE_API_KEY && 
+                        process.env.VITE_FIREBASE_API_KEY !== 'your_firebase_api_key_here';
+  
+  if (!hasValidConfig) {
+    console.warn('⚠️  WARNING: Firebase configuration appears to be using placeholder values.');
+    console.warn('   Please update your .env.local file with valid production credentials.');
+    console.warn('   Skipping production tests.\n');
+    return;
+  }
+  
+  console.log('✅ Firebase configuration detected. Running production tests...\n');
   
   const authService = new FirebaseAuthService();
   

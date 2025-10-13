@@ -24,6 +24,8 @@
     "test-login-component": "npx tsx src/scripts/test-login-component.ts",
     "test-hierarchical-user-structure": "npx tsx src/scripts/test-hierarchical-user-structure.ts",
     "test-firebase-connection": "npx tsx src/scripts/test-firebase-connection.ts",
+    "test-firebase-production": "npx tsx src/scripts/test-firebase-production.ts",
+    "verify-firebase-config": "npx tsx src/scripts/verify-firebase-config.ts",
     "test-financial-analytics": "node test-financial-analytics.js",
     "test-contextual-financial-data": "node test-contextual-financial-data.js",
     "test-quick-edit-button": "node test-quick-edit-button.js",

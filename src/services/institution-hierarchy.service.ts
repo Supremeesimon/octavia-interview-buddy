@@ -220,7 +220,9 @@ export class InstitutionHierarchyService {
         authProvider: 'email', // or 'gmail' for OAuth
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-        lastLogin: Timestamp.now()
+        lastLogin: Timestamp.now(),
+        department: userData.department || null, // Handle undefined department
+        yearOfStudy: userData.yearOfStudy || null, // Handle undefined yearOfStudy
       };
 
       const docRef = doc(collection(db, this.EXTERNAL_USERS_COLLECTION));
