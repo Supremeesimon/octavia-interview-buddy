@@ -16,31 +16,23 @@ service cloud.firestore {
     
     function isStudent() {
       // Check in externalUsers collection
-      let externalUser = get(/databases/$(database)/documents/externalUsers/$(request.auth.uid));
-      if (externalUser.data != null) {
-        return externalUser.data.role == 'student';
-      }
-      
-      // Check in institutions hierarchy
-      // This is a simplified check - in reality, we'd need to check all institutions
-      return false;
+      return exists(/databases/$(database)/documents/externalUsers/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/externalUsers/$(request.auth.uid)).data.role == 'student';
     }
     
     function isTeacher() {
-      // Check in institutions hierarchy
       // This is a simplified check - in reality, we'd need to check all institutions
       return false;
     }
     
     function isInstitutionAdmin() {
-      // Check in institutions hierarchy
       // This is a simplified check - in reality, we'd need to check all institutions
       return false;
     }
     
     function isPlatformAdmin() {
-      let admin = get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid));
-      return admin.data != null && admin.data.role == 'platform_admin';
+      return exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)).data.role == 'platform_admin';
     }
     
     function sameInstitution(institutionId) {
