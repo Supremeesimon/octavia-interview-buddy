@@ -21,11 +21,12 @@ import { InstitutionService } from '@/services/institution.service';
 import { Institution } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { CheckCircle } from "lucide-react";
 
 const InstitutionManagement = () => {
-  const { currentUser } = useAuth();
+  const { user: currentUser } = useAuth();
+  const { toast } = useToast();
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -56,18 +57,29 @@ const InstitutionManagement = () => {
   const handleApproveInstitution = async (institutionId: string) => {
     try {
       if (!currentUser?.id) {
-        toast.error("You must be logged in as a platform admin to approve institutions");
+        toast({
+          title: "Error",
+          description: "You must be logged in as a platform admin to approve institutions",
+          variant: "destructive",
+        });
         return;
       }
       
       await InstitutionService.approveInstitution(institutionId, currentUser.id);
-      toast.success("Institution approved successfully");
+      toast({
+        title: "Success",
+        description: "Institution approved successfully",
+      });
       
       // Refresh the institutions list
       const data = await InstitutionService.getAllInstitutions();
       setInstitutions(data);
     } catch (error) {
-      toast.error("Failed to approve institution");
+      toast({
+        title: "Error",
+        description: "Failed to approve institution",
+        variant: "destructive",
+      });
       console.error("Error approving institution:", error);
     }
   };
@@ -83,7 +95,11 @@ const InstitutionManagement = () => {
       inst.settings.allowedBookingsPerMonth > 1000 ? 'Enterprise' : 
       inst.settings.allowedBookingsPerMonth > 500 ? 'Scale' : 
       inst.settings.allowedBookingsPerMonth > 100 ? 'Ship' : 'Build' : 'Build',
-    status: inst.isActive ? 'Active' : 'Inactive'
+    status: inst.isActive ? 'Active' : 'Inactive',
+    // Add session pool information
+    totalSessions: inst.sessionPool?.totalSessions || 0,
+    usedSessions: inst.sessionPool?.usedSessions || 0,
+    availableSessions: inst.sessionPool?.availableSessions || 0
   }));
 
   const filteredInstitutions = institutions.map(inst => ({
@@ -97,7 +113,11 @@ const InstitutionManagement = () => {
       inst.settings.allowedBookingsPerMonth > 500 ? 'Scale' : 
       inst.settings.allowedBookingsPerMonth > 100 ? 'Ship' : 'Build' : 'Build',
     status: inst.isActive ? 'Active' : 'Inactive',
-    approvalStatus: inst.approvalStatus || 'pending' // Add approval status
+    approvalStatus: inst.approvalStatus || 'pending',
+    // Add session pool information
+    totalSessions: inst.sessionPool?.totalSessions || 0,
+    usedSessions: inst.sessionPool?.usedSessions || 0,
+    availableSessions: inst.sessionPool?.availableSessions || 0
   })).filter(institution => institution.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleAddInstitution = () => {
@@ -170,19 +190,20 @@ const InstitutionManagement = () => {
                   <TableHead>Students</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Session Pool</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Loading institutions...
                     </TableCell>
                   </TableRow>
                 ) : filteredInstitutions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No institutions found matching your search.
                     </TableCell>
                   </TableRow>
@@ -220,6 +241,22 @@ const InstitutionManagement = () => {
                             </Badge>
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>Used: {institution.usedSessions}/{institution.totalSessions}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Available: {institution.availableSessions}
+                          </div>
+                          {institution.totalSessions > 0 && (
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                              <div 
+                                className="bg-blue-600 h-1.5 rounded-full" 
+                                style={{ width: `${(institution.usedSessions / institution.totalSessions) * 100}%` }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-2">
