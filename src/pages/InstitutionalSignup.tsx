@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Mail, GraduationCap, Users, Shield, Chrome } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
+import EnhancedDepartmentSelector from '@/components/EnhancedDepartmentSelector';
 import type { SignupRequest } from '@/types';
 
 const InstitutionalSignup = () => {
@@ -48,14 +49,12 @@ const InstitutionalSignup = () => {
     confirmPassword: ''
   });
   
-  // Department management
-  const [departments, setDepartments] = useState<{id: string, name: string}[]>([]);
-  const [loadingDepartments, setLoadingDepartments] = useState(false);
-  const [departmentInput, setDepartmentInput] = useState('');
+  // Department management (no longer used as EnhancedDepartmentSelector handles its own state)
   
   const userType = searchParams.get('type') || 'student';
   const institutionName = (searchParams.get('institution') || (institutionId ? `Institution ${institutionId}` : 'Unknown Institution')).trim();
-  const customSignupToken = searchParams.get('token') || '';
+  // Get token from query parameters first, then from path parameters if query param is empty
+  const customSignupToken = searchParams.get('token') || institutionId || '';
   
   // Debug logging
   console.log('URL Parameters:', {
@@ -66,41 +65,8 @@ const InstitutionalSignup = () => {
     searchParams: Object.fromEntries(searchParams.entries())
   });
 
-  // Fetch departments when component mounts
+  // Validate institution ID or name
   useEffect(() => {
-    const fetchDepartments = async () => {
-      if (!institutionId && !customSignupToken) return;
-      
-      setLoadingDepartments(true);
-      try {
-        let targetInstitutionId = institutionId;
-        
-        // If we have a token but no institutionId, we need to get the institutionId from the token
-        if (customSignupToken && !institutionId) {
-          const institution = await InstitutionHierarchyService.getInstitutionByToken(customSignupToken);
-          if (institution) {
-            targetInstitutionId = institution.id;
-          }
-        }
-        
-        if (targetInstitutionId) {
-          // Get all departments for this institution
-          const deptList = await InstitutionHierarchyService.getDepartmentsByInstitutionName(institutionName);
-          setDepartments(deptList);
-        }
-      } catch (error) {
-        console.error('Error fetching departments:', error);
-        toast.error('Failed to load departments');
-      } finally {
-        setLoadingDepartments(false);
-      }
-    };
-
-    fetchDepartments();
-  }, [institutionId, customSignupToken]);
-
-  useEffect(() => {
-    // Validate institution ID or name
     if (!institutionId && !institutionName && !customSignupToken) {
       toast.error("Invalid signup link");
       navigate("/signup");
@@ -154,22 +120,7 @@ const InstitutionalSignup = () => {
     return true;
   };
 
-  // Filter departments based on user input for autocomplete
-  const filteredDepartments = departments.filter(dept => 
-    dept.name.toLowerCase().includes(departmentInput.toLowerCase())
-  );
 
-  // Handle department selection
-  const handleDepartmentSelect = (departmentName: string) => {
-    setDepartmentInput(departmentName);
-    
-    // Update the appropriate form based on active tab
-    if (activeTab === 'student') {
-      setStudentForm({...studentForm, department: departmentName});
-    } else if (activeTab === 'teacher') {
-      setTeacherForm({...teacherForm, department: departmentName});
-    }
-  };
 
   const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -336,37 +287,13 @@ const InstitutionalSignup = () => {
 
                   <div>
                     <Label htmlFor="student-department">Department</Label>
-                    <div className="relative mt-1">
-                      <Input
-                        id="student-department"
-                        value={departmentInput}
-                        onChange={(e) => {
-                          setDepartmentInput(e.target.value);
-                          setStudentForm({...studentForm, department: e.target.value});
-                        }}
-                        placeholder="Select or type department"
-                        list="departments-list"
-                        required
-                      />
-                      {filteredDepartments.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                          {filteredDepartments.map((dept) => (
-                            <div
-                              key={dept.id}
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => handleDepartmentSelect(dept.name)}
-                            >
-                              {dept.name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <datalist id="departments-list">
-                      {departments.map(dept => (
-                        <option key={dept.id} value={dept.name} />
-                      ))}
-                    </datalist>
+                    <EnhancedDepartmentSelector
+                      institutionName={institutionName}
+                      value={studentForm.department}
+                      onChange={(value) => setStudentForm({...studentForm, department: value})}
+                      placeholder="Select or type department"
+                      required
+                    />
                   </div>
 
                   <div>
@@ -455,37 +382,13 @@ const InstitutionalSignup = () => {
 
                   <div>
                     <Label htmlFor="teacher-department">Department</Label>
-                    <div className="relative mt-1">
-                      <Input
-                        id="teacher-department"
-                        value={departmentInput}
-                        onChange={(e) => {
-                          setDepartmentInput(e.target.value);
-                          setTeacherForm({...teacherForm, department: e.target.value});
-                        }}
-                        placeholder="Select or type department"
-                        list="departments-list"
-                        required
-                      />
-                      {filteredDepartments.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                          {filteredDepartments.map((dept) => (
-                            <div
-                              key={dept.id}
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => handleDepartmentSelect(dept.name)}
-                            >
-                              {dept.name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <datalist id="departments-list">
-                      {departments.map(dept => (
-                        <option key={dept.id} value={dept.name} />
-                      ))}
-                    </datalist>
+                    <EnhancedDepartmentSelector
+                      institutionName={institutionName}
+                      value={teacherForm.department}
+                      onChange={(value) => setTeacherForm({...teacherForm, department: value})}
+                      placeholder="Select or type department"
+                      required
+                    />
                   </div>
 
                   <div>
@@ -627,9 +530,15 @@ const InstitutionalSignup = () => {
             <div className="mt-6 text-center text-sm">
               <p className="text-muted-foreground">
                 Already have an account?{' '}
-                <Link to={`/login-institution?token=${customSignupToken}`} className="text-primary hover:underline">
-                  Sign in
-                </Link>
+                {customSignupToken ? (
+                  <Link to={`/login-institution?token=${customSignupToken}`} className="text-primary hover:underline">
+                    Sign in
+                  </Link>
+                ) : (
+                  <a href="/login" className="text-primary hover:underline">
+                    Sign in
+                  </a>
+                )}
               </p>
             </div>
           </Card>
