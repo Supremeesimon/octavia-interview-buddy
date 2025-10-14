@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -52,7 +52,7 @@ const InstitutionalSignup = () => {
   // Department management (no longer used as EnhancedDepartmentSelector handles its own state)
   
   const userType = searchParams.get('type') || 'student';
-  const institutionName = (searchParams.get('institution') || (institutionId ? `Institution ${institutionId}` : 'Unknown Institution')).trim();
+  const [institutionName, setInstitutionName] = useState('Unknown Institution');
   // Get token from query parameters first, then from path parameters if query param is empty
   const customSignupToken = searchParams.get('token') || institutionId || '';
   
@@ -65,8 +65,91 @@ const InstitutionalSignup = () => {
     searchParams: Object.fromEntries(searchParams.entries())
   });
 
+  // Fetch institution name when component mounts
+  useEffect(() => {
+    const fetchInstitutionName = async () => {
+      if (customSignupToken) {
+        try {
+          // First, try to get institution by token (for custom signup links)
+          const institution = await InstitutionHierarchyService.getInstitutionByToken(customSignupToken);
+          if (institution) {
+            setInstitutionName(institution.name);
+            return;
+          }
+          
+          // If that fails, try to find a processed institution interest by token
+          // This handles cases where the signup link was generated from an interest request
+          const interestsRef = collection(db, 'institution_interests');
+          const interestsQuery = query(
+            interestsRef,
+            where('customSignupToken', '==', customSignupToken),
+            where('status', '==', 'processed')
+          );
+          
+          const interestsSnapshot = await getDocs(interestsQuery);
+          if (!interestsSnapshot.empty) {
+            const interestData = interestsSnapshot.docs[0].data();
+            if (interestData.institutionName) {
+              setInstitutionName(interestData.institutionName);
+              return;
+            }
+          }
+          
+          // If that fails, try to find institution by name in query params
+          const institutionNameFromParams = searchParams.get('institution');
+          if (institutionNameFromParams) {
+            setInstitutionName(institutionNameFromParams);
+            return;
+          }
+          
+          // As a last resort, try to find the institution by querying the database with the token
+          // This handles cases where the token might be stored differently
+          const q = query(
+            collection(db, 'institutions'),
+            where('customSignupToken', '==', customSignupToken)
+          );
+          
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const institutionDoc = querySnapshot.docs[0];
+            const institutionData = institutionDoc.data();
+            if (institutionData.name) {
+              setInstitutionName(institutionData.name);
+              return;
+            }
+          }
+          
+          // Try to find by ID if the token is actually an institution ID
+          try {
+            const institutionById = await InstitutionHierarchyService.getInstitutionById(customSignupToken);
+            if (institutionById) {
+              setInstitutionName(institutionById.name);
+              return;
+            }
+          } catch (error) {
+            console.error('Error fetching institution by ID:', error);
+          }
+          
+          // If all methods fail, show a more informative message
+          setInstitutionName('Unknown Institution');
+        } catch (error) {
+          console.error('Error fetching institution by token:', error);
+          // Even on error, ensure we have a clean state
+          setInstitutionName('Unknown Institution');
+        }
+      } else {
+        // No token provided, show a generic message
+        setInstitutionName('Unknown Institution');
+      }
+    };
+
+    fetchInstitutionName();
+  }, [customSignupToken, institutionId, searchParams]);
+
   // Validate institution ID or name
   useEffect(() => {
+    // Only show error if we don't have any way to identify the institution
+    // and we're not on a generic signup page
     if (!institutionId && !institutionName && !customSignupToken) {
       toast.error("Invalid signup link");
       navigate("/signup");
@@ -526,21 +609,6 @@ const InstitutionalSignup = () => {
                 </Button>
               </TabsContent>
             </Tabs>
-
-            <div className="mt-6 text-center text-sm">
-              <p className="text-muted-foreground">
-                Already have an account?{' '}
-                {customSignupToken ? (
-                  <Link to={`/login-institution?token=${customSignupToken}`} className="text-primary hover:underline">
-                    Sign in
-                  </Link>
-                ) : (
-                  <a href="/login" className="text-primary hover:underline">
-                    Sign in
-                  </a>
-                )}
-              </p>
-            </div>
           </Card>
         </div>
       </main>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Header from '@/components/Header';
@@ -13,18 +13,16 @@ import { InstitutionHierarchyService } from '@/services/institution-hierarchy.se
 import { firebaseAuthService } from '@/services/firebase-auth.service';
 
 const InstitutionalLogin = () => {
-  const [searchParams] = useSearchParams();
+  const { token } = useParams();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [institutionName, setInstitutionName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [token, setToken] = useState('');
 
   // Get token from URL params
   useEffect(() => {
-    const urlToken = searchParams.get('token') || '';
-    setToken(urlToken);
+    const urlToken = token || '';
     
     // Validate token on mount
     const validateToken = async () => {
@@ -33,6 +31,17 @@ const InstitutionalLogin = () => {
           const institution = await InstitutionHierarchyService.getInstitutionByToken(urlToken);
           
           if (!institution) {
+            // Try to find by ID as fallback
+            try {
+              const institutionById = await InstitutionHierarchyService.getInstitutionById(urlToken);
+              if (institutionById) {
+                setInstitutionName(institutionById.name);
+                return;
+              }
+            } catch (error) {
+              console.error('Error fetching institution by ID:', error);
+            }
+            
             toast.error('Invalid or expired link');
             navigate('/login');
             return;
@@ -51,7 +60,7 @@ const InstitutionalLogin = () => {
     };
     
     validateToken();
-  }, [searchParams, navigate]);
+  }, [token, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,12 +84,22 @@ const InstitutionalLogin = () => {
       // Get the institution for this login token
       const institution = await InstitutionHierarchyService.getInstitutionByToken(token);
       if (!institution) {
-        await signOut(auth);
-        throw new Error('Invalid or expired link');
+        // Try by ID as fallback
+        try {
+          const institutionById = await InstitutionHierarchyService.getInstitutionById(token);
+          if (!institutionById) {
+            await signOut(auth);
+            throw new Error('Invalid or expired link');
+          }
+        } catch (error) {
+          await signOut(auth);
+          throw new Error('Invalid or expired link');
+        }
       }
       
       // Verify user belongs to this institution
-      if (!institutionId || institutionId !== institution.id) {
+      const validInstitution = institution || await InstitutionHierarchyService.getInstitutionById(token);
+      if (!institutionId || (validInstitution && institutionId !== validInstitution.id)) {
         await signOut(auth);
         throw new Error('You are not authorized to access this institution');
       }
@@ -160,7 +179,7 @@ const InstitutionalLogin = () => {
             <div className="mt-8 text-center text-sm">
               <p className="text-muted-foreground">
                 Don't have an account?{" "}
-                <a href={`/signup-institution?token=${token}`} className="text-primary hover:underline">
+                <a href={`/signup-institution/${token}`} className="text-primary hover:underline">
                   Sign up
                 </a>
               </p>

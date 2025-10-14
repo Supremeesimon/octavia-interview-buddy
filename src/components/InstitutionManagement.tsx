@@ -52,8 +52,8 @@ const InstitutionManagement = () => {
   const formattedInstitutions = institutions.map(inst => ({
     id: inst.id,
     name: inst.name,
-    adminName: inst.adminId || 'Not assigned', // Placeholder
-    adminEmail: inst.adminId ? `${inst.adminId}@example.com` : 'Not assigned', // Placeholder
+    adminName: inst.platform_admin_id || 'Not assigned', // Placeholder
+    adminEmail: inst.platform_admin_id ? `${inst.platform_admin_id}@example.com` : 'Not assigned', // Placeholder
     studentsCount: inst.stats?.totalStudents || 0,
     plan: inst.settings?.allowedBookingsPerMonth ? 
       inst.settings.allowedBookingsPerMonth > 1000 ? 'Enterprise' : 

@@ -93,6 +93,7 @@ function App() {
                   <Route path="/signup-institution" element={<InstitutionalSignup />} />
                   <Route path="/signup-institution/:institutionId" element={<InstitutionalSignup />} />
                   <Route path="/login-institution" element={<InstitutionalLogin />} />
+                  <Route path="/login-institution/:token" element={<InstitutionalLogin />} />
                   <Route path="/diagnostics" element={<ProtectedRoute requiredRole="platform_admin"><UserDiagnosticsPage /></ProtectedRoute>} />
                   {/* Jobs pages are temporarily hidden */}
                   {/* <Route path="/jobs" element={<JobsPage />} /> */}

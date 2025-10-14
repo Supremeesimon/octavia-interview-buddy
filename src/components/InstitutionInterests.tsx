@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Clock, UserPlus, Mail, Phone, Eye, LinkIcon, CheckCircle, Trash2 } from 'lucide-react';
 import { InstitutionInterestService } from '@/services/institution-interest.service';
 import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
+import { User } from '@/types'; // Import the User type
 
 // Define the InstitutionInterest interface locally since it's not in the types file
 interface InstitutionInterest {
@@ -26,9 +27,19 @@ interface InstitutionInterest {
   message: string;
   createdAt: Date;
   status: 'pending' | 'contacted' | 'processed';
+  processedAt?: Date;
+  processedBy?: string;
+  approvedBy?: string;
+  customSignupToken?: string;
+  customSignupLink?: string;
 }
 
-const InstitutionInterests = () => {
+// Add prop interface
+interface InstitutionInterestsProps {
+  currentUser?: User; // Use the proper User type
+}
+
+const InstitutionInterests = ({ currentUser }: InstitutionInterestsProps) => {
   const [interests, setInterests] = useState<InstitutionInterest[]>([]);
   const [selectedInterest, setSelectedInterest] = useState<InstitutionInterest | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -61,15 +72,89 @@ const InstitutionInterests = () => {
     }
   };
 
-  const handleGenerateLink = (institutionName: string, userType: 'student' | 'teacher' | 'admin' = 'student') => {
-    // Generate a custom signup link for the institution
-    // Trim the institution name to handle any trailing/leading spaces
-    const trimmedInstitutionName = institutionName.trim();
-    const link = `${window.location.origin}/signup-institution?institution=${encodeURIComponent(trimmedInstitutionName)}&type=${userType}`;
+  const handleGenerateLink = (interest: InstitutionInterest, userType: 'student' | 'teacher' | 'admin' = 'student') => {
+    // Check if the institution has been processed
+    if (interest.status !== 'processed') {
+      toast.warning(
+        <div className="flex flex-col gap-2">
+          <span>Please mark this institution as "Processed" first to generate a proper custom signup link.</span>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => handleMarkAsProcessed(interest)}
+          >
+            Mark as Processed
+          </Button>
+        </div>,
+        { duration: 10000 }
+      );
+      return;
+    }
     
-    // Copy to clipboard
-    navigator.clipboard.writeText(link);
-    toast.success(`Custom ${userType} signup link copied to clipboard!`);
+    // For processed institutions, direct them to use the proper institutional management page
+    toast.info(
+      <div className="flex flex-col gap-2">
+        <span>Custom signup links for processed institutions are available in the Institution Management section.</span>
+        <span className="text-sm text-muted-foreground">After marking as processed, a custom signup link was generated and can be copied from the success notification.</span>
+      </div>,
+      { duration: 10000 }
+    );
+  };
+
+  const handleCopyLink = async (interest: InstitutionInterest, userType: 'student' | 'teacher' | 'admin' = 'student') => {
+    // Check if the institution has been processed
+    if (interest.status !== 'processed') {
+      toast.warning(
+        <div className="flex flex-col gap-2">
+          <span>Please mark this institution as "Processed" first to generate a proper custom signup link.</span>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => handleMarkAsProcessed(interest)}
+          >
+            Mark as Processed
+          </Button>
+        </div>,
+        { duration: 10000 }
+      );
+      return;
+    }
+    
+    // For processed institutions, generate and copy the appropriate link
+    try {
+      // We need to find the institution in the database to get its custom signup link
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
+      
+      // Trim the institution name to avoid whitespace issues
+      const trimmedInstitutionName = interest.institutionName.trim();
+      
+      const q = query(
+        collection(db, 'institutions'),
+        where('name', '==', trimmedInstitutionName)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const institutionDoc = querySnapshot.docs[0];
+        const institutionData = institutionDoc.data();
+        const customSignupLink = institutionData.customSignupLink;
+        
+        if (customSignupLink) {
+          // Add user type parameter to the link
+          const linkWithUserType = `${customSignupLink}?type=${userType}`;
+          await navigator.clipboard.writeText(linkWithUserType);
+          toast.success(`${userType.charAt(0).toUpperCase() + userType.slice(1)} signup link copied to clipboard!`);
+          return;
+        }
+      }
+      
+      toast.error("Failed to find custom signup link for this institution. Please try refreshing the page.");
+    } catch (error) {
+      toast.error("Failed to generate signup link");
+      console.error("Error generating signup link:", error);
+    }
   };
 
   const handleViewMessage = (interest: InstitutionInterest) => {
@@ -81,65 +166,173 @@ const InstitutionInterests = () => {
     try {
       // Update the interest status to 'processed'
       if (interest.id) {
-        await InstitutionInterestService.updateInterestStatus(interest.id, 'processed');
+        await InstitutionInterestService.updateInterestStatus(interest.id, 'processed', currentUser?.id);
         
-        // Create the institution in the institutions collection
+        // Check if an institution with this name already exists
         // Trim the institution name to avoid trailing/leading spaces
         const trimmedInstitutionName = interest.institutionName.trim();
-        const institutionData = {
-          name: trimmedInstitutionName,
-          domain: '', // This would need to be set by the admin later
-          adminId: '', // This would need to be set when an admin is assigned
-          settings: {
-            allowedBookingsPerMonth: 100,
-            sessionLength: 30,
-            requireResumeUpload: true,
-            enableDepartmentAllocations: true,
-            enableStudentGroups: true,
-            emailNotifications: {
-              enableInterviewReminders: true,
-              enableFeedbackEmails: true,
-              enableWeeklyReports: true,
-              reminderHours: 24
+        
+        // Query for existing institution with the same name
+        const { collection, query, where, getDocs, updateDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase');
+        
+        const q = query(
+          collection(db, 'institutions'),
+          where('name', '==', trimmedInstitutionName)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        
+        let institutionId = '';
+        let existingInstitution = null;
+        
+        if (!querySnapshot.empty) {
+          // Institution already exists
+          const institutionDoc = querySnapshot.docs[0];
+          institutionId = institutionDoc.id;
+          const institutionData = institutionDoc.data();
+          existingInstitution = {
+            id: institutionId,
+            ...institutionData,
+            customSignupLink: institutionData.customSignupLink || '',
+            customSignupToken: institutionData.customSignupToken || ''
+          };
+        
+          // Check if the institution doesn't have a platform_admin_id and we have a current user
+          if ((!institutionData.platform_admin_id || institutionData.platform_admin_id === '') && currentUser?.id) {
+            // Update the institution with the current admin's ID
+            try {
+              const updateData: any = {
+                platform_admin_id: currentUser.id,
+                approvalStatus: 'approved'
+              };
+            
+              await updateDoc(doc(db, 'institutions', institutionId), updateData);
+              toast.success(`Updated institution ${trimmedInstitutionName} with platform admin ID and approval status.`);
+            } catch (updateError) {
+              console.error('Error updating institution with admin ID:', updateError);
+              toast.error("Failed to update institution with admin ID");
             }
-          },
-          sessionPool: {
-            id: '',
-            institutionId: '',
-            totalSessions: 0,
-            usedSessions: 0,
-            availableSessions: 0,
-            allocations: [],
-            purchases: [],
-            createdAt: new Date(),
-            updatedAt: new Date()
-          },
-          stats: {
-            totalStudents: 0,
-            activeStudents: 0,
-            totalInterviews: 0,
-            averageScore: 0,
-            sessionUtilization: 0,
-            topPerformingDepartments: [],
-            monthlyUsage: []
-          },
-          isActive: true
-        };
+          }
+          
+          // Update the institution interest with the custom signup token
+          try {
+            const { updateDoc, doc } = await import('firebase/firestore');
+            const { db } = await import('@/lib/firebase');
+            
+            await updateDoc(doc(db, 'institution_interests', interest.id), {
+              customSignupToken: institutionData.customSignupToken,
+              customSignupLink: institutionData.customSignupLink
+            });
+          } catch (updateError) {
+            console.error('Error updating institution interest with signup token:', updateError);
+          }
         
-        await InstitutionHierarchyService.createInstitution(institutionData);
+          toast.success(`Marked as processed. Institution ${trimmedInstitutionName} already exists.`);
+        } else {
+          // Create a new institution
+          const institutionData = {
+            name: trimmedInstitutionName,
+            domain: '', // No automatic domain generation
+            platform_admin_id: currentUser?.id || '', // Set the platform admin ID of who created this institution
+            approvalStatus: 'approved',
+            settings: {
+              allowedBookingsPerMonth: 100,
+              sessionLength: 30,
+              requireResumeUpload: true,
+              enableDepartmentAllocations: true,
+              enableStudentGroups: true,
+              emailNotifications: {
+                enableInterviewReminders: true,
+                enableFeedbackEmails: true,
+                enableWeeklyReports: true,
+                reminderHours: 24
+              }
+            },
+            sessionPool: {
+              id: '',
+              institutionId: '',
+              totalSessions: 0,
+              usedSessions: 0,
+              availableSessions: 0,
+              allocations: [],
+              purchases: [],
+              createdAt: new Date(),
+              updatedAt: new Date()
+            },
+            stats: {
+              totalStudents: 0,
+              activeStudents: 0,
+              totalInterviews: 0,
+              averageScore: 0,
+              sessionUtilization: 0,
+              topPerformingDepartments: [],
+              monthlyUsage: []
+            },
+            isActive: true
+          };
+    
+          institutionId = await InstitutionHierarchyService.createInstitution(institutionData);
         
+          // Get the institution to retrieve the custom signup link
+          // Add a small delay to ensure the document is fully created
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          existingInstitution = await InstitutionHierarchyService.getInstitutionById(institutionId);
+          
+          // Update the institution interest with the custom signup token
+          if (existingInstitution && existingInstitution.customSignupToken) {
+            try {
+              const { updateDoc, doc } = await import('firebase/firestore');
+              const { db } = await import('@/lib/firebase');
+              
+              await updateDoc(doc(db, 'institution_interests', interest.id), {
+                customSignupToken: existingInstitution.customSignupToken,
+                customSignupLink: existingInstitution.customSignupLink
+              });
+            } catch (updateError) {
+              console.error('Error updating institution interest with signup token:', updateError);
+            }
+          }
+        }
+      
+        // Show success message with option to copy the custom signup link
+        if (existingInstitution && existingInstitution.customSignupLink) {
+          toast(
+            <div className="flex flex-col gap-2">
+              <span>Marked as processed and added {trimmedInstitutionName} to institutions</span>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(existingInstitution.customSignupLink!);
+                    toast.success("Custom signup link copied to clipboard!");
+                  } catch (error) {
+                    toast.error("Failed to copy link to clipboard");
+                    console.error("Error copying to clipboard:", error);
+                  }
+                }}
+              >
+                Copy Custom Signup Link
+              </Button>
+            </div>,
+            { duration: 10000 }
+          );
+        } else {
+          // Even if we couldn't get the link immediately, the institution was created/processed
+          toast.success(`Marked as processed and added ${trimmedInstitutionName} to institutions. Refresh the page to see the custom signup link.`);
+        }
+      
         // Update the local state to reflect the status change
         setInterests(interests.map(i => 
           i.id === interest.id ? { ...i, status: 'processed' } : i
         ));
-        
-        toast.success(`Marked as processed and added ${trimmedInstitutionName} to institutions`);
       }
     } catch (error) {
       toast.error("Failed to mark as processed or add institution");
       console.error("Error marking as processed:", error);
     }
-  };
+};
 
   const formatDate = (date: Date) => {
     if (!date) return 'Unknown';
@@ -259,13 +452,13 @@ const InstitutionInterests = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <DropdownMenuItem onClick={() => handleGenerateLink(interest.institutionName, 'student')}>
+                            <DropdownMenuItem onClick={() => handleCopyLink(interest, 'student')}>
                               Student Signup Link
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleGenerateLink(interest.institutionName, 'teacher')}>
+                            <DropdownMenuItem onClick={() => handleCopyLink(interest, 'teacher')}>
                               Teacher Signup Link
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleGenerateLink(interest.institutionName, 'admin')}>
+                            <DropdownMenuItem onClick={() => handleCopyLink(interest, 'admin')}>
                               Admin Signup Link
                             </DropdownMenuItem>
                           </DropdownMenuContent>

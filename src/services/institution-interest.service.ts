@@ -1,6 +1,22 @@
-import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, Timestamp, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { InstitutionInterest } from '@/types';
+
+interface InstitutionInterest {
+  id?: string;
+  institutionName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  studentCapacity: string;
+  message: string;
+  createdAt: Date;
+  status: 'pending' | 'contacted' | 'processed';
+  processedAt?: Date;
+  processedBy?: string;
+  approvedBy?: string;
+  customSignupToken?: string;
+  customSignupLink?: string;
+}
 
 export class InstitutionInterestService {
   private static readonly COLLECTION_NAME = 'institution_interests';
@@ -30,7 +46,8 @@ export class InstitutionInterestService {
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        processedAt: doc.data().processedAt?.toDate()
       } as InstitutionInterest));
     } catch (error) {
       console.error('Error fetching institution interests:', error);
@@ -47,10 +64,18 @@ export class InstitutionInterestService {
     }
   }
 
-  static async updateInterestStatus(id: string, status: InstitutionInterest['status']): Promise<void> {
+  static async updateInterestStatus(id: string, status: InstitutionInterest['status'], processedBy?: string): Promise<void> {
     try {
       const interestRef = doc(db, this.COLLECTION_NAME, id);
-      await updateDoc(interestRef, { status });
+      const updateData: any = { status };
+      
+      if (status === 'processed' && processedBy) {
+        updateData.processedAt = serverTimestamp();
+        updateData.processedBy = processedBy;
+        updateData.approvedBy = processedBy;
+      }
+      
+      await updateDoc(interestRef, updateData);
     } catch (error) {
       console.error('Error updating institution interest status:', error);
       throw new Error('Failed to update institution interest status');

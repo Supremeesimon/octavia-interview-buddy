@@ -38,7 +38,25 @@ import InstitutionInterests from '@/components/InstitutionInterests';
 import { InstitutionService } from '@/services/institution.service';
 import { InstitutionInterestService } from '@/services/institution-interest.service';
 import { authService } from '@/services/auth.service';
-import { Institution, InstitutionInterest, User } from '@/types';
+import { Institution, User } from '@/types';
+
+// Define the InstitutionInterest interface locally since it's not in the types file
+interface InstitutionInterest {
+  id?: string;
+  institutionName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  studentCapacity: string;
+  message: string;
+  createdAt: Date;
+  status: 'pending' | 'contacted' | 'processed';
+  processedAt?: Date;
+  processedBy?: string;
+  approvedBy?: string;
+  customSignupToken?: string;
+  customSignupLink?: string;
+}
 
 const AdminDashboard = () => {
   const isMobile = useIsMobile();
@@ -292,7 +310,7 @@ const AdminDashboard = () => {
           <h2 className="text-2xl font-bold">Platform Overview</h2>
           
           {/* Institution Interests Section */}
-          <InstitutionInterests />
+          <InstitutionInterests currentUser={currentUser} />
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-6 lg:grid-cols-4'}`}>
             <Card tooltip="View total users across the platform">

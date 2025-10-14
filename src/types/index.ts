@@ -96,13 +96,16 @@ export interface Institution {
   domain: string;
   logoUrl?: string;
   website?: string;
-  adminId: string;
+  platform_admin_id?: string;  // Made platform_admin_id optional to handle existing institutions
   settings: InstitutionSettings;
   sessionPool: SessionPool;
   stats: InstitutionStats;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Custom signup fields
+  customSignupLink?: string;
+  customSignupToken?: string;
   // Pricing override fields
   pricingOverride?: InstitutionPricingOverride | null;
 }
