@@ -1074,6 +1074,34 @@ const AdminDashboard = () => {
                   <span className="text-sm font-medium">Low</span>
                 </div>
                 
+                {/* Token Regeneration Section */}
+                <div className="pt-4 border-t">
+                  <h3 className="font-medium text-lg mb-2">Security Management</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Regenerate signup tokens for all institutions to enhance security. 
+                    This will invalidate all existing signup links and generate new ones.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to regenerate all signup tokens? This will invalidate all existing signup links.')) {
+                        try {
+                          const { InstitutionService } = await import('@/services/institution.service');
+                          const updatedCount = await InstitutionService.regenerateAllSignupTokens();
+                          toast.success(`Successfully regenerated tokens for ${updatedCount} institutions`);
+                        } catch (error) {
+                          toast.error('Failed to regenerate tokens');
+                          console.error('Error regenerating tokens:', error);
+                        }
+                      }
+                    }}
+                  >
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Regenerate All Tokens
+                  </Button>
+                </div>
+                
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground">
                     Note: Real-time system monitoring data is not yet implemented. 

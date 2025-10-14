@@ -1,6 +1,7 @@
 import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, Timestamp, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Institution, InstitutionPricingOverride } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
 
 export class InstitutionService {
   private static readonly COLLECTION_NAME = 'institutions';
@@ -12,8 +13,14 @@ export class InstitutionService {
         throw new Error('Firebase not initialized');
       }
       
+      // Generate custom signup token and link for new institutions
+      const customSignupToken = uuidv4();
+      const customSignupLink = `${window.location.origin}/signup-institution/${customSignupToken}`;
+      
       const docRef = await addDoc(collection(db, this.COLLECTION_NAME), {
         ...data,
+        customSignupToken,
+        customSignupLink,
         pricingOverride: null, // Initialize with null pricing override
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -197,6 +204,66 @@ export class InstitutionService {
     } catch (error) {
       console.error('Error approving institution:', error);
       throw new Error(`Failed to approve institution: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to regenerate signup token and link for a specific institution
+  static async regenerateSignupToken(institutionId: string): Promise<{ token: string; link: string }> {
+    try {
+      // Check if db is initialized
+      if (!db) {
+        throw new Error('Firebase not initialized');
+      }
+      
+      // Generate new token and link
+      const newToken = uuidv4();
+      const newLink = `${window.location.origin}/signup-institution/${newToken}`;
+      
+      // Update the institution document
+      const institutionRef = doc(db, this.COLLECTION_NAME, institutionId);
+      await updateDoc(institutionRef, {
+        customSignupToken: newToken,
+        customSignupLink: newLink,
+        updatedAt: Timestamp.now()
+      });
+      
+      console.log(`Regenerated signup token for institution: ${institutionId}`);
+      
+      return { token: newToken, link: newLink };
+    } catch (error) {
+      console.error('Error regenerating signup token:', error);
+      throw new Error(`Failed to regenerate signup token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to regenerate signup tokens for all institutions
+  static async regenerateAllSignupTokens(): Promise<number> {
+    try {
+      // Check if db is initialized
+      if (!db) {
+        throw new Error('Firebase not initialized');
+      }
+      
+      // Get all institutions
+      const institutions = await this.getAllInstitutions();
+      let updatedCount = 0;
+      
+      // Update each institution with new token and link
+      for (const institution of institutions) {
+        try {
+          await this.regenerateSignupToken(institution.id);
+          updatedCount++;
+        } catch (error) {
+          console.error(`Error regenerating token for institution ${institution.id}:`, error);
+          // Continue with other institutions even if one fails
+        }
+      }
+      
+      console.log(`Successfully regenerated tokens for ${updatedCount} institutions`);
+      return updatedCount;
+    } catch (error) {
+      console.error('Error regenerating all signup tokens:', error);
+      throw new Error(`Failed to regenerate all signup tokens: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

@@ -9,12 +9,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { toast } from "sonner";
-import { Clock, UserPlus, Mail, Phone, Eye, LinkIcon, CheckCircle, Trash2 } from 'lucide-react';
+import { Clock, UserPlus, Mail, Phone, Eye, LinkIcon, CheckCircle, Trash2, RefreshCw } from 'lucide-react';
 import { InstitutionInterestService } from '@/services/institution-interest.service';
 import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
-import { User } from '@/types'; // Import the User type
+import { User } from '@/types';
 
 // Define the InstitutionInterest interface locally since it's not in the types file
 interface InstitutionInterest {
@@ -148,10 +149,22 @@ const InstitutionInterests = ({ currentUser, onInterestsUpdate }: InstitutionInt
           await navigator.clipboard.writeText(linkWithUserType);
           toast.success(`${userType.charAt(0).toUpperCase() + userType.slice(1)} signup link copied to clipboard!`);
           return;
+        } else {
+          // Institution exists but doesn't have a custom signup link
+          toast.error("This institution doesn't have a custom signup link. Please regenerate the token.");
+          return;
         }
       }
       
-      toast.error("Failed to find custom signup link for this institution. Please try refreshing the page.");
+      // Institution not found - let's check if we have a customSignupLink in the interest itself
+      if (interest.customSignupLink) {
+        const linkWithUserType = `${interest.customSignupLink}?type=${userType}`;
+        await navigator.clipboard.writeText(linkWithUserType);
+        toast.success(`${userType.charAt(0).toUpperCase() + userType.slice(1)} signup link copied to clipboard!`);
+        return;
+      }
+      
+      toast.error("Failed to find custom signup link for this institution. Please try refreshing the page or regenerating the token.");
     } catch (error) {
       toast.error("Failed to generate signup link");
       console.error("Error generating signup link:", error);
@@ -174,8 +187,9 @@ const InstitutionInterests = ({ currentUser, onInterestsUpdate }: InstitutionInt
         const trimmedInstitutionName = interest.institutionName.trim();
         
         // Query for existing institution with the same name
-        const { collection, query, where, getDocs, updateDoc, doc, getDoc } = await import('firebase/firestore');
+        const { collection, query, where, getDocs, updateDoc, doc, getDoc, setDoc } = await import('firebase/firestore');
         const { db } = await import('@/lib/firebase');
+        const { InstitutionService } = await import('@/services/institution.service');
         
         const q = query(
           collection(db, 'institutions'),
@@ -230,6 +244,19 @@ const InstitutionInterests = ({ currentUser, onInterestsUpdate }: InstitutionInt
               customSignupLink: updatedInstitutionData.customSignupLink || '',
               customSignupToken: updatedInstitutionData.customSignupToken || ''
             };
+            
+            // If the institution doesn't have a custom signup link, generate one
+            if (!existingInstitution.customSignupLink) {
+              try {
+                const { token, link } = await InstitutionService.regenerateSignupToken(institutionId);
+                existingInstitution.customSignupToken = token;
+                existingInstitution.customSignupLink = link;
+              } catch (tokenError) {
+                console.error('Error generating signup token:', tokenError);
+                toast.error("Failed to generate signup token for existing institution");
+                return;
+              }
+            }
           } catch (refreshError) {
             console.error('Error refreshing institution data:', refreshError);
             // If refresh fails, continue with the original data
@@ -249,6 +276,72 @@ const InstitutionInterests = ({ currentUser, onInterestsUpdate }: InstitutionInt
             } catch (updateError) {
               console.error('Error updating institution interest with signup token:', updateError);
             }
+          }
+        } else {
+          // Institution doesn't exist, create it
+          try {
+            // Create a new institution with the required fields
+            const newInstitutionData = {
+              name: trimmedInstitutionName,
+              domain: '', // Will need to be set by admin later
+              platform_admin_id: currentUser?.id || '',
+              approvalStatus: 'approved',
+              settings: {
+                allowedBookingsPerMonth: 100,
+                sessionLength: 30,
+                requireResumeUpload: true,
+                enableDepartmentAllocations: false,
+                enableStudentGroups: false,
+                emailNotifications: {
+                  enableInterviewReminders: true,
+                  enableFeedbackEmails: true,
+                  enableWeeklyReports: false,
+                  reminderHours: 24
+                }
+              },
+              stats: {
+                totalStudents: 0,
+                activeStudents: 0,
+                totalInterviews: 0,
+                averageScore: 0,
+                sessionUtilization: 0,
+                topPerformingDepartments: [],
+                monthlyUsage: []
+              },
+              isActive: true,
+              pricingOverride: null
+            };
+            
+            // Create the institution and get its ID
+            institutionId = await InstitutionService.createInstitution(newInstitutionData);
+            
+            // Get the newly created institution data
+            const newInstitutionDoc = await getDoc(doc(db, 'institutions', institutionId));
+            const newInstitutionDataWithToken = newInstitutionDoc.data();
+            
+            existingInstitution = {
+              id: institutionId,
+              ...newInstitutionDataWithToken,
+              customSignupLink: newInstitutionDataWithToken.customSignupLink || '',
+              customSignupToken: newInstitutionDataWithToken.customSignupToken || ''
+            };
+            
+            // Update the institution interest with the custom signup token and institution name
+            if (existingInstitution && existingInstitution.customSignupToken) {
+              try {
+                await updateDoc(doc(db, 'institution_interests', interest.id), {
+                  customSignupToken: existingInstitution.customSignupToken,
+                  customSignupLink: existingInstitution.customSignupLink,
+                  institutionName: existingInstitution.name
+                });
+              } catch (updateError) {
+                console.error('Error updating institution interest with signup token:', updateError);
+              }
+            }
+          } catch (createError) {
+            console.error('Error creating institution:', createError);
+            toast.error("Failed to create institution");
+            return;
           }
         }
       
@@ -435,24 +528,84 @@ const InstitutionInterests = ({ currentUser, onInterestsUpdate }: InstitutionInt
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          tooltip="Mark as processed"
-                          onClick={() => handleMarkAsProcessed(interest)}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          tooltip="Delete request"
-                          onClick={() => interest.id && handleDeleteInterest(interest.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              tooltip="Actions"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => handleMarkAsProcessed(interest)}>
+                              Mark as Processed
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={async () => {
+                                try {
+                                  // Import required modules
+                                  const firebaseModule = await import('firebase/firestore');
+                                  const { db } = await import('@/lib/firebase');
+                                  const { InstitutionService } = await import('@/services/institution.service');
+                                  
+                                  const q = firebaseModule.query(
+                                    firebaseModule.collection(db, 'institutions'),
+                                    firebaseModule.where('name', '==', interest.institutionName.trim())
+                                  );
+                                  
+                                  const querySnapshot = await firebaseModule.getDocs(q);
+                                  
+                                  if (!querySnapshot.empty) {
+                                    const institutionDoc = querySnapshot.docs[0];
+                                    const institutionId = institutionDoc.id;
+                                    
+                                    // Regenerate the token for this institution
+                                    const { token, link } = await InstitutionService.regenerateSignupToken(institutionId);
+                                    
+                                    // Update the institution interest with the new token and link
+                                    await firebaseModule.updateDoc(firebaseModule.doc(db, 'institution_interests', interest.id!), {
+                                      customSignupToken: token,
+                                      customSignupLink: link
+                                    });
+                                    
+                                    // Also update the local state to reflect the change
+                                    setInterests(interests.map(i => 
+                                      i.id === interest.id ? { ...i, customSignupToken: token, customSignupLink: link } : i
+                                    ));
+                                    
+                                    toast.success(`Successfully regenerated token for ${interest.institutionName}`);
+                                  } else {
+                                    // Institution not found, offer to create it
+                                    toast.error(`Institution ${interest.institutionName} not found. Please mark as processed first.`);
+                                  }
+                                } catch (error) {
+                                  toast.error('Failed to regenerate token');
+                                  console.error('Error regenerating token:', error);
+                                }
+                              }}
+                            >
+                              Regenerate Signup Token
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => {
+                                if (interest.id) {
+                                  if (window.confirm('Are you sure you want to delete this interest request?')) {
+                                    handleDeleteInterest(interest.id);
+                                  }
+                                }
+                              }}
+                            >
+                              Delete Request
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>
