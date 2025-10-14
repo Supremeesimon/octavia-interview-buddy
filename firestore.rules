@@ -82,6 +82,11 @@ service cloud.firestore {
       // Students and teachers can read their institution
       allow read: if isAuthenticated();
       
+      // Allow unauthenticated users to read institutions by custom signup token
+      // This is needed for institutional signup flow
+      allow get: if request.query.limit <= 1 && 
+                   request.query.where.customSignupToken != null;
+      
       // Admins subcollection
       match /admins/{adminId} {
         // Admins can read/write their own data
@@ -108,6 +113,11 @@ service cloud.firestore {
         
         // Platform admins can read/write all departments
         allow read, write: if isAuthenticated() && isPlatformAdmin();
+        
+        // Allow unauthenticated users to read departments by signup token
+        // This is needed for institutional signup flow
+        allow get: if request.query.limit <= 1 && 
+                     request.query.where.departmentSignupToken != null;
         
         // Teachers subcollection
         match /teachers/{teacherId} {
@@ -271,6 +281,11 @@ service cloud.firestore {
       
       // Platform admins can read/write all institution interests
       allow read, write: if isAuthenticated() && isPlatformAdmin();
+      
+      // Allow unauthenticated users to read institution interests by custom signup token
+      // This is needed for institutional signup flow
+      allow get: if request.query.limit <= 1 && 
+                   request.query.where.customSignupToken != null;
       
       // Users cannot update or delete institution interests once created
       allow update, delete: if false;

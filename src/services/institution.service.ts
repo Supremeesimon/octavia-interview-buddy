@@ -179,4 +179,26 @@ export class InstitutionService {
       // Don't throw error to prevent UI crashes
     }
   }
+
+  // New method to approve an institution
+  static async approveInstitution(id: string, platformAdminId: string): Promise<void> {
+    try {
+      // Check if db is initialized
+      if (!db) {
+        throw new Error('Firebase not initialized');
+      }
+      
+      const institutionRef = doc(db, this.COLLECTION_NAME, id);
+      await updateDoc(institutionRef, {
+        approvalStatus: 'approved',
+        platform_admin_id: platformAdminId,
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      console.error('Error approving institution:', error);
+      throw new Error(`Failed to approve institution: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 }
+
+export default InstitutionService;

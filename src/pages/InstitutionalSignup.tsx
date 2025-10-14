@@ -79,6 +79,9 @@ const InstitutionalSignup = () => {
           
           // If that fails, try to find a processed institution interest by token
           // This handles cases where the signup link was generated from an interest request
+          const { collection, query, where, getDocs } = await import('firebase/firestore');
+          const { db } = await import('@/lib/firebase');
+          
           const interestsRef = collection(db, 'institution_interests');
           const interestsQuery = query(
             interestsRef,

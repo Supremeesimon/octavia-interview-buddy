@@ -19,8 +19,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useIsMobile } from '@/hooks/use-mobile';
 import { InstitutionService } from '@/services/institution.service';
 import { Institution } from '@/types';
+import { useAuth } from '@/hooks/use-auth';
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
+import { CheckCircle } from "lucide-react";
 
 const InstitutionManagement = () => {
+  const { currentUser } = useAuth();
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -48,6 +53,25 @@ const InstitutionManagement = () => {
     fetchInstitutions();
   }, []);
   
+  const handleApproveInstitution = async (institutionId: string) => {
+    try {
+      if (!currentUser?.id) {
+        toast.error("You must be logged in as a platform admin to approve institutions");
+        return;
+      }
+      
+      await InstitutionService.approveInstitution(institutionId, currentUser.id);
+      toast.success("Institution approved successfully");
+      
+      // Refresh the institutions list
+      const data = await InstitutionService.getAllInstitutions();
+      setInstitutions(data);
+    } catch (error) {
+      toast.error("Failed to approve institution");
+      console.error("Error approving institution:", error);
+    }
+  };
+
   // Convert institutions to the format expected by the component
   const formattedInstitutions = institutions.map(inst => ({
     id: inst.id,
@@ -61,11 +85,21 @@ const InstitutionManagement = () => {
       inst.settings.allowedBookingsPerMonth > 100 ? 'Ship' : 'Build' : 'Build',
     status: inst.isActive ? 'Active' : 'Inactive'
   }));
-  
-  const filteredInstitutions = formattedInstitutions.filter(
-    institution => institution.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
+
+  const filteredInstitutions = institutions.map(inst => ({
+    ...inst,
+    // Convert to the format expected by the component
+    adminName: inst.platform_admin_id || 'Not assigned',
+    adminEmail: inst.platform_admin_id ? `${inst.platform_admin_id}@example.com` : 'Not assigned',
+    studentsCount: inst.stats?.totalStudents || 0,
+    plan: inst.settings?.allowedBookingsPerMonth ? 
+      inst.settings.allowedBookingsPerMonth > 1000 ? 'Enterprise' : 
+      inst.settings.allowedBookingsPerMonth > 500 ? 'Scale' : 
+      inst.settings.allowedBookingsPerMonth > 100 ? 'Ship' : 'Build' : 'Build',
+    status: inst.isActive ? 'Active' : 'Inactive',
+    approvalStatus: inst.approvalStatus || 'pending' // Add approval status
+  })).filter(institution => institution.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
   const handleAddInstitution = () => {
     setShowAddDialog(false);
     // Handle add institution logic
@@ -179,9 +213,26 @@ const InstitutionManagement = () => {
                         }>
                           {institution.status}
                         </div>
+                        {institution.approvalStatus === 'pending' && (
+                          <div className="mt-1">
+                            <Badge variant="destructive" className="text-xs">
+                              Pending Approval
+                            </Badge>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-2">
+                          {institution.approvalStatus === 'pending' && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              tooltip={`Approve ${institution.name}`}
+                              onClick={() => handleApproveInstitution(institution.id)}
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            </Button>
+                          )}
                           <Button 
                             size="sm" 
                             variant="outline"

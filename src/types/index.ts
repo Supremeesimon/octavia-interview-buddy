@@ -97,6 +97,7 @@ export interface Institution {
   logoUrl?: string;
   website?: string;
   platform_admin_id?: string;  // Made platform_admin_id optional to handle existing institutions
+  approvalStatus?: string;  // Approval status for institutions
   settings: InstitutionSettings;
   sessionPool: SessionPool;
   stats: InstitutionStats;

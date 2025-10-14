@@ -37,9 +37,10 @@ interface InstitutionInterest {
 // Add prop interface
 interface InstitutionInterestsProps {
   currentUser?: User; // Use the proper User type
+  onInterestsUpdate?: () => void; // Add refresh callback prop
 }
 
-const InstitutionInterests = ({ currentUser }: InstitutionInterestsProps) => {
+const InstitutionInterests = ({ currentUser, onInterestsUpdate }: InstitutionInterestsProps) => {
   const [interests, setInterests] = useState<InstitutionInterest[]>([]);
   const [selectedInterest, setSelectedInterest] = useState<InstitutionInterest | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -173,7 +174,7 @@ const InstitutionInterests = ({ currentUser }: InstitutionInterestsProps) => {
         const trimmedInstitutionName = interest.institutionName.trim();
         
         // Query for existing institution with the same name
-        const { collection, query, where, getDocs, updateDoc, doc } = await import('firebase/firestore');
+        const { collection, query, where, getDocs, updateDoc, doc, getDoc } = await import('firebase/firestore');
         const { db } = await import('@/lib/firebase');
         
         const q = query(
@@ -198,88 +199,43 @@ const InstitutionInterests = ({ currentUser }: InstitutionInterestsProps) => {
             customSignupToken: institutionData.customSignupToken || ''
           };
         
-          // Check if the institution doesn't have a platform_admin_id and we have a current user
-          if ((!institutionData.platform_admin_id || institutionData.platform_admin_id === '') && currentUser?.id) {
-            // Update the institution with the current admin's ID
-            try {
-              const updateData: any = {
-                platform_admin_id: currentUser.id,
-                approvalStatus: 'approved'
-              };
-            
-              await updateDoc(doc(db, 'institutions', institutionId), updateData);
-              toast.success(`Updated institution ${trimmedInstitutionName} with platform admin ID and approval status.`);
-            } catch (updateError) {
-              console.error('Error updating institution with admin ID:', updateError);
-              toast.error("Failed to update institution with admin ID");
-            }
-          }
-          
-          // Update the institution interest with the custom signup token
-          try {
-            const { updateDoc, doc } = await import('firebase/firestore');
-            const { db } = await import('@/lib/firebase');
-            
-            await updateDoc(doc(db, 'institution_interests', interest.id), {
-              customSignupToken: institutionData.customSignupToken,
-              customSignupLink: institutionData.customSignupLink
-            });
-          } catch (updateError) {
-            console.error('Error updating institution interest with signup token:', updateError);
-          }
-        
-          toast.success(`Marked as processed. Institution ${trimmedInstitutionName} already exists.`);
-        } else {
-          // Create a new institution
-          const institutionData = {
-            name: trimmedInstitutionName,
-            domain: '', // No automatic domain generation
-            platform_admin_id: currentUser?.id || '', // Set the platform admin ID of who created this institution
-            approvalStatus: 'approved',
-            settings: {
-              allowedBookingsPerMonth: 100,
-              sessionLength: 30,
-              requireResumeUpload: true,
-              enableDepartmentAllocations: true,
-              enableStudentGroups: true,
-              emailNotifications: {
-                enableInterviewReminders: true,
-                enableFeedbackEmails: true,
-                enableWeeklyReports: true,
-                reminderHours: 24
-              }
-            },
-            sessionPool: {
-              id: '',
-              institutionId: '',
-              totalSessions: 0,
-              usedSessions: 0,
-              availableSessions: 0,
-              allocations: [],
-              purchases: [],
-              createdAt: new Date(),
-              updatedAt: new Date()
-            },
-            stats: {
-              totalStudents: 0,
-              activeStudents: 0,
-              totalInterviews: 0,
-              averageScore: 0,
-              sessionUtilization: 0,
-              topPerformingDepartments: [],
-              monthlyUsage: []
-            },
-            isActive: true
+          // Always update the approvalStatus to 'approved' when marking as processed
+          // Also update platform_admin_id if not already set and we have a current user
+          const updateData: any = {
+            approvalStatus: 'approved'
           };
-    
-          institutionId = await InstitutionHierarchyService.createInstitution(institutionData);
-        
-          // Get the institution to retrieve the custom signup link
-          // Add a small delay to ensure the document is fully created
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          existingInstitution = await InstitutionHierarchyService.getInstitutionById(institutionId);
           
-          // Update the institution interest with the custom signup token
+          if ((!institutionData.platform_admin_id || institutionData.platform_admin_id === '') && currentUser?.id) {
+            updateData.platform_admin_id = currentUser.id;
+          }
+          
+          // Update the institution with approval status and platform admin ID if needed
+          try {
+            await updateDoc(doc(db, 'institutions', institutionId), updateData);
+            // Instead of showing a separate toast, we'll include this information in the main success message
+            console.log(`Updated institution ${trimmedInstitutionName} with approval status${updateData.platform_admin_id ? ' and platform admin ID' : ''}.`);
+          } catch (updateError) {
+            console.error('Error updating institution:', updateError);
+            toast.error("Failed to update institution");
+            return; // Exit early if update fails
+          }
+        
+          // Refresh the institution data after update to get the latest data
+          try {
+            const updatedInstitutionDoc = await getDoc(doc(db, 'institutions', institutionId));
+            const updatedInstitutionData = updatedInstitutionDoc.data();
+            existingInstitution = {
+              id: institutionId,
+              ...updatedInstitutionData,
+              customSignupLink: updatedInstitutionData.customSignupLink || '',
+              customSignupToken: updatedInstitutionData.customSignupToken || ''
+            };
+          } catch (refreshError) {
+            console.error('Error refreshing institution data:', refreshError);
+            // If refresh fails, continue with the original data
+          }
+          
+          // Update the institution interest with the custom signup token and institution name
           if (existingInstitution && existingInstitution.customSignupToken) {
             try {
               const { updateDoc, doc } = await import('firebase/firestore');
@@ -287,7 +243,8 @@ const InstitutionInterests = ({ currentUser }: InstitutionInterestsProps) => {
               
               await updateDoc(doc(db, 'institution_interests', interest.id), {
                 customSignupToken: existingInstitution.customSignupToken,
-                customSignupLink: existingInstitution.customSignupLink
+                customSignupLink: existingInstitution.customSignupLink,
+                institutionName: existingInstitution.name // Add institution name to the interest
               });
             } catch (updateError) {
               console.error('Error updating institution interest with signup token:', updateError);
@@ -295,11 +252,12 @@ const InstitutionInterests = ({ currentUser }: InstitutionInterestsProps) => {
           }
         }
       
-        // Show success message with option to copy the custom signup link
+        // Show a single consolidated success message with all relevant information
         if (existingInstitution && existingInstitution.customSignupLink) {
           toast(
             <div className="flex flex-col gap-2">
-              <span>Marked as processed and added {trimmedInstitutionName} to institutions</span>
+              <span>Successfully processed institution {trimmedInstitutionName}.</span>
+              <span>Institution is now approved and ready for use.</span>
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -320,13 +278,27 @@ const InstitutionInterests = ({ currentUser }: InstitutionInterestsProps) => {
           );
         } else {
           // Even if we couldn't get the link immediately, the institution was created/processed
-          toast.success(`Marked as processed and added ${trimmedInstitutionName} to institutions. Refresh the page to see the custom signup link.`);
+          toast.success(`Successfully processed institution ${trimmedInstitutionName}. Institution is now approved and ready for use. Refresh the page to see the custom signup link.`);
         }
       
-        // Update the local state to reflect the status change
-        setInterests(interests.map(i => 
-          i.id === interest.id ? { ...i, status: 'processed' } : i
-        ));
+        // Refresh the interests list to reflect the status change
+        try {
+          // Always refresh the local interests list first
+          setInterests(interests.map(i => 
+            i.id === interest.id ? { ...i, status: 'processed' } : i
+          ));
+          
+          // Then try to refresh from the server if a callback is provided
+          if (onInterestsUpdate) {
+            // Use a small delay to ensure the UI update happens first
+            setTimeout(() => {
+              onInterestsUpdate();
+            }, 500);
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing interests list:', refreshError);
+          // The local update above should still be in effect
+        }
       }
     } catch (error) {
       toast.error("Failed to mark as processed or add institution");

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Users, 
   MessageSquare, 
@@ -14,12 +14,15 @@ import {
   ChevronDown,
   Search,
   Download,
-  Info
+  Info,
+  CheckCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from "sonner";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, Tooltip } from 'recharts';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -59,6 +62,7 @@ interface InstitutionInterest {
 }
 
 const AdminDashboard = () => {
+  const { user: currentUser } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -66,7 +70,6 @@ const AdminDashboard = () => {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [institutionInterests, setInstitutionInterests] = useState<InstitutionInterest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null); // Add current user state
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     interviewsCompleted: 0,
@@ -93,164 +96,161 @@ const AdminDashboard = () => {
   
   const [departmentComparison, setDepartmentComparison] = useState<any[]>([]);
   
-  // Set current user on component mount
-  useEffect(() => {
-    setCurrentUser(authService.getCurrentUser());
+  // Define the fetchData function before using it
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch institutions
+      const institutionData = await InstitutionService.getAllInstitutions();
+      setInstitutions(institutionData);
+      
+      // Fetch institution interests
+      const interestData = await InstitutionInterestService.getAllInterests();
+      setInstitutionInterests(interestData);
+      
+      // Calculate realistic dashboard stats based on actual data
+      let totalUsers = 0;
+      let interviewsCompleted = 0;
+      let totalSessionTime = 0;
+      let activeInstitutions = 0;
+      
+      // Calculate from real institution data
+      institutionData.forEach(inst => {
+        totalUsers += inst.stats?.totalStudents || 0;
+        interviewsCompleted += inst.stats?.totalInterviews || 0;
+        totalSessionTime += (inst.stats?.averageScore || 0) * (inst.stats?.totalInterviews || 0);
+        if (inst.isActive) activeInstitutions++;
+      });
+      
+      // More realistic calculations for a new system
+      const avgSessionTime = interviewsCompleted > 0 ? 
+        parseFloat((totalSessionTime / interviewsCompleted / 60).toFixed(1)) : 
+        totalUsers > 0 ? 15.0 : 0; // Default to 15 minutes if we have users but no interviews
+      
+      // More accurate engagement rate calculation
+      // For a new system with 1 institution and 0 students, this should be 0%
+      const engagementRate = (institutionData.length > 0 && totalUsers > 0) ? 
+        parseFloat(((activeInstitutions / institutionData.length) * 100).toFixed(1)) : 
+        0;
+      
+      // More conservative user count - only show actual users, not fabricated numbers
+      setDashboardStats({
+        totalUsers: totalUsers, // Show actual user count, not fabricated numbers
+        interviewsCompleted,
+        avgSessionTime,
+        engagementRate
+      });
+      
+      // Generate user activity data based on current date
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth(); // 0-11 (Jan-Dec)
+      
+      // Generate last 8 months of data
+      const activityData = [];
+      for (let i = 7; i >= 0; i--) {
+        const monthIndex = (currentMonth - i + 12) % 12;
+        const monthYear = currentMonth - i < 0 ? currentYear - 1 : currentYear;
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthName = monthNames[monthIndex];
+        
+        // For a new system, show actual data or zero
+        if (totalUsers > 0) {
+          // Show realistic growth based on actual users
+          const value = Math.min(totalUsers, Math.max(0, Math.round(totalUsers * (i / 7))));
+          activityData.push({ name: monthName, value });
+        } else {
+          // If no users, show zero
+          activityData.push({ name: monthName, value: 0 });
+        }
+      }
+      setUserActivityData(activityData);
+      
+      // Generate system health data based on current week
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const healthData = [];
+      
+      // Generate data for the current week starting from Sunday
+      const today = currentDate.getDay(); // 0-6 (Sun-Sat)
+      for (let i = 0; i < 7; i++) {
+        const dayIndex = (today + i) % 7;
+        const dayName = days[dayIndex];
+        
+        // Show zero errors since we don't have real data
+        healthData.push({ name: dayName, errors: 0 });
+      }
+      setSystemHealthData(healthData);
+      
+      // Calculate resume analytics from real data - only show actual data
+      let totalViews = 0;
+      let totalResumes = 0;
+      let totalDownloads = 0;
+      
+      institutionData.forEach(inst => {
+        // Only count actual data, not fabricated numbers
+        totalViews += inst.stats?.totalStudents || 0;
+        totalResumes += inst.stats?.totalStudents || 0;
+        totalDownloads += Math.floor((inst.stats?.totalStudents || 0) * 0.2); // Actual calculation
+      });
+      
+      // Only show actual data, not fabricated percentages
+      const avgViewsPerResume = totalResumes > 0 ? Math.round(totalViews / totalResumes) : 0;
+      const contactClickRate = totalResumes > 0 ? 
+        `${Math.round((totalDownloads / totalResumes) * 100)}%` : 
+        "0%";
+      const improvementRate = totalViews > 0 ? 
+        `${Math.min(40, Math.max(15, Math.round(avgViewsPerResume * 5)))}%` : 
+        "0%";
+      
+      setResumeAnalytics({
+        totalViews: totalViews, // Show actual data
+        avgViewsPerResume,
+        totalDownloads,
+        contactClickRate,
+        improvementRate
+      });
+      
+      // Calculate interview analytics from real data or show realistic defaults
+      const completionRate = interviewsCompleted > 0 ? 
+        `${Math.round((interviewsCompleted / (interviewsCompleted + 2)) * 100)}%` : 
+        "0%";
+      const avgScore = interviewsCompleted > 0 ? 
+        Math.min(85, Math.max(65, Math.round(avgSessionTime * 3))) : 
+        0;
+      
+      setInterviewAnalytics({
+        completionRate,
+        avgScore,
+        difficultyDistribution: { easy: "0%", medium: "0%", hard: "0%" }, // Show actual data
+        commonWeaknesses: interviewsCompleted > 0 ? 
+          ["Communication clarity", "Specific examples", "Technical depth"] : 
+          [],
+        topPerformingQuestions: interviewsCompleted > 0 ? 
+          ["Leadership experience", "Problem solving", "Team challenges"] : 
+          []
+      });
+      
+      // Generate department comparison data based on real data or defaults
+      const departments = totalUsers > 0 ? 
+        [
+          { name: "Computer Science", resumeScore: 78, interviewScore: 75 },
+          { name: "Business", resumeScore: 72, interviewScore: 70 },
+          { name: "Engineering", resumeScore: 80, interviewScore: 77 },
+        ] : 
+        [];
+      
+      setDepartmentComparison(departments);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      // Don't let errors crash the dashboard, just show empty data
+      toast.error("Failed to refresh dashboard data");
+    } finally {
+      setLoading(false);
+    }
   }, []);
   
-  // Fetch real data
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch institutions
-        const institutionData = await InstitutionService.getAllInstitutions();
-        setInstitutions(institutionData);
-        
-        // Fetch institution interests
-        const interestData = await InstitutionInterestService.getAllInterests();
-        setInstitutionInterests(interestData);
-        
-        // Calculate realistic dashboard stats based on actual data
-        let totalUsers = 0;
-        let interviewsCompleted = 0;
-        let totalSessionTime = 0;
-        let activeInstitutions = 0;
-        
-        // Calculate from real institution data
-        institutionData.forEach(inst => {
-          totalUsers += inst.stats?.totalStudents || 0;
-          interviewsCompleted += inst.stats?.totalInterviews || 0;
-          totalSessionTime += (inst.stats?.averageScore || 0) * (inst.stats?.totalInterviews || 0);
-          if (inst.isActive) activeInstitutions++;
-        });
-        
-        // More realistic calculations for a new system
-        const avgSessionTime = interviewsCompleted > 0 ? 
-          parseFloat((totalSessionTime / interviewsCompleted / 60).toFixed(1)) : 
-          totalUsers > 0 ? 15.0 : 0; // Default to 15 minutes if we have users but no interviews
-        
-        // More accurate engagement rate calculation
-        // For a new system with 1 institution and 0 students, this should be 0%
-        const engagementRate = (institutionData.length > 0 && totalUsers > 0) ? 
-          parseFloat(((activeInstitutions / institutionData.length) * 100).toFixed(1)) : 
-          0;
-        
-        // More conservative user count - only show actual users, not fabricated numbers
-        setDashboardStats({
-          totalUsers: totalUsers, // Show actual user count, not fabricated numbers
-          interviewsCompleted,
-          avgSessionTime,
-          engagementRate
-        });
-        
-        // Generate user activity data based on current date
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth(); // 0-11 (Jan-Dec)
-        
-        // Generate last 8 months of data
-        const activityData = [];
-        for (let i = 7; i >= 0; i--) {
-          const monthIndex = (currentMonth - i + 12) % 12;
-          const monthYear = currentMonth - i < 0 ? currentYear - 1 : currentYear;
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          const monthName = monthNames[monthIndex];
-          
-          // For a new system, show actual data or zero
-          if (totalUsers > 0) {
-            // Show realistic growth based on actual users
-            const value = Math.min(totalUsers, Math.max(0, Math.round(totalUsers * (i / 7))));
-            activityData.push({ name: monthName, value });
-          } else {
-            // If no users, show zero
-            activityData.push({ name: monthName, value: 0 });
-          }
-        }
-        setUserActivityData(activityData);
-        
-        // Generate system health data based on current week
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const healthData = [];
-        
-        // Generate data for the current week starting from Sunday
-        const today = currentDate.getDay(); // 0-6 (Sun-Sat)
-        for (let i = 0; i < 7; i++) {
-          const dayIndex = (today + i) % 7;
-          const dayName = days[dayIndex];
-          
-          // Show zero errors since we don't have real data
-          healthData.push({ name: dayName, errors: 0 });
-        }
-        setSystemHealthData(healthData);
-        
-        // Calculate resume analytics from real data - only show actual data
-        let totalViews = 0;
-        let totalResumes = 0;
-        let totalDownloads = 0;
-        
-        institutionData.forEach(inst => {
-          // Only count actual data, not fabricated numbers
-          totalViews += inst.stats?.totalStudents || 0;
-          totalResumes += inst.stats?.totalStudents || 0;
-          totalDownloads += Math.floor((inst.stats?.totalStudents || 0) * 0.2); // Actual calculation
-        });
-        
-        // Only show actual data, not fabricated percentages
-        const avgViewsPerResume = totalResumes > 0 ? Math.round(totalViews / totalResumes) : 0;
-        const contactClickRate = totalResumes > 0 ? 
-          `${Math.round((totalDownloads / totalResumes) * 100)}%` : 
-          "0%";
-        const improvementRate = totalViews > 0 ? 
-          `${Math.min(40, Math.max(15, Math.round(avgViewsPerResume * 5)))}%` : 
-          "0%";
-        
-        setResumeAnalytics({
-          totalViews: totalViews, // Show actual data
-          avgViewsPerResume,
-          totalDownloads,
-          contactClickRate,
-          improvementRate
-        });
-        
-        // Calculate interview analytics from real data or show realistic defaults
-        const completionRate = interviewsCompleted > 0 ? 
-          `${Math.round((interviewsCompleted / (interviewsCompleted + 2)) * 100)}%` : 
-          "0%";
-        const avgScore = interviewsCompleted > 0 ? 
-          Math.min(85, Math.max(65, Math.round(avgSessionTime * 3))) : 
-          0;
-        
-        setInterviewAnalytics({
-          completionRate,
-          avgScore,
-          difficultyDistribution: { easy: "0%", medium: "0%", hard: "0%" }, // Show actual data
-          commonWeaknesses: interviewsCompleted > 0 ? 
-            ["Communication clarity", "Specific examples", "Technical depth"] : 
-            [],
-          topPerformingQuestions: interviewsCompleted > 0 ? 
-            ["Leadership experience", "Problem solving", "Team challenges"] : 
-            []
-        });
-        
-        // Generate department comparison data based on real data or defaults
-        const departments = totalUsers > 0 ? 
-          [
-            { name: "Computer Science", resumeScore: 78, interviewScore: 75 },
-            { name: "Business", resumeScore: 72, interviewScore: 70 },
-            { name: "Engineering", resumeScore: 80, interviewScore: 77 },
-          ] : 
-          [];
-        
-        setDepartmentComparison(departments);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchData();
-  }, []);
+  }, [fetchData]);
   
   // Convert institutions to the format expected by the dashboard
   const institutionsData = institutions.map(inst => ({
@@ -265,12 +265,34 @@ const AdminDashboard = () => {
     engagement: inst.stats?.sessionUtilization ? 
       inst.stats.sessionUtilization > 80 ? "Very High" : 
       inst.stats.sessionUtilization > 60 ? "High" : 
-      inst.stats.sessionUtilization > 40 ? "Medium" : "Low" : "Low"
+      inst.stats.sessionUtilization > 40 ? "Medium" : "Low" : "Low",
+    approvalStatus: inst.approvalStatus || 'pending',
+    platform_admin_id: inst.platform_admin_id || ''
   }));
   
   // Explicit function to navigate to institution analytics
   const handleViewInstitutionAnalytics = (institutionId: string) => {
     navigate(`/admin/institution/${institutionId}/analytics`);
+  };
+  
+  // Function to approve an institution
+  const handleApproveInstitution = async (institutionId: string) => {
+    try {
+      if (!currentUser?.id) {
+        toast.error("You must be logged in as a platform admin to approve institutions");
+        return;
+      }
+      
+      await InstitutionService.approveInstitution(institutionId, currentUser.id);
+      toast.success("Institution approved successfully");
+      
+      // Refresh the institutions list
+      const institutionData = await InstitutionService.getAllInstitutions();
+      setInstitutions(institutionData);
+    } catch (error) {
+      toast.error("Failed to approve institution");
+      console.error("Error approving institution:", error);
+    }
   };
   
   return (
@@ -310,7 +332,10 @@ const AdminDashboard = () => {
           <h2 className="text-2xl font-bold">Platform Overview</h2>
           
           {/* Institution Interests Section */}
-          <InstitutionInterests currentUser={currentUser} />
+          <InstitutionInterests 
+            currentUser={currentUser} 
+            onInterestsUpdate={fetchData} // Pass the fetchData function to refresh all data
+          />
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-6 lg:grid-cols-4'}`}>
             <Card tooltip="View total users across the platform">
@@ -551,6 +576,9 @@ const AdminDashboard = () => {
                         tooltip="Student engagement level with the platform"
                       >Engagement</TableHead>
                       <TableHead
+                        tooltip="Institution approval status"
+                      >Status</TableHead>
+                      <TableHead
                         className="text-right"
                         tooltip="Available actions for this institution"
                       >Actions</TableHead>
@@ -559,7 +587,7 @@ const AdminDashboard = () => {
                   <TableBody>
                     {institutionsData.length === 0 && !loading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                           No institutions found.
                         </TableCell>
                       </TableRow>
@@ -601,31 +629,50 @@ const AdminDashboard = () => {
                               }`}>
                               {institution.engagement}
                             </span>
+                            {institution.approvalStatus === 'pending' && (
+                              <div className="mt-1">
+                                <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                                  Pending Approval
+                                </span>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
+                            <div className="flex justify-end gap-2">
+                              {institution.approvalStatus === 'pending' && (
                                 <Button 
-                                  variant="ghost" 
+                                  variant="outline" 
                                   size="sm"
-                                  tooltip="Actions for this institution"
+                                  tooltip="Approve this institution"
+                                  onClick={() => handleApproveInstitution(institution.id)}
                                 >
-                                  Actions
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
-                                  onClick={() => handleViewInstitutionAnalytics(institution.id)}
-                                  className="cursor-pointer"
-                                >
-                                  View Analytics
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>Edit</DropdownMenuItem>
-                                <DropdownMenuItem>Manage Users</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600">Deactivate</DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    tooltip="Actions for this institution"
+                                  >
+                                    Actions
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem 
+                                    onClick={() => handleViewInstitutionAnalytics(institution.id)}
+                                    className="cursor-pointer"
+                                  >
+                                    View Analytics
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>Edit</DropdownMenuItem>
+                                  <DropdownMenuItem>Manage Users</DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-red-600">Deactivate</DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
