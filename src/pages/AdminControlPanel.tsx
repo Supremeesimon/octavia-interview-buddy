@@ -68,6 +68,7 @@ const AdminControlPanel = () => {
     const fetchInstitutions = async () => {
       try {
         const data = await InstitutionService.getAllInstitutions();
+        console.log('Fetched institutions:', data.length, data.map(inst => ({ id: inst.id, name: inst.name })));
         setInstitutions(data);
       } catch (error) {
         console.error('Error fetching institutions:', error);
@@ -77,7 +78,7 @@ const AdminControlPanel = () => {
     };
     
     fetchInstitutions();
-  }, []);
+  }, [activeTab]); // Add activeTab as dependency to refresh when switching tabs
   
   // Fetch resources data
   useEffect(() => {
@@ -131,6 +132,9 @@ const AdminControlPanel = () => {
     id: inst.id,
     name: inst.name
   }));
+  console.log('Raw institutions data:', institutions);
+  console.log('Institutions count:', institutionCount);
+  console.log('Formatted institutions for ResourceManagement:', formattedInstitutions);
   
   return (
     <div className="min-h-screen flex flex-col overflow-hidden w-full">
