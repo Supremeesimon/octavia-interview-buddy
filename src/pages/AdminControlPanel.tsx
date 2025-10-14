@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import Header from '@/components/Header';
 import { aiAnalyticsService } from '@/services/ai-analytics.service';
 import { InstitutionService } from '@/services/institution.service';
@@ -20,6 +21,7 @@ import {
   AlertDialogCancel
 } from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
+import { getGreetingWithName } from '@/utils/greeting.utils';
 
 // Lazy load components
 const AdminDashboard = lazy(() => import('@/components/AdminDashboard'));
@@ -39,6 +41,11 @@ const LoadingSpinner = () => (
 
 const AdminControlPanel = () => {
   const isMobile = useIsMobile();
+  const { user: currentUser, isLoading } = useFirebaseAuth();
+  
+  // Log the currentUser for debugging
+  console.log('AdminControlPanel - currentUser:', currentUser);
+  console.log('AdminControlPanel - isLoading:', isLoading);
   
   // Get initial tab from localStorage or default to 'dashboard'
   const getInitialTab = () => {
@@ -68,7 +75,6 @@ const AdminControlPanel = () => {
     const fetchInstitutions = async () => {
       try {
         const data = await InstitutionService.getAllInstitutions();
-        console.log('Fetched institutions:', data.length, data.map(inst => ({ id: inst.id, name: inst.name })));
         setInstitutions(data);
       } catch (error) {
         console.error('Error fetching institutions:', error);
@@ -142,7 +148,24 @@ const AdminControlPanel = () => {
       <main className={`flex-grow ${isMobile ? 'pt-16 pb-20' : 'py-28'} w-full`}>
         <TooltipProvider>
           <div className="container mx-auto px-4 max-w-7xl">
-            <h1 className="text-3xl font-bold mb-6">Platform Admin Control Panel</h1>
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold">Platform Admin Control Panel</h1>
+              
+              {/* Show current user info with dynamic greeting */}
+              {isLoading ? (
+                <div className="text-lg text-muted-foreground">
+                  Loading user information...
+                </div>
+              ) : currentUser ? (
+                <div className="text-2xl font-bold text-primary">
+                  {getGreetingWithName(currentUser.name)}
+                </div>
+              ) : (
+                <div className="text-lg text-muted-foreground">
+                  User information not available
+                </div>
+              )}
+            </div>
             
             <Tabs 
               className="w-full mb-6"

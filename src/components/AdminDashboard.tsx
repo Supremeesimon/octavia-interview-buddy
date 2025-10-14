@@ -42,6 +42,7 @@ import { InstitutionService } from '@/services/institution.service';
 import { InstitutionInterestService } from '@/services/institution-interest.service';
 import { authService } from '@/services/auth.service';
 import { Institution, User } from '@/types';
+import { getGreetingWithName } from '@/utils/greeting.utils';
 
 // Define the InstitutionInterest interface locally since it's not in the types file
 interface InstitutionInterest {
@@ -297,12 +298,15 @@ const AdminDashboard = () => {
   
   return (
     <div className="space-y-6">
-      {/* Show current user info */}
-      {currentUser && (
-        <div className="text-sm text-muted-foreground">
-          Logged in as: {currentUser.name} ({currentUser.email}) - {currentUser.role}
-        </div>
-      )}
+      {/* Show current user info with dynamic greeting */}
+      <div className="flex justify-between items-center mb-6">
+        <div></div>
+        {currentUser && (
+          <div className="text-2xl font-bold text-primary">
+            {getGreetingWithName(currentUser.name)}
+          </div>
+        )}
+      </div>
       
       <Tabs defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
         <TabsList>
@@ -329,7 +333,6 @@ const AdminDashboard = () => {
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
-          <h2 className="text-2xl font-bold">Platform Overview</h2>
           
           {/* Institution Interests Section */}
           <InstitutionInterests 

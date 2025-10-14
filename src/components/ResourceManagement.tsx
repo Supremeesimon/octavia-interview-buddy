@@ -461,8 +461,6 @@ const ResourceManagement = ({
               <div>
                 <p className="text-sm text-muted-foreground">Total Institutions</p>
                 <p className="text-2xl font-bold">{institutionCount}</p>
-                {/* Add debug info */}
-                <p className="text-xs text-muted-foreground">Debug: {institutions?.length || 0} institutions passed</p>
               </div>
             </div>
           </CardContent>

@@ -36,6 +36,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import ResetSettingsDialog from './ResetSettingsDialog';
 import { InstitutionService } from '@/services/institution.service';
 import type { UserProfile, Institution } from '@/types';
+import { getGreetingWithName } from '@/utils/greeting.utils';
 
 interface InstitutionDashboardProps {
   user: UserProfile;
@@ -287,6 +288,16 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   
   return (
     <div className="space-y-8">
+      {/* Show current user info with dynamic greeting */}
+      <div className="flex justify-between items-center mb-6">
+        <div></div>
+        {user && (
+          <div className="text-2xl font-bold text-primary">
+            {getGreetingWithName(user.name)}
+          </div>
+        )}
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
