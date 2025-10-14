@@ -79,23 +79,28 @@ const InstitutionalSignup = () => {
           
           // If that fails, try to find a processed institution interest by token
           // This handles cases where the signup link was generated from an interest request
-          const { collection, query, where, getDocs } = await import('firebase/firestore');
-          const { db } = await import('@/lib/firebase');
-          
-          const interestsRef = collection(db, 'institution_interests');
-          const interestsQuery = query(
-            interestsRef,
-            where('customSignupToken', '==', customSignupToken),
-            where('status', '==', 'processed')
-          );
-          
-          const interestsSnapshot = await getDocs(interestsQuery);
-          if (!interestsSnapshot.empty) {
-            const interestData = interestsSnapshot.docs[0].data();
-            if (interestData.institutionName) {
-              setInstitutionName(interestData.institutionName);
-              return;
+          try {
+            const { collection, query, where, getDocs } = await import('firebase/firestore');
+            const { db } = await import('@/lib/firebase');
+            
+            const interestsRef = collection(db, 'institution_interests');
+            const interestsQuery = query(
+              interestsRef,
+              where('customSignupToken', '==', customSignupToken),
+              where('status', '==', 'processed')
+            );
+            
+            const interestsSnapshot = await getDocs(interestsQuery);
+            if (!interestsSnapshot.empty) {
+              const interestData = interestsSnapshot.docs[0].data();
+              if (interestData.institutionName) {
+                setInstitutionName(interestData.institutionName);
+                return;
+              }
             }
+          } catch (error) {
+            console.error('Error fetching institution interest by token:', error);
+            // Continue with other methods even if this fails
           }
           
           // If that fails, try to find institution by name in query params
@@ -107,19 +112,27 @@ const InstitutionalSignup = () => {
           
           // As a last resort, try to find the institution by querying the database with the token
           // This handles cases where the token might be stored differently
-          const q = query(
-            collection(db, 'institutions'),
-            where('customSignupToken', '==', customSignupToken)
-          );
-          
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            const institutionDoc = querySnapshot.docs[0];
-            const institutionData = institutionDoc.data();
-            if (institutionData.name) {
-              setInstitutionName(institutionData.name);
-              return;
+          try {
+            const { collection, query, where, getDocs } = await import('firebase/firestore');
+            const { db } = await import('@/lib/firebase');
+            
+            const q = query(
+              collection(db, 'institutions'),
+              where('customSignupToken', '==', customSignupToken)
+            );
+            
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              const institutionDoc = querySnapshot.docs[0];
+              const institutionData = institutionDoc.data();
+              if (institutionData.name) {
+                setInstitutionName(institutionData.name);
+                return;
+              }
             }
+          } catch (error) {
+            console.error('Error fetching institution by token directly:', error);
+            // Continue with other methods even if this fails
           }
           
           // Try to find by ID if the token is actually an institution ID
@@ -131,6 +144,7 @@ const InstitutionalSignup = () => {
             }
           } catch (error) {
             console.error('Error fetching institution by ID:', error);
+            // Continue with other methods even if this fails
           }
           
           // If all methods fail, show a more informative message

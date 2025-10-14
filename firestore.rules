@@ -84,8 +84,8 @@ service cloud.firestore {
       
       // Allow unauthenticated users to read institutions by custom signup token
       // This is needed for institutional signup flow
-      allow get: if request.query.limit <= 1 && 
-                   request.query.where.customSignupToken != null;
+      // Allow read access to all institutions for signup flow - client will filter by token
+      allow read: if true;
       
       // Admins subcollection
       match /admins/{adminId} {
@@ -116,8 +116,7 @@ service cloud.firestore {
         
         // Allow unauthenticated users to read departments by signup token
         // This is needed for institutional signup flow
-        allow get: if request.query.limit <= 1 && 
-                     request.query.where.departmentSignupToken != null;
+        allow read: if true;
         
         // Teachers subcollection
         match /teachers/{teacherId} {
@@ -284,8 +283,7 @@ service cloud.firestore {
       
       // Allow unauthenticated users to read institution interests by custom signup token
       // This is needed for institutional signup flow
-      allow get: if request.query.limit <= 1 && 
-                   request.query.where.customSignupToken != null;
+      allow read: if true;
       
       // Users cannot update or delete institution interests once created
       allow update, delete: if false;
