@@ -36,6 +36,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import ResetSettingsDialog from './ResetSettingsDialog';
 import { InstitutionService } from '@/services/institution.service';
 import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
+import SessionManagement from './SessionManagement';
 import type { UserProfile, Institution } from '@/types';
 import { getGreetingWithName } from '@/utils/greeting.utils';
 
@@ -425,6 +426,13 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
             Scheduled Interviews
           </TabsTrigger>
           <TabsTrigger 
+            value="session"
+            tooltip="Manage your institution's interview session pool and allocation settings"
+            className={activeMainTab === "session" ? "border-b-2 border-primary" : ""}
+          >
+            Session Pool
+          </TabsTrigger>
+          <TabsTrigger 
             value="analytics"
             tooltip="Access detailed performance metrics and analytics"
             className={activeMainTab === "analytics" ? "border-b-2 border-primary" : ""}
@@ -674,6 +682,29 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="session">
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Session Management</h2>
+                <p className="text-muted-foreground">
+                  Manage your institution's interview session pool and allocation settings
+                </p>
+              </div>
+            </div>
+            
+            <SessionManagement 
+              institutionId={user?.institutionId}
+              totalSessions={totalLicenses}
+              usedSessions={usedLicenses}
+              onSessionPurchase={(sessions, cost) => {
+                // Update the license info when sessions are purchased
+                setTotalLicenses(prev => prev + sessions);
+              }}
+            />
+          </div>
         </TabsContent>
         
         <TabsContent value="analytics">

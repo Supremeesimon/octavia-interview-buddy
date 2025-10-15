@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +14,54 @@ import ResetSettingsDialog from '../ResetSettingsDialog';
 const SessionAllocation = () => {
   const [openToAll, setOpenToAll] = useState(true);
   const [allocationMethod, setAllocationMethod] = useState('institution');
+  const [sessionsPerStudent, setSessionsPerStudent] = useState(3);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  
+  // TODO: In a real implementation, we would fetch existing allocation settings from the backend
+  // For now, we'll use mock data to demonstrate the functionality
+  
+  const handleSaveSettings = async () => {
+    setLoading(true);
+    try {
+      // TODO: In a real implementation, this would make an API call to save the settings
+      // Example API call:
+      // await fetch('/api/session/allocations', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${authToken}`
+      //   },
+      //   body: JSON.stringify({
+      //     openToAll,
+      //     allocationMethod,
+      //     sessionsPerStudent: allocationMethod === 'student' ? sessionsPerStudent : null
+      //   })
+      // });
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast({
+        title: "Settings saved",
+        description: "Your session allocation settings have been updated.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save session allocation settings. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleResetSettings = () => {
+    setOpenToAll(true);
+    setAllocationMethod('institution');
+    setSessionsPerStudent(3);
+  };
   
   return (
     <Card tooltip="Control how interview sessions are distributed to your students">
@@ -73,7 +119,8 @@ const SessionAllocation = () => {
                   <Input 
                     type="number" 
                     min="1" 
-                    defaultValue="3"
+                    value={sessionsPerStudent}
+                    onChange={(e) => setSessionsPerStudent(Number(e.target.value))}
                     className="w-24" 
                   />
                   <span>sessions per student</span>
@@ -144,24 +191,25 @@ const SessionAllocation = () => {
             confirmText: "Save Changes",
           }}
           trigger={
-            <Button className="w-full">
-              <Save className="h-4 w-4 mr-2" />
-              Save Allocation Settings
+            <Button className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Allocation Settings
+                </>
+              )}
             </Button>
           }
-          onConfirm={() => {
-            toast({
-              title: "Settings saved",
-              description: "Your session allocation settings have been updated.",
-            });
-          }}
+          onConfirm={handleSaveSettings}
         />
         <ResetSettingsDialog 
           settingsType="Session Allocation"
-          onConfirm={() => {
-            setOpenToAll(true);
-            setAllocationMethod('institution');
-          }}
+          onConfirm={handleResetSettings}
         />
       </CardFooter>
     </Card>

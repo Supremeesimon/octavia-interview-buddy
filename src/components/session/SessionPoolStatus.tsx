@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -11,7 +10,8 @@ interface SessionPoolStatusProps {
 
 const SessionPoolStatus = ({ totalSessions, usedSessions }: SessionPoolStatusProps) => {
   const availableSessions = totalSessions - usedSessions;
-  const percentUsed = (usedSessions / totalSessions) * 100;
+  // Handle the case when totalSessions is 0 to avoid NaN
+  const percentUsed = totalSessions > 0 ? (usedSessions / totalSessions) * 100 : 0;
   
   return (
     <Card tooltip="Monitor your institution's current session usage and availability">
@@ -48,7 +48,7 @@ const SessionPoolStatus = ({ totalSessions, usedSessions }: SessionPoolStatusPro
           </div>
         </div>
         
-        {availableSessions < totalSessions * 0.15 && (
+        {totalSessions > 0 && availableSessions < totalSessions * 0.15 && (
           <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
@@ -60,13 +60,25 @@ const SessionPoolStatus = ({ totalSessions, usedSessions }: SessionPoolStatusPro
           </div>
         )}
         
-        {availableSessions >= totalSessions * 0.75 && (
+        {totalSessions > 0 && availableSessions >= totalSessions * 0.75 && (
           <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-start gap-3">
             <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
             <div>
               <div className="font-medium text-green-800">Plenty of sessions available</div>
               <div className="text-sm text-green-700">
                 Your session pool has sufficient capacity for student bookings.
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {totalSessions === 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex items-start gap-3">
+            <Database className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="font-medium text-blue-800">No sessions purchased yet</div>
+              <div className="text-sm text-blue-700">
+                Your institution hasn't purchased any interview sessions yet. Visit the Session Purchase section to add sessions to your pool.
               </div>
             </div>
           </div>
