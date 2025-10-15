@@ -7,6 +7,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
 import { PlatformSettingsService } from '@/services/platform-settings.service';
 import { InstitutionService } from '@/services/institution.service';
+import { SessionService } from '@/services/session.service';
+import { useToast } from '@/hooks/use-toast';
 
 interface SessionManagementProps {
   onSessionPurchase?: (sessions: number, cost: number) => void;
@@ -26,6 +28,7 @@ const SessionManagement = ({
   const [usedSessions, setUsedSessions] = useState(propUsedSessions || 0);
   const [loading, setLoading] = useState(false);
   const [pricePerMinute, setPricePerMinute] = useState(0.15); // Default $0.15 per minute
+  const { toast } = useToast();
   const isMobile = useIsMobile();
   
   // Fetch platform pricing settings and institution-specific overrides
@@ -61,25 +64,41 @@ const SessionManagement = ({
     fetchPricingSettings();
   }, [institutionId]);
   
-  // If we have an institutionId but no session data, fetch it
+  // Fetch session data from the backend
   useEffect(() => {
     const fetchSessionData = async () => {
-      if (institutionId && (propTotalSessions === undefined || propUsedSessions === undefined)) {
-        setLoading(true);
-        try {
+      if (!institutionId) return;
+      
+      setLoading(true);
+      try {
+        // Try to get session data from the new SessionService first
+        const sessionPool = await SessionService.getSessionPool();
+        if (sessionPool) {
+          setTotalSessions(sessionPool.totalSessions);
+          setUsedSessions(sessionPool.usedSessions);
+        } else {
+          // Fallback to the old method
           const licenseInfo = await InstitutionDashboardService.getLicenseInfo(institutionId);
           setTotalSessions(licenseInfo.totalLicenses);
           setUsedSessions(licenseInfo.usedLicenses);
-        } catch (error) {
-          console.error('Error fetching session data:', error);
-        } finally {
-          setLoading(false);
         }
+      } catch (error) {
+        console.error('Error fetching session data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load session data. Using default values.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
       }
     };
     
-    fetchSessionData();
-  }, [institutionId, propTotalSessions, propUsedSessions]);
+    // Only fetch if we don't have props or if props are undefined
+    if (institutionId && (propTotalSessions === undefined || propUsedSessions === undefined)) {
+      fetchSessionData();
+    }
+  }, [institutionId, propTotalSessions, propUsedSessions, toast]);
   
   // If we receive new props, update state
   useEffect(() => {
@@ -93,12 +112,30 @@ const SessionManagement = ({
   
   const sessionCost = (sessionLength * pricePerMinute).toFixed(2);
   
-  const handleSessionPurchase = (sessions: number, cost: number) => {
+  const handleSessionPurchase = async (sessions: number, cost: number) => {
     setTotalSessions(prev => prev + sessions);
     
     // Notify parent component about session purchase for billing update
     if (onSessionPurchase) {
       onSessionPurchase(sessions, cost);
+    }
+    
+    // Also save to backend if we have an institution ID
+    if (institutionId) {
+      try {
+        await SessionService.createSessionPurchase(sessions, pricePerMinute);
+        toast({
+          title: "Purchase successful",
+          description: `${sessions} sessions have been added to your pool.`,
+        });
+      } catch (error) {
+        console.error('Error saving session purchase:', error);
+        toast({
+          title: "Error",
+          description: "Session purchase was successful but failed to save to backend.",
+          variant: "destructive"
+        });
+      }
     }
   };
   

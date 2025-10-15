@@ -1,6 +1,7 @@
 import { db } from '../lib/firebase';
 import { collection, getDocs, query, where, doc, updateDoc, orderBy, limit, Timestamp, getDoc } from 'firebase/firestore';
 import { UserProfile, Interview } from '../types';
+import { SessionService } from './session.service';
 
 export class InstitutionDashboardService {
   private static readonly INSTITUTIONS_COLLECTION = 'institutions';
@@ -284,6 +285,27 @@ export class InstitutionDashboardService {
    */
   static async getLicenseInfo(institutionId: string): Promise<any> {
     try {
+      // Try to get session data from the new SessionService first
+      try {
+        const sessionPool = await SessionService.getSessionPool();
+        if (sessionPool) {
+          const totalLicenses = sessionPool.totalSessions || 0;
+          const usedLicenses = sessionPool.usedSessions || 0;
+          const availableLicenses = totalLicenses - usedLicenses;
+          const usagePercentage = totalLicenses > 0 ? Math.round((usedLicenses / totalLicenses) * 100) : 0;
+          
+          return {
+            totalLicenses,
+            usedLicenses,
+            availableLicenses,
+            usagePercentage
+          };
+        }
+      } catch (serviceError) {
+        // If SessionService fails, fall back to the old method
+        console.warn('SessionService failed, falling back to Firestore method:', serviceError);
+      }
+      
       // Fetch the institution document to get license information
       const institutionRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId);
       const institutionSnap = await getDoc(institutionRef);
@@ -332,6 +354,43 @@ export class InstitutionDashboardService {
    */
   static async getLicenseStatistics(institutionId: string): Promise<any> {
     try {
+      // Try to get session data from the new SessionService first
+      try {
+        const [sessionPool, allocations] = await Promise.all([
+          SessionService.getSessionPool(),
+          SessionService.getSessionAllocations()
+        ]);
+        
+        if (sessionPool) {
+          const totalLicenses = sessionPool.totalSessions || 0;
+          const usedLicenses = sessionPool.usedSessions || 0;
+          const availableLicenses = totalLicenses - usedLicenses;
+          const usagePercentage = totalLicenses > 0 ? Math.round((usedLicenses / totalLicenses) * 100) : 0;
+          
+          // Calculate department usage if allocations exist
+          const departmentUsage = allocations.map(allocation => ({
+            name: allocation.name || 'Unnamed Department/Group',
+            allocated: allocation.allocatedSessions || 0,
+            used: allocation.usedSessions || 0,
+            percentage: allocation.allocatedSessions > 0 ? 
+              Math.round((allocation.usedSessions / allocation.allocatedSessions) * 100) : 0
+          }));
+          
+          return {
+            totalLicenses,
+            usedLicenses,
+            availableLicenses,
+            usagePercentage,
+            departmentUsage,
+            totalPurchases: 0, // Would need to fetch this separately
+            recentPurchases: [] // Would need to fetch this separately
+          };
+        }
+      } catch (serviceError) {
+        // If SessionService fails, fall back to the old method
+        console.warn('SessionService failed, falling back to Firestore method:', serviceError);
+      }
+      
       // Fetch the institution document to get license information
       const institutionRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId);
       const institutionSnap = await getDoc(institutionRef);
