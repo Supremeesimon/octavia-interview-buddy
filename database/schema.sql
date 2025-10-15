@@ -13,7 +13,7 @@ CREATE EXTENSION IF NOT EXISTS "citext";
 -- ENUM TYPES
 -- =============================================================================
 
-CREATE TYPE user_role AS ENUM ('student', 'institution_admin', 'platform_admin');
+CREATE TYPE user_role AS ENUM ('student', 'teacher', 'institution_admin', 'platform_admin');
 CREATE TYPE interview_status AS ENUM ('scheduled', 'in_progress', 'completed', 'cancelled', 'no_show');
 CREATE TYPE interview_type AS ENUM ('behavioral', 'technical', 'general', 'industry_specific');
 CREATE TYPE resume_type AS ENUM ('pdf', 'linkedin', 'voice');
@@ -39,6 +39,7 @@ CREATE TABLE users (
     last_login_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    firebase_uid VARCHAR(255) UNIQUE, -- Add Firebase UID column
     
     -- Indexes
     CONSTRAINT valid_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
@@ -112,13 +113,13 @@ CREATE TABLE session_pools (
     CONSTRAINT valid_session_counts CHECK (used_sessions <= total_sessions AND used_sessions >= 0)
 );
 
--- Session allocations (department/group specific)
+-- Session allocations (department/student specific)
 CREATE TABLE session_allocations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_pool_id UUID NOT NULL REFERENCES session_pools(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL, -- Department or group name
+    name VARCHAR(255) NOT NULL, -- Department or student name
     department_id VARCHAR(255), -- External department identifier
-    group_id VARCHAR(255), -- External group identifier
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE, -- For per-student allocations
     allocated_sessions INTEGER NOT NULL CHECK (allocated_sessions >= 0),
     used_sessions INTEGER NOT NULL DEFAULT 0,
     
@@ -126,6 +127,22 @@ CREATE TABLE session_allocations (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     CONSTRAINT valid_allocation_counts CHECK (used_sessions <= allocated_sessions AND used_sessions >= 0)
+);
+
+-- Student session requests (for teacher approval)
+CREATE TABLE student_session_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    institution_id UUID NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+    department_id VARCHAR(255) NOT NULL,
+    session_count INTEGER NOT NULL CHECK (session_count > 0),
+    reason TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    reviewed_by UUID REFERENCES users(id), -- Teacher who reviewed the request
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =============================================================================

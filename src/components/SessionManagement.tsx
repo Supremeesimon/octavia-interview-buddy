@@ -64,14 +64,14 @@ const SessionManagement = ({
     fetchPricingSettings();
   }, [institutionId]);
   
-  // Fetch session data from the backend
+  // Fetch interview session data from the backend
   useEffect(() => {
     const fetchSessionData = async () => {
       if (!institutionId) return;
       
       setLoading(true);
       try {
-        // Try to get session data from the new SessionService first
+        // Try to get interview session data from the new SessionService first
         const sessionPool = await SessionService.getSessionPool();
         if (sessionPool) {
           setTotalSessions(sessionPool.totalSessions);
@@ -82,13 +82,36 @@ const SessionManagement = ({
           setTotalSessions(licenseInfo.totalLicenses);
           setUsedSessions(licenseInfo.usedLicenses);
         }
-      } catch (error) {
-        console.error('Error fetching session data:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load session data. Using default values.",
-          variant: "destructive"
-        });
+      } catch (error: any) {
+        console.error('Error fetching interview session data:', error);
+        // Handle different types of errors appropriately
+        // Only show error toast for actual network errors or server errors
+        if (error.status === undefined) {
+          // Network error
+          toast({
+            title: "Network Error",
+            description: "Failed to load interview session data due to network issues. Using default values.",
+            variant: "destructive"
+          });
+        } else if (error.status >= 500) {
+          // Server error
+          toast({
+            title: "Server Error",
+            description: "Failed to load interview session data due to server issues. Using default values.",
+            variant: "destructive"
+          });
+        }
+        // For 404, 400, 401, 403 and other client errors, don't show toast as they're normal states
+        // Try fallback method even if there was an error with SessionService
+        if (institutionId) {
+          try {
+            const licenseInfo = await InstitutionDashboardService.getLicenseInfo(institutionId);
+            setTotalSessions(licenseInfo.totalLicenses);
+            setUsedSessions(licenseInfo.usedLicenses);
+          } catch (fallbackError) {
+            console.error('Error with fallback method:', fallbackError);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -123,16 +146,22 @@ const SessionManagement = ({
     // Also save to backend if we have an institution ID
     if (institutionId) {
       try {
-        await SessionService.createSessionPurchase(sessions, pricePerMinute);
+        await SessionService.createSessionPurchase({
+          institutionId,
+          sessionId: '',
+          quantity: sessions,
+          pricePerSession: parseFloat(sessionCost),
+          totalPrice: cost
+        });
         toast({
           title: "Purchase successful",
-          description: `${sessions} sessions have been added to your pool.`,
+          description: `${sessions} interview sessions have been added to your pool.`,
         });
       } catch (error) {
-        console.error('Error saving session purchase:', error);
+        console.error('Error saving interview session purchase:', error);
         toast({
           title: "Error",
-          description: "Session purchase was successful but failed to save to backend.",
+          description: "Interview session purchase was successful but failed to save to backend.",
           variant: "destructive"
         });
       }
@@ -167,7 +196,7 @@ const SessionManagement = ({
         onSessionPurchase={handleSessionPurchase} 
       />
       
-      <SessionAllocation />
+      <SessionAllocation institutionId={institutionId} />
     </div>
   );
 };

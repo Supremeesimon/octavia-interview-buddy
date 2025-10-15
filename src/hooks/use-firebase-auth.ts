@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { firebaseAuthService } from '@/services/firebase-auth.service';
+import { apiClient } from '@/lib/api-client';
 import type { UserProfile, UserRole } from '@/types';
 
 interface UseFirebaseAuthReturn {
@@ -35,9 +36,29 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
       if (firebaseUser) {
         try {
           console.log('useFirebaseAuth: Fetching user profile for', firebaseUser.uid);
-          const userProfile = await firebaseAuthService.getCurrentUser();
-          console.log('useFirebaseAuth: User profile fetched', { userProfile: !!userProfile });
-          setUser(userProfile);
+          
+          // Get Firebase ID token
+          const firebaseToken = await firebaseUser.getIdToken();
+          
+          // Exchange Firebase token for backend JWT token
+          try {
+            const response = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken });
+            const { user: backendUser, token: backendToken } = response.data;
+            
+            // Set the backend token in apiClient
+            apiClient.setAuthToken(backendToken);
+            
+            // Fetch user profile from our service
+            const userProfile = await firebaseAuthService.getCurrentUser();
+            console.log('useFirebaseAuth: User profile fetched', { userProfile: !!userProfile });
+            setUser(userProfile || backendUser);
+          } catch (exchangeError) {
+            console.error('Error exchanging Firebase token for backend token:', exchangeError);
+            // Fallback to Firebase-only auth
+            const userProfile = await firebaseAuthService.getCurrentUser();
+            console.log('useFirebaseAuth: User profile fetched (fallback)', { userProfile: !!userProfile });
+            setUser(userProfile);
+          }
         } catch (error) {
           console.error('Error getting user profile:', error);
           setError(error instanceof Error ? error.message : 'Failed to get user profile');
@@ -46,6 +67,8 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
       } else {
         console.log('useFirebaseAuth: No firebase user, setting user to null');
         setUser(null);
+        // Clear the auth token when user logs out
+        apiClient.clearAuthToken();
       }
       
       // Always set loading to false after processing
@@ -64,6 +87,16 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     setIsLoading(true);
     try {
       const result = await firebaseAuthService.login({ email, password });
+      
+      // Exchange Firebase token for backend JWT token
+      try {
+        const response = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken: result.token });
+        const { token: backendToken } = response.data;
+        apiClient.setAuthToken(backendToken);
+      } catch (exchangeError) {
+        console.error('Error exchanging Firebase token for backend token:', exchangeError);
+      }
+      
       return result;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Login failed');
@@ -77,6 +110,16 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     setIsLoading(true);
     try {
       const result = await firebaseAuthService.register(data);
+      
+      // Exchange Firebase token for backend JWT token
+      try {
+        const response = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken: result.token });
+        const { token: backendToken } = response.data;
+        apiClient.setAuthToken(backendToken);
+      } catch (exchangeError) {
+        console.error('Error exchanging Firebase token for backend token:', exchangeError);
+      }
+      
       return result;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Registration failed');
@@ -90,6 +133,16 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     setIsLoading(true);
     try {
       const result = await firebaseAuthService.loginWithGoogle(institutionContext);
+      
+      // Exchange Firebase token for backend JWT token
+      try {
+        const response = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken: result.token });
+        const { token: backendToken } = response.data;
+        apiClient.setAuthToken(backendToken);
+      } catch (exchangeError) {
+        console.error('Error exchanging Firebase token for backend token:', exchangeError);
+      }
+      
       return result;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Google login failed');
@@ -103,6 +156,8 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     setIsLoading(true);
     try {
       await firebaseAuthService.logout();
+      // Clear the auth token when user logs out
+      apiClient.clearAuthToken();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Logout failed');
       throw error;

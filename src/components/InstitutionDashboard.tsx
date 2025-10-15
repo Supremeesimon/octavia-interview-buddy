@@ -64,16 +64,16 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [platformEngagement, setPlatformEngagement] = useState<any>({
     resumeInterviewCorrelation: "0%",
     mostUsedFeatures: [],
-    licenseActivationRate: "0%",
+    sessionActivationRate: "0%",
     studentsAtRisk: 0,
     departmentPerformance: []
   });
   
-  // License information state
-  const [totalLicenses, setTotalLicenses] = useState(1000);
-  const [usedLicenses, setUsedLicenses] = useState(300);
-  const [availableLicenses, setAvailableLicenses] = useState(700);
-  const [licenseUsagePercentage, setLicenseUsagePercentage] = useState(30);
+  // Session information state (renamed from license information)
+  const [totalSessions, setTotalSessions] = useState(1000);
+  const [usedSessions, setUsedSessions] = useState(300);
+  const [availableSessions, setAvailableSessions] = useState(700);
+  const [sessionUsagePercentage, setSessionUsagePercentage] = useState(30);
   
   // Student analytics state
   const [approvedStudents, setApprovedStudents] = useState(0);
@@ -107,11 +107,11 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
         setDashboardTeachers(teachersData);
         setDashboardScheduledInterviews(interviewsData);
         
-        // Update license info
-        setTotalLicenses(licenseInfo.totalLicenses);
-        setUsedLicenses(licenseInfo.usedLicenses);
-        setAvailableLicenses(licenseInfo.availableLicenses);
-        setLicenseUsagePercentage(licenseInfo.usagePercentage);
+        // Update session info (renamed from license info)
+        setTotalSessions(licenseInfo.totalLicenses);
+        setUsedSessions(licenseInfo.usedLicenses);
+        setAvailableSessions(licenseInfo.availableLicenses);
+        setSessionUsagePercentage(licenseInfo.usagePercentage);
         
         // Update student analytics
         setApprovedStudents(studentAnalytics.activeStudents);
@@ -294,14 +294,14 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium">Licenses</h3>
+            <h3 className="font-medium">Interview Sessions</h3>
             <Users className="text-primary h-5 w-5" />
           </div>
-          <div className="text-3xl font-bold mb-2">{usedLicenses} / {totalLicenses}</div>
-          <Progress value={(usedLicenses / totalLicenses) * 100} className="h-2 mb-2" tooltip="Progress bar showing license usage" />
+          <div className="text-3xl font-bold mb-2">{usedSessions} / {totalSessions}</div>
+          <Progress value={(usedSessions / totalSessions) * 100} className="h-2 mb-2" tooltip="Progress bar showing session usage" />
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>{totalLicenses - usedLicenses} licenses available</span>
-            <span>{Math.round((usedLicenses / totalLicenses) * 100)}% used</span>
+            <span>{totalSessions - usedSessions} sessions available</span>
+            <span>{Math.round((usedSessions / totalSessions) * 100)}% used</span>
           </div>
         </Card>
         
@@ -410,6 +410,13 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
             className={activeMainTab === "students" ? "border-b-2 border-primary" : ""}
           >
             Students
+          </TabsTrigger>
+          <TabsTrigger 
+            value="teachers"
+            tooltip="View and manage all teachers in your institution"
+            className={activeMainTab === "teachers" ? "border-b-2 border-primary" : ""}
+          >
+            Teachers
           </TabsTrigger>
           <TabsTrigger 
             value="approvals"
@@ -584,6 +591,86 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
           </Card>
         </TabsContent>
         
+        <TabsContent value="teachers">
+          <Card>
+            <CardHeader className="pb-0">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search teachers..."
+                    className="pl-8 h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full md:w-[250px]"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                    tooltip="Export teacher data to CSV"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="p-0">
+              <ScrollArea className="h-[450px]">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="w-[250px]">Name / Email</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Students</TableHead>
+                      <TableHead>Interviews</TableHead>
+                      <TableHead>Signup Date</TableHead>
+                      <TableHead>Last Activity</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dashboardTeachers.length > 0 ? (
+                      dashboardTeachers.map(teacher => (
+                        <TableRow key={teacher.id}>
+                          <TableCell className="font-medium">
+                            <div>{teacher.name}</div>
+                            <div className="text-sm text-muted-foreground">{teacher.email}</div>
+                          </TableCell>
+                          <TableCell>{teacher.department || 'Unassigned'}</TableCell>
+                          <TableCell>{Math.floor(Math.random() * 50)}</TableCell>
+                          <TableCell>{Math.floor(Math.random() * 100)}</TableCell>
+                          <TableCell>{new Date(teacher.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(teacher.updatedAt || teacher.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8"
+                              tooltip="View detailed teacher profile"
+                            >
+                              View Profile
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          No teachers found in your institution
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
         <TabsContent value="approvals">
           <Card>
             <CardHeader>
@@ -697,11 +784,11 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
             
             <SessionManagement 
               institutionId={user?.institutionId}
-              totalSessions={totalLicenses}
-              usedSessions={usedLicenses}
+              totalSessions={totalSessions}
+              usedSessions={usedSessions}
               onSessionPurchase={(sessions, cost) => {
-                // Update the license info when sessions are purchased
-                setTotalLicenses(prev => prev + sessions);
+                // Update the session info when sessions are purchased
+                setTotalSessions(prev => prev + sessions);
               }}
             />
           </div>

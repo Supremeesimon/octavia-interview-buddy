@@ -1,17 +1,17 @@
 import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
 
-// Test function to verify real license data fetching
-async function testRealLicenseData() {
+// Test function to verify real interview session data fetching
+async function testRealInterviewSessionData() {
   try {
-    console.log('Testing real license data fetching...');
+    console.log('Testing real interview session data fetching...');
     
     // Use a real institution ID from the test output
     const realInstitutionId = 'o27XAYG3ifHmWKM56aTV';
     
     // Test getLicenseInfo with real institution ID
     console.log('Testing getLicenseInfo with real institution ID...');
-    const licenseInfo = await InstitutionDashboardService.getLicenseInfo(realInstitutionId);
-    console.log('   Real license info:', licenseInfo);
+    const sessionInfo = await InstitutionDashboardService.getLicenseInfo(realInstitutionId);
+    console.log('   Real interview session info:', sessionInfo);
     
     // Test getStudentAnalytics with real institution ID
     console.log('Testing getStudentAnalytics with real institution ID...');
@@ -21,21 +21,21 @@ async function testRealLicenseData() {
     console.log('Real data fetching test completed!');
     
     return {
-      licenseInfo,
+      sessionInfo,
       studentAnalytics
     };
   } catch (error) {
     console.error('Error testing real data fetching:', error);
     return {
-      licenseInfo: null,
+      sessionInfo: null,
       studentAnalytics: null
     };
   }
 }
 
 // Run the test
-testRealLicenseData().then(result => {
-  console.log('Real license data test result:', result);
+testRealInterviewSessionData().then(result => {
+  console.log('Real interview session data test result:', result);
 });
 
-export default testRealLicenseData;
+export default testRealInterviewSessionData;

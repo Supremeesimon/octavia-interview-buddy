@@ -40,7 +40,7 @@ const config: Config = {
     enableDevtools: import.meta.env.VITE_ENABLE_DEVTOOLS === 'true',
   },
   api: {
-    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3005/api',
     timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000', 10),
     mockApi: import.meta.env.VITE_MOCK_API === 'true',
   },

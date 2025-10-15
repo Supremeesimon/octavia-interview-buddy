@@ -21,8 +21,8 @@ interface BillingControlsProps {
 
 const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   const { toast } = useToast();
-  const [licenseCount, setLicenseCount] = useState(1000);
-  const [licensesToPurchase, setLicensesToPurchase] = useState(100);
+  const [sessionCount, setSessionCount] = useState(1000);
+  const [sessionsToPurchase, setSessionsToPurchase] = useState(100);
   const [cards, setCards] = useState([
     { id: 1, type: 'Visa', last4: '4242', expiry: '05/25', default: true }
   ]);
@@ -34,7 +34,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   }>>([
     {
       date: new Date(2025, 2, 15), // March 15, 2025
-      description: "Quarterly license payment (1000 students)",
+      description: "Quarterly session payment (1000 students)",
       amount: 4990,
       status: 'paid'
     },
@@ -46,14 +46,14 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     },
     {
       date: new Date(2024, 11, 15), // December 15, 2024
-      description: "Quarterly license payment (1000 students)",
+      description: "Quarterly session payment (1000 students)",
       amount: 4990,
       status: 'paid'
     }
   ]);
   
-  const PRICE_PER_LICENSE_ANNUAL = 19.96; // $19.96 per student annually
-  const PRICE_PER_LICENSE_QUARTERLY = 4.99; // $4.99 per student quarterly
+  const PRICE_PER_SESSION_ANNUAL = 19.96; // $19.96 per student annually
+  const PRICE_PER_SESSION_QUARTERLY = 4.99; // $4.99 per student quarterly
   
   useEffect(() => {
     if (sessionPurchases.length > 0) {
@@ -80,25 +80,25 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     }
   }, [sessionPurchases]);
   
-  const calculateAnnualLicenseCost = (count) => {
-    return (count * PRICE_PER_LICENSE_ANNUAL).toFixed(2);
+  const calculateAnnualSessionCost = (count) => {
+    return (count * PRICE_PER_SESSION_ANNUAL).toFixed(2);
   };
   
-  const calculateQuarterlyLicenseCost = (count) => {
-    return (count * PRICE_PER_LICENSE_QUARTERLY).toFixed(2);
+  const calculateQuarterlySessionCost = (count) => {
+    return (count * PRICE_PER_SESSION_QUARTERLY).toFixed(2);
   };
   
-  const handleLicenseChange = (count) => {
-    setLicensesToPurchase(count);
+  const handleSessionChange = (count) => {
+    setSessionsToPurchase(count);
   };
   
-  const handlePurchaseLicenses = () => {
-    setLicenseCount(prev => prev + licensesToPurchase);
+  const handlePurchaseSessions = () => {
+    setSessionCount(prev => prev + sessionsToPurchase);
     
     const newPurchase = {
       date: new Date(),
-      description: `License purchase (${licensesToPurchase} students)`,
-      amount: Number(calculateQuarterlyLicenseCost(licensesToPurchase)),
+      description: `Session purchase (${sessionsToPurchase} students)`,
+      amount: Number(calculateQuarterlySessionCost(sessionsToPurchase)),
       status: 'paid' as const
     };
     
@@ -106,7 +106,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     
     toast({
       title: "Purchase successful",
-      description: `Added ${licensesToPurchase} student licenses to your institution`,
+      description: `Added ${sessionsToPurchase} student sessions to your institution`,
     });
   };
   
@@ -139,11 +139,11 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card tooltip="Purchase access licenses for your students to use the platform">
+        <Card tooltip="Purchase access sessions for your students to use the platform">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              Purchase Licenses
+              Purchase Sessions
             </CardTitle>
             <CardDescription>
               Get access to the platform for your students to book interviews
@@ -152,18 +152,18 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between">
-                <Label htmlFor="license-purchase">Current licenses:</Label>
-                <span className="font-medium">{licenseCount} students</span>
+                <Label htmlFor="session-purchase">Current sessions:</Label>
+                <span className="font-medium">{sessionCount} students</span>
               </div>
               
-              <Label htmlFor="license-purchase">Number of licenses to purchase</Label>
+              <Label htmlFor="session-purchase">Number of sessions to purchase</Label>
               <div className="flex space-x-2">
                 <Input
-                  id="license-purchase"
+                  id="session-purchase"
                   type="number"
                   min="1"
-                  value={licensesToPurchase}
-                  onChange={(e) => handleLicenseChange(parseInt(e.target.value) || 100)}
+                  value={sessionsToPurchase}
+                  onChange={(e) => handleSessionChange(parseInt(e.target.value) || 100)}
                   className="text-right"
                 />
                 <span className="flex items-center text-muted-foreground px-2">students</span>
@@ -171,49 +171,49 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
             </div>
             
             <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" onClick={() => handleLicenseChange(100)}>
-                100 Licenses
+              <Button variant="outline" onClick={() => handleSessionChange(100)}>
+                100 Sessions
               </Button>
-              <Button variant="outline" onClick={() => handleLicenseChange(500)}>
-                500 Licenses
+              <Button variant="outline" onClick={() => handleSessionChange(500)}>
+                500 Sessions
               </Button>
-              <Button variant="outline" onClick={() => handleLicenseChange(1000)}>
-                1000 Licenses
+              <Button variant="outline" onClick={() => handleSessionChange(1000)}>
+                1000 Sessions
               </Button>
             </div>
             
             <div className="bg-primary/5 p-3 rounded-md space-y-2">
               <div className="flex justify-between">
-                <span>Licenses</span>
-                <span>{licensesToPurchase} students</span>
+                <span>Sessions</span>
+                <span>{sessionsToPurchase} students</span>
               </div>
               <div className="flex justify-between">
                 <span>Quarterly cost</span>
-                <span>${calculateQuarterlyLicenseCost(licensesToPurchase)}</span>
+                <span>${calculateQuarterlySessionCost(sessionsToPurchase)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Annual cost</span>
-                <span>${calculateAnnualLicenseCost(licensesToPurchase)}</span>
+                <span>${calculateAnnualSessionCost(sessionsToPurchase)}</span>
               </div>
               <div className="h-px bg-primary/10 my-1"></div>
               <div className="flex justify-between font-bold">
                 <span>Total annual cost</span>
-                <span>${calculateAnnualLicenseCost(licensesToPurchase)}</span>
+                <span>${calculateAnnualSessionCost(sessionsToPurchase)}</span>
               </div>
             </div>
             
             <div className="text-sm text-muted-foreground mt-2">
-              <p>Each license gives a student access to the platform to book interview sessions from your shared pool.</p>
+              <p>Each session gives a student access to the platform to book interview sessions from your shared pool.</p>
               <p className="mt-1">You can purchase additional sessions separately in the Session Pool tab.</p>
             </div>
           </CardContent>
           <CardFooter>
             <Button 
               className="w-full"
-              onClick={handlePurchaseLicenses}
+              onClick={handlePurchaseSessions}
             >
-              <DollarSign className="h-4 w-4 mr-2" />
-              Purchase Licenses
+              <Wallet className="h-4 w-4 mr-2" />
+              Purchase Sessions
             </Button>
           </CardFooter>
         </Card>
@@ -297,14 +297,14 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Active Licenses</div>
-              <div className="text-2xl font-bold">{licenseCount}</div>
+              <div className="text-muted-foreground text-sm">Active Sessions</div>
+              <div className="text-2xl font-bold">{sessionCount}</div>
               <div className="text-xs text-muted-foreground mt-1">Students</div>
             </div>
             
             <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Quarterly License Cost</div>
-              <div className="text-2xl font-bold">${calculateQuarterlyLicenseCost(licenseCount)}</div>
+              <div className="text-muted-foreground text-sm">Quarterly Session Cost</div>
+              <div className="text-2xl font-bold">${calculateQuarterlySessionCost(sessionCount)}</div>
               <div className="text-xs text-muted-foreground mt-1">Next payment: June 1, 2025</div>
             </div>
             
@@ -317,14 +317,14 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
             <div className="bg-muted rounded-md p-3">
               <div className="text-muted-foreground text-sm">Total Quarterly Cost</div>
               <div className="text-2xl font-bold">
-                ${(parseFloat(calculateQuarterlyLicenseCost(licenseCount)) + totalSessionCost).toFixed(2)}
+                ${(parseFloat(calculateQuarterlySessionCost(sessionCount)) + totalSessionCost).toFixed(2)}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">Licenses + Sessions</div>
+              <div className="text-xs text-muted-foreground mt-1">Sessions + Additional Purchases</div>
             </div>
           </div>
           
           <div className="bg-primary/5 p-4 rounded-md">
-            <h3 className="font-medium mb-2">License Benefits</h3>
+            <h3 className="font-medium mb-2">Session Benefits</h3>
             <ul className="space-y-1 text-sm">
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-0.5">•</span>

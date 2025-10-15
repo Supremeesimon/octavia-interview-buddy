@@ -93,7 +93,7 @@ const authController = {
   // Register new user
   async register(req, res) {
     try {
-      const { email, password, name, institutionId } = req.body;
+      const { email, password, name, institutionId, role } = req.body;
 
       // Validate input
       if (!email || !password || !name) {
@@ -123,6 +123,9 @@ const authController = {
       // Generate email verification token
       const emailVerificationToken = uuidv4();
 
+      // Determine user role - default to 'student' if not provided
+      const userRole = role && ['student', 'teacher', 'institution_admin'].includes(role) ? role : 'student';
+
       // Insert new user
       const result = await db.query(
         `INSERT INTO users (email, password_hash, name, role, institution_id, email_verification_token)
@@ -132,7 +135,7 @@ const authController = {
           email,
           hashedPassword,
           name,
-          'student', // Default role
+          userRole,
           institutionId,
           emailVerificationToken
         ]
@@ -506,6 +509,114 @@ const authController = {
       });
     } catch (error) {
       console.error('Update profile error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  },
+
+  // Exchange Firebase ID token for backend JWT token
+  async exchangeFirebaseToken(req, res) {
+    try {
+      const { firebaseToken } = req.body;
+
+      if (!firebaseToken) {
+        return res.status(400).json({
+          success: false,
+          message: 'Firebase token is required'
+        });
+      }
+
+      // Verify Firebase ID token
+      if (!firebaseAdmin) {
+        return res.status(500).json({
+          success: false,
+          message: 'Firebase Admin not initialized'
+        });
+      }
+
+      let decodedToken;
+      try {
+        decodedToken = await firebaseAdmin.auth().verifyIdToken(firebaseToken);
+      } catch (error) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid Firebase token'
+        });
+      }
+
+      const firebaseUid = decodedToken.uid;
+      const firebaseEmail = decodedToken.email;
+
+      // Find user in database by Firebase UID
+      const result = await db.query(
+        'SELECT * FROM users WHERE firebase_uid = $1',
+        [firebaseUid]
+      );
+
+      let user = result.rows[0];
+
+      // If user doesn't exist in our database, create them
+      if (!user) {
+        // Try to find by email as fallback
+        const emailResult = await db.query(
+          'SELECT * FROM users WHERE email = $1',
+          [firebaseEmail]
+        );
+        
+        user = emailResult.rows[0];
+        
+        if (user) {
+          // Update existing user with Firebase UID
+          await db.query(
+            'UPDATE users SET firebase_uid = $1 WHERE id = $2',
+            [firebaseUid, user.id]
+          );
+        } else {
+          // Create new user
+          const name = decodedToken.name || firebaseEmail.split('@')[0] || 'Anonymous User';
+          
+          // Determine role (this is a simplified approach - you might want to implement a more sophisticated role assignment)
+          const role = 'student'; // Default role
+          
+          const insertResult = await db.query(
+            `INSERT INTO users (email, name, role, firebase_uid, is_email_verified, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+             RETURNING *`,
+            [firebaseEmail, name, role, firebaseUid, true]
+          );
+          
+          user = insertResult.rows[0];
+        }
+      }
+
+      // Generate backend JWT token
+      const token = generateToken(user);
+
+      // Update last login
+      await db.query(
+        'UPDATE users SET last_login_at = NOW() WHERE id = $1',
+        [user.id]
+      );
+
+      res.json({
+        success: true,
+        message: 'Token exchange successful',
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            institutionId: user.institution_id,
+            isEmailVerified: user.is_email_verified
+          },
+          token
+        }
+      });
+    } catch (error) {
+      console.error('Token exchange error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'

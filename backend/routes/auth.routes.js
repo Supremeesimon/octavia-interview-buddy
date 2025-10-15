@@ -12,6 +12,7 @@ router.post('/request-password-reset', authController.requestPasswordReset);
 router.post('/reset-password', authController.resetPassword);
 router.post('/verify-email', authController.verifyEmail);
 router.post('/resend-verification', authController.resendEmailVerification);
+router.post('/exchange-firebase-token', authController.exchangeFirebaseToken); // New route
 
 // Protected routes
 router.post('/change-password', authenticateToken, authController.changePassword);

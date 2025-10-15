@@ -31,6 +31,7 @@ import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import DebugDashboard from './DebugDashboard';
 import StudentMessageInbox from './StudentMessageInbox';
+import InterviewSessionRequest from './InterviewSessionRequest';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -434,6 +435,15 @@ const StudentDashboard = () => {
             )}
           </CardFooter>
         </Card>
+      </div>
+      
+      {/* Interview Session Request Panel */}
+      <div className="mb-8">
+        <InterviewSessionRequest 
+          studentId={user?.id || ''} 
+          institutionId={user?.institutionId || ''}
+          departmentId="engineering" // This would come from user data in a real implementation
+        />
       </div>
       
       <Tabs defaultValue="history" className="mb-8">

@@ -71,7 +71,16 @@ const sessionController = {
   // Get session pool for institution
   async getSessionPool(req, res) {
     try {
-      const institutionId = req.user.institutionId;
+      // More robust handling of user data
+      const institutionId = req.user && req.user.institutionId ? req.user.institutionId : null;
+
+      // Check if institutionId is available
+      if (!institutionId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Institution ID not found in user data'
+        });
+      }
 
       const result = await db.query(
         `SELECT id, total_sessions, used_sessions, created_at, updated_at
@@ -81,10 +90,18 @@ const sessionController = {
       );
 
       const sessionPool = result.rows[0] || null;
+      
+      // Calculate available sessions
+      const availableSessions = sessionPool ? sessionPool.total_sessions - sessionPool.used_sessions : 0;
 
       res.json({
         success: true,
-        data: sessionPool
+        data: sessionPool ? {
+          totalSessions: sessionPool.total_sessions,
+          usedSessions: sessionPool.used_sessions,
+          availableSessions: availableSessions,
+          lastUpdated: sessionPool.updated_at
+        } : null
       });
     } catch (error) {
       console.error('Get session pool error:', error);
@@ -98,7 +115,15 @@ const sessionController = {
   // Get session allocations for institution
   async getSessionAllocations(req, res) {
     try {
-      const institutionId = req.user.institutionId;
+      const institutionId = req.user && req.user.institutionId ? req.user.institutionId : null;
+
+      // Check if institutionId is available
+      if (!institutionId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Institution ID not found in user data'
+        });
+      }
 
       // First get the session pool ID
       const poolResult = await db.query(
@@ -116,16 +141,28 @@ const sessionController = {
       const sessionPoolId = poolResult.rows[0].id;
 
       const result = await db.query(
-        `SELECT id, name, department_id, group_id, allocated_sessions, used_sessions, created_at, updated_at
+        `SELECT id, name, department_id, student_id, allocated_sessions, used_sessions, created_at, updated_at
          FROM session_allocations 
          WHERE session_pool_id = $1 
          ORDER BY name`,
         [sessionPoolId]
       );
 
+      // Format the data to match frontend expectations
+      const formattedAllocations = result.rows.map(allocation => ({
+        id: allocation.id,
+        name: allocation.name,
+        departmentId: allocation.department_id,
+        studentId: allocation.student_id,
+        allocatedSessions: allocation.allocated_sessions,
+        usedSessions: allocation.used_sessions,
+        createdAt: allocation.created_at,
+        updatedAt: allocation.updated_at
+      }));
+
       res.json({
         success: true,
-        data: result.rows
+        data: formattedAllocations
       });
     } catch (error) {
       console.error('Get session allocations error:', error);
@@ -140,7 +177,7 @@ const sessionController = {
   async createSessionAllocation(req, res) {
     try {
       const institutionId = req.user.institutionId;
-      const { name, departmentId, groupId, allocatedSessions } = req.body;
+      const { name, departmentId, studentId, allocatedSessions } = req.body;
 
       // Validate input
       if (!name || !allocatedSessions || allocatedSessions <= 0) {
@@ -167,10 +204,10 @@ const sessionController = {
 
       // Insert new session allocation
       const result = await db.query(
-        `INSERT INTO session_allocations (session_pool_id, name, department_id, group_id, allocated_sessions)
+        `INSERT INTO session_allocations (session_pool_id, name, department_id, student_id, allocated_sessions)
          VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, name, department_id, group_id, allocated_sessions, used_sessions, created_at`,
-        [sessionPoolId, name, departmentId, groupId, allocatedSessions]
+         RETURNING id, name, department_id, student_id, allocated_sessions, used_sessions, created_at`,
+        [sessionPoolId, name, departmentId, studentId, allocatedSessions]
       );
 
       const newAllocation = result.rows[0];
@@ -193,7 +230,7 @@ const sessionController = {
   async updateSessionAllocation(req, res) {
     try {
       const { id } = req.params;
-      const { name, departmentId, groupId, allocatedSessions } = req.body;
+      const { name, departmentId, studentId, allocatedSessions } = req.body;
 
       // Build update query dynamically
       const updates = [];
@@ -212,9 +249,9 @@ const sessionController = {
         index++;
       }
 
-      if (groupId !== undefined) {
-        updates.push(`group_id = $${index}`);
-        values.push(groupId);
+      if (studentId !== undefined) {
+        updates.push(`student_id = $${index}`);
+        values.push(studentId);
         index++;
       }
 
@@ -238,7 +275,7 @@ const sessionController = {
         `UPDATE session_allocations 
          SET ${updates.join(', ')}, updated_at = NOW() 
          WHERE id = $${index} 
-         RETURNING id, name, department_id, group_id, allocated_sessions, used_sessions, updated_at`,
+         RETURNING id, name, department_id, student_id, allocated_sessions, used_sessions, updated_at`,
         values
       );
 

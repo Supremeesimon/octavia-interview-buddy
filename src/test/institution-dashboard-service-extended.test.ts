@@ -30,8 +30,13 @@ async function testInstitutionDashboardServiceExtended() {
     
     // Test getLicenseInfo
     console.log('5. Testing getLicenseInfo...');
-    const licenseInfo = await InstitutionDashboardService.getLicenseInfo(testInstitutionId);
-    console.log('   License info:', licenseInfo);
+    const sessionInfo = await InstitutionDashboardService.getLicenseInfo(testInstitutionId);
+    console.log('   Interview session info:', sessionInfo);
+    
+    // Test getLicenseStatistics
+    console.log('6. Testing getLicenseStatistics...');
+    const sessionStatistics = await InstitutionDashboardService.getLicenseStatistics(testInstitutionId);
+    console.log('   Interview session statistics:', sessionStatistics);
     
     console.log('All InstitutionDashboardService methods executed successfully!');
     
@@ -40,7 +45,8 @@ async function testInstitutionDashboardServiceExtended() {
       teachersCount: teachers.length,
       interviewsCount: interviews.length,
       studentAnalytics,
-      licenseInfo
+      sessionInfo,
+      sessionStatistics
     };
   } catch (error) {
     console.error('Error testing InstitutionDashboardService:', error);
@@ -49,14 +55,15 @@ async function testInstitutionDashboardServiceExtended() {
       teachersCount: 0,
       interviewsCount: 0,
       studentAnalytics: null,
-      licenseInfo: null
+      sessionInfo: null,
+      sessionStatistics: null
     };
   }
 }
 
 // Run the test
 testInstitutionDashboardServiceExtended().then(result => {
-  console.log('InstitutionDashboardService extended test result:', result);
+  console.log('InstitutionDashboardService test result:', result);
 });
 
 export default testInstitutionDashboardServiceExtended;

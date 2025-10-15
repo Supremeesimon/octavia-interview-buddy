@@ -3,13 +3,13 @@
  * Handles user authentication, registration, and session management
  */
 
-import apiClient from '@/lib/api-client';
+import apiClient, { ApiResponse } from '@/lib/api-client';
 import type { 
   User, 
   LoginRequest, 
   LoginResponse, 
   SignupRequest,
-  ApiResponse 
+  UserRole
 } from '@/types';
 
 export class AuthService {
@@ -75,7 +75,7 @@ export class AuthService {
   /**
    * Register new user
    */
-  async register(userData: SignupRequest): Promise<User> {
+  async register(userData: SignupRequest & { role?: UserRole, department?: string, yearOfStudy?: string }): Promise<User> {
     try {
       const response: ApiResponse<LoginResponse> = await apiClient.post('/auth/register', userData);
       

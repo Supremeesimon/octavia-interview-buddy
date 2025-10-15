@@ -279,9 +279,9 @@ export class InstitutionDashboardService {
   }
 
   /**
-   * Fetch license information for an institution
+   * Fetch session information for an institution
    * @param institutionId - The ID of the institution
-   * @returns License information
+   * @returns Session information
    */
   static async getLicenseInfo(institutionId: string): Promise<any> {
     try {
@@ -289,41 +289,52 @@ export class InstitutionDashboardService {
       try {
         const sessionPool = await SessionService.getSessionPool();
         if (sessionPool) {
-          const totalLicenses = sessionPool.totalSessions || 0;
-          const usedLicenses = sessionPool.usedSessions || 0;
-          const availableLicenses = totalLicenses - usedLicenses;
-          const usagePercentage = totalLicenses > 0 ? Math.round((usedLicenses / totalLicenses) * 100) : 0;
+          const totalSessions = sessionPool.totalSessions || 0;
+          const usedSessions = sessionPool.usedSessions || 0;
+          const availableSessions = totalSessions - usedSessions;
+          const usagePercentage = totalSessions > 0 ? Math.round((usedSessions / totalSessions) * 100) : 0;
           
           return {
-            totalLicenses,
-            usedLicenses,
-            availableLicenses,
+            totalSessions,
+            usedSessions,
+            availableSessions,
             usagePercentage
           };
         }
       } catch (serviceError) {
-        // If SessionService fails, fall back to the old method
+        // If SessionService fails with actual errors (not 404/400), log and fall back
+        // For 404/400 errors, SessionService now returns null instead of throwing
         console.warn('SessionService failed, falling back to Firestore method:', serviceError);
+        
+        // Show error toast only for actual network/server errors
+        if (serviceError.status === undefined) {
+          // Network error
+          console.error('Network error with SessionService:', serviceError.message);
+        } else if (serviceError.status >= 500) {
+          // Server error
+          console.error('Server error with SessionService:', serviceError.message);
+        }
       }
       
-      // Fetch the institution document to get license information
+      // Fetch the institution document to get session information
       const institutionRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId);
       const institutionSnap = await getDoc(institutionRef);
       
       if (institutionSnap.exists()) {
         const data = institutionSnap.data();
-        // Extract license information from sessionPool
+        
+        // Extract session information from sessionPool
         if (data.sessionPool) {
           const sessionPool = data.sessionPool;
-          const totalLicenses = sessionPool.totalSessions || 0;
-          const usedLicenses = sessionPool.usedSessions || 0;
-          const availableLicenses = sessionPool.availableSessions || 0;
-          const usagePercentage = totalLicenses > 0 ? Math.round((usedLicenses / totalLicenses) * 100) : 0;
+          const totalSessions = sessionPool.totalSessions || 0;
+          const usedSessions = sessionPool.usedSessions || 0;
+          const availableSessions = sessionPool.availableSessions || 0;
+          const usagePercentage = totalSessions > 0 ? Math.round((usedSessions / totalSessions) * 100) : 0;
           
           return {
-            totalLicenses,
-            usedLicenses,
-            availableLicenses,
+            totalSessions,
+            usedSessions,
+            availableSessions,
             usagePercentage
           };
         }
@@ -331,26 +342,26 @@ export class InstitutionDashboardService {
       
       // Default values if institution not found or no sessionPool
       return {
-        totalLicenses: 0,
-        usedLicenses: 0,
-        availableLicenses: 0,
+        totalSessions: 0,
+        usedSessions: 0,
+        availableSessions: 0,
         usagePercentage: 0
       };
     } catch (error) {
-      console.error('Error fetching license info:', error);
+      console.error('Error fetching session info:', error);
       return {
-        totalLicenses: 0,
-        usedLicenses: 0,
-        availableLicenses: 0,
+        totalSessions: 0,
+        usedSessions: 0,
+        availableSessions: 0,
         usagePercentage: 0
       };
     }
   }
-
+  
   /**
-   * Fetch comprehensive license and usage statistics for an institution
+   * Fetch comprehensive session and usage statistics for an institution
    * @param institutionId - The ID of the institution
-   * @returns Comprehensive license and usage statistics
+   * @returns Comprehensive session and usage statistics
    */
   static async getLicenseStatistics(institutionId: string): Promise<any> {
     try {
@@ -362,10 +373,10 @@ export class InstitutionDashboardService {
         ]);
         
         if (sessionPool) {
-          const totalLicenses = sessionPool.totalSessions || 0;
-          const usedLicenses = sessionPool.usedSessions || 0;
-          const availableLicenses = totalLicenses - usedLicenses;
-          const usagePercentage = totalLicenses > 0 ? Math.round((usedLicenses / totalLicenses) * 100) : 0;
+          const totalSessions = sessionPool.totalSessions || 0;
+          const usedSessions = sessionPool.usedSessions || 0;
+          const availableSessions = totalSessions - usedSessions;
+          const usagePercentage = totalSessions > 0 ? Math.round((usedSessions / totalSessions) * 100) : 0;
           
           // Calculate department usage if allocations exist
           const departmentUsage = allocations.map(allocation => ({
@@ -377,34 +388,44 @@ export class InstitutionDashboardService {
           }));
           
           return {
-            totalLicenses,
-            usedLicenses,
-            availableLicenses,
+            totalSessions,
+            usedSessions,
+            availableSessions,
             usagePercentage,
             departmentUsage,
             totalPurchases: 0, // Would need to fetch this separately
             recentPurchases: [] // Would need to fetch this separately
           };
         }
-      } catch (serviceError) {
-        // If SessionService fails, fall back to the old method
+      } catch (serviceError: any) {
+        // If SessionService fails with actual errors (not 404/400), log and fall back
+        // For 404/400 errors, SessionService now returns null/[] instead of throwing
         console.warn('SessionService failed, falling back to Firestore method:', serviceError);
+        
+        // Show error toast only for actual network/server errors
+        if (serviceError.status === undefined) {
+          // Network error
+          console.error('Network error with SessionService:', serviceError.message);
+        } else if (serviceError.status >= 500) {
+          // Server error
+          console.error('Server error with SessionService:', serviceError.message);
+        }
       }
       
-      // Fetch the institution document to get license information
+      // Fetch the institution document to get session information
       const institutionRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId);
       const institutionSnap = await getDoc(institutionRef);
       
       if (institutionSnap.exists()) {
         const data = institutionSnap.data();
         
-        // Extract license information from sessionPool
+        // Extract session information from sessionPool
         if (data.sessionPool) {
           const sessionPool = data.sessionPool;
-          const totalLicenses = sessionPool.totalSessions || 0;
-          const usedLicenses = sessionPool.usedSessions || 0;
-          const availableLicenses = sessionPool.availableSessions || 0;
-          const usagePercentage = totalLicenses > 0 ? Math.round((usedLicenses / totalLicenses) * 100) : 0;
+          const totalSessions = sessionPool.totalSessions || 0;
+          const usedSessions = sessionPool.usedSessions || 0;
+          const availableSessions = sessionPool.availableSessions || 0;
+          const usagePercentage = totalSessions > 0 ? Math.round((usedSessions / totalSessions) * 100) : 0;
           
           // Get additional information from session allocations
           const allocations = sessionPool.allocations || [];
@@ -420,9 +441,9 @@ export class InstitutionDashboardService {
           }));
           
           return {
-            totalLicenses,
-            usedLicenses,
-            availableLicenses,
+            totalSessions,
+            usedSessions,
+            availableSessions,
             usagePercentage,
             departmentUsage,
             totalPurchases: purchases.length,
@@ -433,20 +454,20 @@ export class InstitutionDashboardService {
       
       // Default values if institution not found or no sessionPool
       return {
-        totalLicenses: 0,
-        usedLicenses: 0,
-        availableLicenses: 0,
+        totalSessions: 0,
+        usedSessions: 0,
+        availableSessions: 0,
         usagePercentage: 0,
         departmentUsage: [],
         totalPurchases: 0,
         recentPurchases: []
       };
     } catch (error) {
-      console.error('Error fetching license statistics:', error);
+      console.error('Error fetching session statistics:', error);
       return {
-        totalLicenses: 0,
-        usedLicenses: 0,
-        availableLicenses: 0,
+        totalSessions: 0,
+        usedSessions: 0,
+        availableSessions: 0,
         usagePercentage: 0,
         departmentUsage: [],
         totalPurchases: 0,
@@ -649,7 +670,7 @@ export class InstitutionDashboardService {
         return {
           resumeInterviewCorrelation: "0%",
           mostUsedFeatures: ["Resume Builder", "Mock Interviews", "Feedback Analysis"],
-          licenseActivationRate: "0%",
+          sessionActivationRate: "0%", // Changed from licenseActivationRate
           studentsAtRisk: 0,
           departmentPerformance: []
         };
@@ -666,10 +687,10 @@ export class InstitutionDashboardService {
       const studentsAtRisk = filteredAnalyses.filter(a => 
         (a.overallScore || a.successEvaluation?.score || 100) < 70).length;
       
-      // Get license info for activation rate
-      const licenseInfo = await this.getLicenseInfo(institutionId);
-      const licenseActivationRate = licenseInfo.totalLicenses > 0 ? 
-        `${Math.round((activeStudents / licenseInfo.totalLicenses) * 100)}%` : "0%";
+      // Get session info for activation rate
+      const sessionInfo = await this.getLicenseInfo(institutionId);
+      const sessionActivationRate = sessionInfo.totalSessions > 0 ? 
+        `${Math.round((activeStudents / sessionInfo.totalSessions) * 100)}%` : "0%";
       
       // Mock department performance data
       const departments = await this.getInstitutionDepartments(institutionId);
@@ -681,7 +702,7 @@ export class InstitutionDashboardService {
       return {
         resumeInterviewCorrelation: `${Math.min(95, Math.max(60, Math.round(avgScore)))}%`,
         mostUsedFeatures: ["Resume Builder", "Mock Interviews", "Feedback Analysis", "Skill Assessment", "Progress Tracking"],
-        licenseActivationRate,
+        sessionActivationRate, // Changed from licenseActivationRate
         studentsAtRisk,
         departmentPerformance
       };
@@ -690,7 +711,7 @@ export class InstitutionDashboardService {
       return {
         resumeInterviewCorrelation: "0%",
         mostUsedFeatures: ["Resume Builder", "Mock Interviews", "Feedback Analysis"],
-        licenseActivationRate: "0%",
+        sessionActivationRate: "0%", // Changed from licenseActivationRate
         studentsAtRisk: 0,
         departmentPerformance: []
       };

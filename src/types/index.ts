@@ -51,6 +51,11 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface LoginResponse {
+  user: User;
+  token: string;
+}
+
 export interface UserProfile extends User {
   institutionDomain?: string;
   emailVerified: boolean;

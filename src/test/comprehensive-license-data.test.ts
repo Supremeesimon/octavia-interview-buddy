@@ -1,41 +1,41 @@
 import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
 
-// Test function to verify comprehensive license data fetching
-async function testComprehensiveLicenseData() {
+// Test function to verify comprehensive interview session data fetching
+async function testComprehensiveInterviewSessionData() {
   try {
-    console.log('Testing comprehensive license data fetching...');
+    console.log('Testing comprehensive interview session data fetching...');
     
     // Use a real institution ID from the test output
     const realInstitutionId = 'o27XAYG3ifHmWKM56aTV';
     
     // Test getLicenseInfo with real institution ID
     console.log('Testing getLicenseInfo with real institution ID...');
-    const licenseInfo = await InstitutionDashboardService.getLicenseInfo(realInstitutionId);
-    console.log('   License info:', licenseInfo);
+    const sessionInfo = await InstitutionDashboardService.getLicenseInfo(realInstitutionId);
+    console.log('   Interview session info:', sessionInfo);
     
     // Test getLicenseStatistics with real institution ID
     console.log('Testing getLicenseStatistics with real institution ID...');
-    const licenseStatistics = await InstitutionDashboardService.getLicenseStatistics(realInstitutionId);
-    console.log('   License statistics:', licenseStatistics);
+    const sessionStatistics = await InstitutionDashboardService.getLicenseStatistics(realInstitutionId);
+    console.log('   Interview session statistics:', sessionStatistics);
     
-    console.log('Comprehensive license data fetching test completed!');
+    console.log('Comprehensive interview session data fetching test completed!');
     
     return {
-      licenseInfo,
-      licenseStatistics
+      sessionInfo,
+      sessionStatistics
     };
   } catch (error) {
-    console.error('Error testing comprehensive license data fetching:', error);
+    console.error('Error testing comprehensive interview session data fetching:', error);
     return {
-      licenseInfo: null,
-      licenseStatistics: null
+      sessionInfo: null,
+      sessionStatistics: null
     };
   }
 }
 
 // Run the test
-testComprehensiveLicenseData().then(result => {
-  console.log('Comprehensive license data test result:', result);
+testComprehensiveInterviewSessionData().then(result => {
+  console.log('Comprehensive interview session data test result:', result);
 });
 
-export default testComprehensiveLicenseData;
+export default testComprehensiveInterviewSessionData;

@@ -38,7 +38,7 @@ VITE_APP_VERSION="1.0.0"
 VITE_APP_ENVIRONMENT="development"
 
 # API CONFIGURATION
-VITE_API_URL="http://localhost:3001/api"
+VITE_API_URL="http://localhost:3005/api"
 VITE_API_TIMEOUT="30000"
 
 # VAPI INTEGRATION (Voice AI)
