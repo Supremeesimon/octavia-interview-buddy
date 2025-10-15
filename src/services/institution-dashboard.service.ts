@@ -1,0 +1,238 @@
+import { db } from '../lib/firebase';
+import { collection, getDocs, query, where, doc, updateDoc, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { UserProfile, Interview } from '../types';
+
+export class InstitutionDashboardService {
+  private static readonly INSTITUTIONS_COLLECTION = 'institutions';
+  private static readonly USERS_COLLECTION = 'users';
+  private static readonly INTERVIEWS_COLLECTION = 'interviews';
+
+  /**
+   * Fetch all students belonging to an institution
+   * @param institutionId - The ID of the institution
+   * @returns Array of student user profiles
+   */
+  static async getInstitutionStudents(institutionId: string): Promise<UserProfile[]> {
+    try {
+      const students: UserProfile[] = [];
+      
+      // Get all departments for this institution
+      const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+      const departmentsSnapshot = await getDocs(departmentsRef);
+      
+      // For each department, get all students
+      for (const departmentDoc of departmentsSnapshot.docs) {
+        const departmentId = departmentDoc.id;
+        const studentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students');
+        const studentsSnapshot = await getDocs(studentsRef);
+        
+        for (const studentDoc of studentsSnapshot.docs) {
+          const data = studentDoc.data();
+          students.push({
+            id: studentDoc.id,
+            name: data.name,
+            email: data.email,
+            role: 'student',
+            institutionId,
+            department: data.department,
+            yearOfStudy: data.yearOfStudy,
+            emailVerified: data.emailVerified,
+            isEmailVerified: data.isEmailVerified,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            lastLoginAt: data.lastLoginAt?.toDate() || new Date(),
+            sessionCount: data.sessionCount || 0,
+            profileCompleted: data.profileCompleted || false
+          } as UserProfile);
+        }
+      }
+      
+      return students;
+    } catch (error) {
+      console.error('Error fetching institution students:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch all teachers belonging to an institution
+   * @param institutionId - The ID of the institution
+   * @returns Array of teacher user profiles
+   */
+  static async getInstitutionTeachers(institutionId: string): Promise<UserProfile[]> {
+    try {
+      const teachers: UserProfile[] = [];
+      
+      // Get all departments for this institution
+      const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+      const departmentsSnapshot = await getDocs(departmentsRef);
+      
+      // For each department, get all teachers
+      for (const departmentDoc of departmentsSnapshot.docs) {
+        const departmentId = departmentDoc.id;
+        const teachersRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers');
+        const teachersSnapshot = await getDocs(teachersRef);
+        
+        for (const teacherDoc of teachersSnapshot.docs) {
+          const data = teacherDoc.data();
+          teachers.push({
+            id: teacherDoc.id,
+            name: data.name,
+            email: data.email,
+            role: 'teacher',
+            institutionId,
+            department: data.department,
+            emailVerified: data.emailVerified,
+            isEmailVerified: data.isEmailVerified,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            lastLoginAt: data.lastLoginAt?.toDate() || new Date(),
+            sessionCount: data.sessionCount || 0,
+            profileCompleted: data.profileCompleted || false
+          } as UserProfile);
+        }
+      }
+      
+      return teachers;
+    } catch (error) {
+      console.error('Error fetching institution teachers:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch upcoming scheduled interviews for students in an institution
+   * @param institutionId - The ID of the institution
+   * @returns Array of scheduled interviews
+   */
+  static async getInstitutionScheduledInterviews(institutionId: string): Promise<Interview[]> {
+    try {
+      // First, get all student IDs in this institution
+      const studentIds = await this.getStudentIdsForInstitution(institutionId);
+      
+      if (studentIds.length === 0) {
+        return [];
+      }
+      
+      // Limit to 30 student IDs per query due to Firestore constraints
+      const batches = this.chunkArray(studentIds, 30);
+      const interviews: Interview[] = [];
+      
+      // Query interviews for each batch of students
+      for (const batch of batches) {
+        const q = query(
+          collection(db, this.INTERVIEWS_COLLECTION),
+          where('studentId', 'in', batch),
+          where('status', '==', 'scheduled'),
+          orderBy('scheduledAt'),
+          limit(50)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          interviews.push({
+            id: doc.id,
+            ...data,
+            scheduledAt: data.scheduledAt?.toDate() || new Date(),
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date()
+          } as Interview);
+        });
+      }
+      
+      // Sort by scheduled date
+      return interviews.sort((a, b) => 
+        (a.scheduledAt as Date).getTime() - (b.scheduledAt as Date).getTime()
+      );
+    } catch (error) {
+      console.error('Error fetching institution scheduled interviews:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Helper method to get all student IDs for an institution
+   * @param institutionId - The ID of the institution
+   * @returns Array of student IDs
+   */
+  private static async getStudentIdsForInstitution(institutionId: string): Promise<string[]> {
+    try {
+      const studentIds: string[] = [];
+      
+      // Get all departments for this institution
+      const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+      const departmentsSnapshot = await getDocs(departmentsRef);
+      
+      // For each department, get all students
+      for (const departmentDoc of departmentsSnapshot.docs) {
+        const departmentId = departmentDoc.id;
+        const studentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students');
+        const studentsSnapshot = await getDocs(studentsRef);
+        
+        studentsSnapshot.forEach((studentDoc) => {
+          studentIds.push(studentDoc.id);
+        });
+      }
+      
+      return studentIds;
+    } catch (error) {
+      console.error('Error fetching student IDs for institution:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Helper method to chunk array into smaller arrays
+   * @param array - The array to chunk
+   * @param size - The chunk size
+   * @returns Array of chunked arrays
+   */
+  private static chunkArray(array: any[], size: number): any[][] {
+    const chunks = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  /**
+   * Approve a student's institution affiliation
+   * @param studentId - The ID of the student
+   * @param institutionId - The ID of the institution
+   * @param departmentId - The ID of the department
+   */
+  static async approveStudent(studentId: string, institutionId: string, departmentId: string): Promise<void> {
+    try {
+      const studentRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students', studentId);
+      await updateDoc(studentRef, {
+        approved: true,
+        approvedAt: Timestamp.now(),
+        status: 'active'
+      });
+    } catch (error) {
+      console.error('Error approving student:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reject a student's institution affiliation
+   * @param studentId - The ID of the student
+   * @param institutionId - The ID of the institution
+   * @param departmentId - The ID of the department
+   */
+  static async rejectStudent(studentId: string, institutionId: string, departmentId: string): Promise<void> {
+    try {
+      const studentRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students', studentId);
+      await updateDoc(studentRef, {
+        approved: false,
+        rejectedAt: Timestamp.now(),
+        status: 'rejected'
+      });
+    } catch (error) {
+      console.error('Error rejecting student:', error);
+      throw error;
+    }
+  }
+}

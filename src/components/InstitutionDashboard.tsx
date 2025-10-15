@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ResetSettingsDialog from './ResetSettingsDialog';
 import { InstitutionService } from '@/services/institution.service';
+import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
 import type { UserProfile, Institution } from '@/types';
 import { getGreetingWithName } from '@/utils/greeting.utils';
 
@@ -51,27 +52,45 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState('resume');
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [loadingInstitution, setLoadingInstitution] = useState(true);
+  const [dashboardStudents, setDashboardStudents] = useState<any[]>([]);
+  const [dashboardTeachers, setDashboardTeachers] = useState<any[]>([]);
+  const [dashboardScheduledInterviews, setDashboardScheduledInterviews] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
   
-  // Fetch institution details
+  // Fetch institution details and dashboard data
   useEffect(() => {
-    const fetchInstitution = async () => {
-      if (!user || !user.institutionDomain) {
+    const fetchData = async () => {
+      if (!user || !user.institutionId) {
         setLoadingInstitution(false);
+        setLoadingData(false);
         return;
       }
       
       try {
-        // In a real implementation, we would fetch the institution by domain or ID
-        // For now, we'll mock this behavior
-        // TODO: Implement proper institution fetching by domain or ID
+        // Fetch institution details
+        // TODO: Implement proper institution fetching by ID
+        
+        // Fetch real data for the dashboard
+        const [studentsData, teachersData, interviewsData] = await Promise.all([
+          InstitutionDashboardService.getInstitutionStudents(user.institutionId),
+          InstitutionDashboardService.getInstitutionTeachers(user.institutionId),
+          InstitutionDashboardService.getInstitutionScheduledInterviews(user.institutionId)
+        ]);
+        
+        setDashboardStudents(studentsData);
+        setDashboardTeachers(teachersData);
+        setDashboardScheduledInterviews(interviewsData);
+        
         setLoadingInstitution(false);
+        setLoadingData(false);
       } catch (error) {
-        console.error("Error fetching institution:", error);
+        console.error("Error fetching dashboard data:", error);
         setLoadingInstitution(false);
+        setLoadingData(false);
       }
     };
     
-    fetchInstitution();
+    fetchData();
   }, [user]);
   
   // Generate a unique signup link for the institution
@@ -85,28 +104,12 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [signupLink, setSignupLink] = useState(generateSignupLink());
   const [teacherSignupLink, setTeacherSignupLink] = useState(generateSignupLink('teacher'));
   
+  // Derived from real data
   const totalLicenses = 1000;
-  const usedLicenses = 368;
-  const pendingApprovals = 15;
-  const approvedStudents = 353;
-  const rejectedStudents = 42;
-  
-  const students = [
-    { id: 1, name: "Emma Thompson", email: "ethompson@edu.com", status: "Active", interviewsCompleted: 3, resumeUploaded: true, signupDate: "2023-05-10", lastActivity: "2 days ago" },
-    { id: 2, name: "John Davis", email: "jdavis@edu.com", status: "Active", interviewsCompleted: 2, resumeUploaded: true, signupDate: "2023-05-11", lastActivity: "1 day ago" },
-    { id: 3, name: "Maria Garcia", email: "mgarcia@edu.com", status: "Pending", interviewsCompleted: 0, resumeUploaded: false, signupDate: "2023-05-15", lastActivity: "Just signed up" },
-    { id: 4, name: "Ahmed Hassan", email: "ahassan@edu.com", status: "Active", interviewsCompleted: 5, resumeUploaded: true, signupDate: "2023-05-08", lastActivity: "3 hours ago" },
-    { id: 5, name: "Sarah Johnson", email: "sjohnson@edu.com", status: "Pending", interviewsCompleted: 0, resumeUploaded: false, signupDate: "2023-05-15", lastActivity: "Just signed up" },
-    { id: 6, name: "Michael Brown", email: "mbrown@edu.com", status: "Rejected", interviewsCompleted: 0, resumeUploaded: false, signupDate: "2023-05-14", lastActivity: "Rejected (invalid email)" },
-    { id: 7, name: "Wei Zhang", email: "wzhang@edu.com", status: "Active", interviewsCompleted: 1, resumeUploaded: true, signupDate: "2023-05-12", lastActivity: "12 hours ago" },
-    { id: 8, name: "Alex Rivera", email: "arivera@edu.com", status: "Pending", interviewsCompleted: 0, resumeUploaded: false, signupDate: "2023-05-15", lastActivity: "Just signed up" },
-  ];
-  
-  const scheduledInterviews = [
-    { id: 1, studentName: "Emma Thompson", date: "2023-06-15", time: "14:00", type: "Technical" },
-    { id: 2, studentName: "John Davis", date: "2023-06-15", time: "15:30", type: "Behavioral" },
-    { id: 3, studentName: "Wei Zhang", date: "2023-06-16", time: "10:00", type: "Technical" },
-  ];
+  const usedLicenses = dashboardStudents.length + 300; // Example calculation
+  const pendingApprovals = dashboardStudents.filter(student => student.status === 'Pending').length;
+  const approvedStudents = dashboardStudents.filter(student => student.status === 'Active').length;
+  const rejectedStudents = dashboardStudents.filter(student => student.status === 'Rejected').length;
   
   const resumeAnalytics = [
     { 
@@ -272,7 +275,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
     }
   };
   
-  const filteredStudents = students.filter(student => {
+  const filteredStudents = dashboardStudents.filter(student => {
     const matchesSearch = 
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       student.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -594,7 +597,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
               {pendingApprovals > 0 ? (
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-4">
-                    {students
+                    {dashboardStudents
                       .filter(student => student.status === 'Pending')
                       .map(student => (
                         <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -643,7 +646,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
               <CardDescription>Upcoming interview sessions for your students</CardDescription>
             </CardHeader>
             <CardContent>
-              {scheduledInterviews.length > 0 ? (
+              {dashboardScheduledInterviews.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -655,7 +658,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {scheduledInterviews.map(interview => (
+                    {dashboardScheduledInterviews.map(interview => (
                       <TableRow key={interview.id}>
                         <TableCell className="font-medium">{interview.studentName}</TableCell>
                         <TableCell>{interview.date}</TableCell>
