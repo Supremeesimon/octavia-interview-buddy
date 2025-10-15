@@ -47,7 +47,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [copiedLink, setCopiedLink] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [expandedStudent, setExpandedStudent] = useState(null);
+  const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [activeMainTab, setActiveMainTab] = useState('students');
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState('resume');
   const [institution, setInstitution] = useState<Institution | null>(null);
@@ -56,6 +56,17 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [dashboardTeachers, setDashboardTeachers] = useState<any[]>([]);
   const [dashboardScheduledInterviews, setDashboardScheduledInterviews] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  
+  // Analytics data state
+  const [resumeAnalytics, setResumeAnalytics] = useState<any[]>([]);
+  const [interviewAnalytics, setInterviewAnalytics] = useState<any[]>([]);
+  const [platformEngagement, setPlatformEngagement] = useState<any>({
+    resumeInterviewCorrelation: "0%",
+    mostUsedFeatures: [],
+    licenseActivationRate: "0%",
+    studentsAtRisk: 0,
+    departmentPerformance: []
+  });
   
   // License information state
   const [totalLicenses, setTotalLicenses] = useState(1000);
@@ -132,6 +143,29 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
     fetchData();
   }, [user]);
   
+  // Fetch analytics data when the analytics tab is selected
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      if (activeMainTab === 'analytics' && user?.institutionId) {
+        try {
+          const [resumeData, interviewData, engagementData] = await Promise.all([
+            InstitutionDashboardService.getResumeAnalytics(user.institutionId),
+            InstitutionDashboardService.getInterviewAnalytics(user.institutionId),
+            InstitutionDashboardService.getPlatformEngagement(user.institutionId)
+          ]);
+          
+          setResumeAnalytics(resumeData);
+          setInterviewAnalytics(interviewData);
+          setPlatformEngagement(engagementData);
+        } catch (error) {
+          console.error("Error fetching analytics data:", error);
+        }
+      }
+    };
+    
+    fetchAnalyticsData();
+  }, [activeMainTab, user?.institutionId]);
+  
   // Generate a unique signup link for the institution
   const generateSignupLink = (userType: 'student' | 'teacher' = 'student') => {
     // Use the actual institution ID from the user context
@@ -150,17 +184,6 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   
   const [signupLink, setSignupLink] = useState('');
   const [teacherSignupLink, setTeacherSignupLink] = useState('');
-  
-  // Analytics data will be fetched from the service
-  const resumeAnalytics: any[] = [];
-  const interviewAnalytics: any[] = [];
-  const platformEngagement = {
-    resumeInterviewCorrelation: "0%",
-    mostUsedFeatures: [],
-    licenseActivationRate: "0%",
-    studentsAtRisk: 0,
-    departmentPerformance: []
-  };
   
   const copySignupLink = () => {
     navigator.clipboard.writeText(signupLink);
@@ -740,7 +763,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                 <CardHeader className="pb-2">
                                   <div className="flex justify-between items-center">
                                     <div>
-                                      <CardTitle className="text-lg">{student.studentName}</CardTitle>
+                                      <CardTitle className="text-lg">{student.studentName as string}</CardTitle>
                                       <CardDescription>Resume Performance Metrics</CardDescription>
                                     </div>
                                     <CollapsibleTrigger asChild>
@@ -756,23 +779,23 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                 <CardContent className="pb-3 pt-0">
                                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                                     <div>
-                                      <div className="text-2xl font-bold">{student.resumeViews}</div>
+                                      <div className="text-2xl font-bold">{student.resumeViews as number}</div>
                                       <div className="text-xs text-muted-foreground">Resume Views</div>
                                     </div>
                                     <div>
-                                      <div className="text-2xl font-bold">{student.contactClicks}</div>
+                                      <div className="text-2xl font-bold">{student.contactClicks as number}</div>
                                       <div className="text-xs text-muted-foreground">Contact Clicks</div>
                                     </div>
                                     <div>
-                                      <div className="text-2xl font-bold">{student.downloads}</div>
+                                      <div className="text-2xl font-bold">{student.downloads as number}</div>
                                       <div className="text-xs text-muted-foreground">Downloads</div>
                                     </div>
                                     <div>
-                                      <div className="text-2xl font-bold">{student.jobMatches}</div>
+                                      <div className="text-2xl font-bold">{student.jobMatches as number}</div>
                                       <div className="text-xs text-muted-foreground">Job Matches</div>
                                     </div>
                                     <div>
-                                      <div className="text-2xl font-bold">{student.jobClickRate}</div>
+                                      <div className="text-2xl font-bold">{student.jobClickRate as string}</div>
                                       <div className="text-xs text-muted-foreground">Job Click Rate</div>
                                     </div>
                                   </div>
@@ -782,10 +805,10 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                       <div>
                                         <h4 className="text-sm font-medium mb-2">Time Spent on Resume Sections</h4>
                                         <div className="grid grid-cols-4 gap-2">
-                                          {Object.entries(student.timeOnSections).map(([section, time]) => (
+                                          {Object.entries(student.timeOnSections || {}).map(([section, time]) => (
                                             <div key={section} className="bg-muted p-2 rounded-md text-center">
                                               <div className="text-xs text-muted-foreground capitalize">{section}</div>
-                                              <div className="font-medium">{time}</div>
+                                              <div className="font-medium">{String(time)}</div>
                                             </div>
                                           ))}
                                         </div>
@@ -795,22 +818,22 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                         <div>
                                           <h4 className="text-sm font-medium mb-2">Improvement Score</h4>
                                           <div className="flex items-center gap-2">
-                                            <Progress value={student.improvementScore} className="h-2 flex-1" />
-                                            <span className="font-medium text-sm">{student.improvementScore}/100</span>
+                                            <Progress value={Number(student.improvementScore)} className="h-2 flex-1" />
+                                            <span className="font-medium text-sm">{student.improvementScore as number}/100</span>
                                           </div>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium mb-2">AI Usage Frequency</h4>
                                           <div className="flex items-center gap-2">
-                                            <Progress value={(student.aiUsage / 20) * 100} className="h-2 flex-1" />
-                                            <span className="font-medium text-sm">{student.aiUsage} times</span>
+                                            <Progress value={(Number(student.aiUsage) / 20) * 100} className="h-2 flex-1" />
+                                            <span className="font-medium text-sm">{student.aiUsage as number} times</span>
                                           </div>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium mb-2">Resumes Generated</h4>
                                           <div className="flex items-center gap-2">
-                                            <Progress value={(student.resumesGenerated / 5) * 100} className="h-2 flex-1" />
-                                            <span className="font-medium text-sm">{student.resumesGenerated}</span>
+                                            <Progress value={(Number(student.resumesGenerated) / 5) * 100} className="h-2 flex-1" />
+                                            <span className="font-medium text-sm">{student.resumesGenerated as number}</span>
                                           </div>
                                         </div>
                                       </div>
@@ -875,7 +898,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                 <CardHeader className="pb-2">
                                   <div className="flex justify-between items-center">
                                     <div>
-                                      <CardTitle className="text-lg">{student.studentName}</CardTitle>
+                                      <CardTitle className="text-lg">{student.studentName as string}</CardTitle>
                                       <CardDescription>Interview Performance Metrics</CardDescription>
                                     </div>
                                     <CollapsibleTrigger asChild>
@@ -891,19 +914,19 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                 <CardContent className="pb-3 pt-0">
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                                     <div>
-                                      <div className="text-2xl font-bold">{student.responseQuality}</div>
+                                      <div className="text-2xl font-bold">{student.responseQuality as number}</div>
                                       <div className="text-xs text-muted-foreground">Response Quality</div>
                                     </div>
                                     <div>
-                                      <div className="text-2xl font-bold">{student.avgResponseTime}</div>
+                                      <div className="text-2xl font-bold">{student.avgResponseTime as string}</div>
                                       <div className="text-xs text-muted-foreground">Avg Response Time</div>
                                     </div>
                                     <div>
-                                      <div className="text-2xl font-bold">{student.practiceAttempts}</div>
+                                      <div className="text-2xl font-bold">{student.practiceAttempts as number}</div>
                                       <div className="text-xs text-muted-foreground">Practice Attempts</div>
                                     </div>
                                     <div>
-                                      <div className="text-2xl font-bold">{student.improvementTrajectory}</div>
+                                      <div className="text-2xl font-bold">{student.improvementTrajectory as string}</div>
                                       <div className="text-xs text-muted-foreground">Improvement</div>
                                     </div>
                                   </div>
@@ -913,13 +936,13 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                       <div>
                                         <h4 className="text-sm font-medium mb-2">Topic Performance</h4>
                                         <div className="grid grid-cols-3 gap-2">
-                                          {Object.entries(student.topicPerformance).map(([topic, score]) => (
+                                          {Object.entries(student.topicPerformance || {}).map(([topic, score]) => (
                                             <div key={topic} className="space-y-1">
                                               <div className="flex justify-between">
                                                 <span className="text-xs text-muted-foreground capitalize">{topic}</span>
-                                                <span className="text-xs font-medium">{score}/100</span>
+                                                <span className="text-xs font-medium">{Number(score)}/100</span>
                                               </div>
-                                              <Progress value={score} className="h-2" />
+                                              <Progress value={Number(score)} className="h-2" />
                                             </div>
                                           ))}
                                         </div>
@@ -929,7 +952,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                         <div>
                                           <h4 className="text-sm font-medium mb-2">Common Mistakes</h4>
                                           <div className="text-sm">
-                                            {student.commonMistakes.map((mistake, index) => (
+                                            {(student.commonMistakes || []).map((mistake: string, index: number) => (
                                               <div key={index} className="flex items-center gap-1 text-amber-600">
                                                 <X className="h-3 w-3" />
                                                 <span>{mistake}</span>
@@ -942,19 +965,19 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                           <div className="grid grid-cols-2 gap-2">
                                             <div className="flex items-center gap-2">
                                               <div className={`h-2 w-2 rounded-full ${student.keywordUsage === 'High' || student.keywordUsage === 'Very High' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-                                              <span className="text-sm">Keyword Usage: {student.keywordUsage}</span>
+                                              <span className="text-sm">Keyword Usage: {student.keywordUsage as string}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                               <div className={`h-2 w-2 rounded-full ${student.sentiment === 'Confident' || student.sentiment === 'Very confident' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-                                              <span className="text-sm">Sentiment: {student.sentiment}</span>
+                                              <span className="text-sm">Sentiment: {student.sentiment as string}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                               <div className={`h-2 w-2 rounded-full ${student.difficultyTolerance === 'High' || student.difficultyTolerance === 'Very High' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-                                              <span className="text-sm">Difficulty Tolerance: {student.difficultyTolerance}</span>
+                                              <span className="text-sm">Difficulty Tolerance: {student.difficultyTolerance as string}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                               <div className={`h-2 w-2 rounded-full ${student.confidenceLevel === 'High' || student.confidenceLevel === 'Moderate' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-                                              <span className="text-sm">Confidence: {student.confidenceLevel}</span>
+                                              <span className="text-sm">Confidence: {student.confidenceLevel as string}</span>
                                             </div>
                                           </div>
                                         </div>
@@ -965,30 +988,30 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                                           <h4 className="text-sm font-medium mb-2">Feedback Engagement</h4>
                                           <div className="flex items-center gap-2">
                                             <Progress 
-                                              value={parseInt(student.feedbackEngagement)} 
+                                              value={parseInt(student.feedbackEngagement as string)} 
                                               className="h-2 flex-1" 
                                             />
-                                            <span className="font-medium text-sm">{student.feedbackEngagement}</span>
+                                            <span className="font-medium text-sm">{student.feedbackEngagement as string}</span>
                                           </div>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium mb-2">Benchmark Percentile</h4>
                                           <div className="flex items-center gap-2">
                                             <Progress 
-                                              value={parseInt(student.benchmarkPercentile)} 
+                                              value={parseInt(student.benchmarkPercentile as string)} 
                                               className="h-2 flex-1" 
                                             />
-                                            <span className="font-medium text-sm">{student.benchmarkPercentile}</span>
+                                            <span className="font-medium text-sm">{student.benchmarkPercentile as string}</span>
                                           </div>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium mb-2">Drop-off Rate</h4>
                                           <div className="flex items-center gap-2">
                                             <Progress 
-                                              value={parseInt(student.dropOffRate)} 
+                                              value={parseInt(student.dropOffRate as string)} 
                                               className="h-2 flex-1" 
                                             />
-                                            <span className="font-medium text-sm">{student.dropOffRate}</span>
+                                            <span className="font-medium text-sm">{student.dropOffRate as string}</span>
                                           </div>
                                         </div>
                                       </div>
@@ -1023,7 +1046,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                         <Card>
                           <CardContent className="p-6">
                             <div className="flex flex-col items-center text-center">
-                              <div className="text-4xl font-bold text-primary mb-2">{platformEngagement.resumeInterviewCorrelation}</div>
+                              <div className="text-4xl font-bold text-primary mb-2">{platformEngagement.resumeInterviewCorrelation as string}</div>
                               <div className="text-sm text-muted-foreground">Resume vs Interview Performance Correlation</div>
                               <div className="text-xs text-muted-foreground mt-2">
                                 Shows how writing skills align with verbal performance
@@ -1035,7 +1058,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                         <Card>
                           <CardContent className="p-6">
                             <div className="flex flex-col items-center text-center">
-                              <div className="text-4xl font-bold text-primary mb-2">{platformEngagement.licenseActivationRate}</div>
+                              <div className="text-4xl font-bold text-primary mb-2">{platformEngagement.licenseActivationRate as string}</div>
                               <div className="text-sm text-muted-foreground">License Activation Rate</div>
                               <div className="text-xs text-muted-foreground mt-2">
                                 Percentage of available licenses being actively used
@@ -1047,7 +1070,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                         <Card>
                           <CardContent className="p-6">
                             <div className="flex flex-col items-center text-center">
-                              <div className="text-4xl font-bold text-destructive mb-2">{platformEngagement.studentsAtRisk}</div>
+                              <div className="text-4xl font-bold text-destructive mb-2">{platformEngagement.studentsAtRisk as number}</div>
                               <div className="text-sm text-muted-foreground">Students at Risk</div>
                               <div className="text-xs text-muted-foreground mt-2">
                                 Students likely to struggle in real-world interviews
@@ -1064,7 +1087,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-4">
-                              {platformEngagement.mostUsedFeatures.map((feature, index) => (
+                              {(platformEngagement.mostUsedFeatures || []).map((feature: string, index: number) => (
                                 <div key={index}>
                                   <div className="flex justify-between mb-1">
                                     <span className="text-sm">{feature}</span>
@@ -1083,13 +1106,13 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-4">
-                              {platformEngagement.departmentPerformance.map((dept, index) => (
+                              {(platformEngagement.departmentPerformance || []).map((dept: any, index: number) => (
                                 <div key={index}>
                                   <div className="flex justify-between mb-1">
-                                    <span className="text-sm">{dept.name}</span>
-                                    <span className="text-sm font-medium">{dept.avgScore}/100</span>
+                                    <span className="text-sm">{dept.name as string}</span>
+                                    <span className="text-sm font-medium">{dept.avgScore as number}/100</span>
                                   </div>
-                                  <Progress value={dept.avgScore} className="h-2" />
+                                  <Progress value={dept.avgScore as number} className="h-2" />
                                 </div>
                               ))}
                             </div>
