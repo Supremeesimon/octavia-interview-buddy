@@ -54,6 +54,7 @@ interface FinancialInstitution {
   name: string;
   students: number;
   licenseRevenue: number;
+  sessionRevenue: number;
   status: 'active' | 'pending';
   pricingOverride?: InstitutionPricingOverride;
 }
@@ -103,9 +104,23 @@ const FinancialManagement = () => {
     setActiveTab(initialTab);
   }, []);
   
+  // Update localStorage when tab changes
+  const handleTabChange = (value: string) => {
+    console.log('Tab changed to:', value);
+    setActiveTab(value);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('financialManagementActiveTab', value);
+        console.log('Saved tab to localStorage:', value);
+      } catch (error) {
+        console.error('Error saving to localStorage:', error);
+      }
+    }
+  };
+  
   const [vapiCost, setVapiCost] = useState(0.11); // Default cost per minute in dollars
   const [markupPercentage, setMarkupPercentage] = useState(36.36); // Default markup percentage
-  const [licenseCost, setLicenseCost] = useState(19.96); // Default annual license cost
+  const [licenseCost, setLicenseCost] = useState(19.96); // Default annual session cost
   const [originalVapiCost, setOriginalVapiCost] = useState(0.11); // Original value from Firebase
   const [originalMarkupPercentage, setOriginalMarkupPercentage] = useState(36.36); // Original value from Firebase
   const [originalLicenseCost, setOriginalLicenseCost] = useState(19.96); // Original value from Firebase
@@ -125,7 +140,7 @@ const FinancialManagement = () => {
     institutionId: '',
     customVapiCost: 0.11,
     customMarkupPercentage: 36.36,
-    customSessionCost: 19.96,
+    customLicenseCost: 19.96,
     isEnabled: false
   });
   const [firebaseError, setFirebaseError] = useState<string | null>(null); // Add this state
@@ -137,19 +152,6 @@ const FinancialManagement = () => {
     autoPriceAdjustment: false,
     emailNotifications: true
   });
-  
-  // Function to refresh scheduled price changes
-  const refreshScheduledPriceChanges = async () => {
-    try {
-      console.log('Refreshing scheduled price changes...');
-      const updatedPriceChanges = await PriceChangeService.getUpcomingPriceChanges();
-      console.log('Refreshed price changes:', updatedPriceChanges);
-      setScheduledPriceChanges(updatedPriceChanges);
-    } catch (error) {
-      console.error('Failed to refresh price changes:', error);
-      setFirebaseError("Failed to refresh scheduled price changes from Firebase.");
-    }
-  };
   
   // Fetch real institution data and scheduled price changes
   useEffect(() => {
@@ -167,11 +169,11 @@ const FinancialManagement = () => {
           if (isMounted && pricingSettings) {
             setVapiCost(pricingSettings.vapiCostPerMinute);
             setMarkupPercentage(pricingSettings.markupPercentage);
-            setSessionCost(pricingSettings.annualSessionCost);
+            setLicenseCost(pricingSettings.annualLicenseCost);
             // Store original values for comparison when scheduling
             setOriginalVapiCost(pricingSettings.vapiCostPerMinute);
             setOriginalMarkupPercentage(pricingSettings.markupPercentage);
-            setOriginalSessionCost(pricingSettings.annualSessionCost);
+            setOriginalLicenseCost(pricingSettings.annualLicenseCost);
           } else if (isMounted) {
             // Use default values if Firebase is not available
             setFirebaseError("Unable to load pricing settings from Firebase. Using default values.");
@@ -247,6 +249,7 @@ const FinancialManagement = () => {
             id: inst.id,
             name: inst.name,
             students: inst.stats?.totalStudents || 0,
+            licenseRevenue: (inst.stats?.totalStudents || 0) * (licenseCost / 4), // Estimate based on students
             sessionRevenue: (inst.stats?.totalInterviews || 0) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)), // Estimate
             status: inst.isActive ? 'active' : 'pending',
             pricingOverride: inst.pricingOverride || undefined
@@ -279,23 +282,13 @@ const FinancialManagement = () => {
       isMounted = false;
     };
   }, []);
-
-  // Add a periodic refresh for scheduled price changes
-  useEffect(() => {
-    // Set a reasonable refresh interval for production
-    const interval = setInterval(() => {
-      refreshScheduledPriceChanges();
-    }, 60000); // Refresh every 60 seconds
-    
-    return () => clearInterval(interval);
-  }, []);
-
+  
   // Quick calculate derived values
   const calculatedSessionPrice = Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2));
   const totalInstitutions = institutions.length;
   const activeInstitutions = institutions.filter(i => i.status === 'active').length;
   const totalStudents = institutions.reduce((acc, inst) => acc + inst.students, 0);
-  const totalLicenseRevenue = institutions.reduce((acc, inst) => acc + inst.sessionRevenue, 0);
+  const totalLicenseRevenue = institutions.reduce((acc, inst) => acc + inst.licenseRevenue, 0);
   const totalSessionRevenue = institutions.reduce((acc, inst) => acc + inst.sessionRevenue, 0);
   const totalRevenue = totalLicenseRevenue + totalSessionRevenue;
   const estimatedVapiCost = totalSessionRevenue * (vapiCost / calculatedSessionPrice);
@@ -306,9 +299,10 @@ const FinancialManagement = () => {
   useEffect(() => {
     setInstitutions(prev => prev.map(inst => ({
       ...inst,
+      licenseRevenue: inst.students * (licenseCost / 4),
       sessionRevenue: (inst.students * 5) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)) // Estimate
     })));
-  }, [vapiCost, markupPercentage, sessionCost]);
+  }, [vapiCost, markupPercentage, licenseCost]);
   
   const handleVapiCostChange = (value: number[]) => {
     setVapiCost(value[0]);
@@ -318,8 +312,8 @@ const FinancialManagement = () => {
     setMarkupPercentage(value[0]);
   };
   
-  const handleSessionCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSessionCost(parseFloat(e.target.value) || 0);
+  const handleLicenseCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLicenseCost(parseFloat(e.target.value) || 0);
   };
   
   const scheduleChange = async () => {
@@ -351,13 +345,13 @@ const FinancialManagement = () => {
           });
         }
         
-        if (sessionCost !== originalSessionCost) {
+        if (licenseCost !== originalLicenseCost) {
           changesToCreate.push({
             changeDate: scheduledDate,
-            changeType: 'sessionCost',
+            changeType: 'licenseCost',
             affected: 'all',
-            currentValue: originalSessionCost,
-            newValue: sessionCost,
+            currentValue: originalLicenseCost,
+            newValue: licenseCost,
             status: 'scheduled'
           });
         }
@@ -395,12 +389,18 @@ const FinancialManagement = () => {
           });
           
           // Refresh the scheduled price changes data
-          await refreshScheduledPriceChanges();
-          
-          // Update original values to match current values
-          setOriginalVapiCost(vapiCost);
-          setOriginalMarkupPercentage(markupPercentage);
-          setOriginalSessionCost(sessionCost);
+          try {
+            const updatedPriceChanges = await PriceChangeService.getUpcomingPriceChanges();
+            setScheduledPriceChanges(updatedPriceChanges);
+            
+            // Update original values to match current values
+            setOriginalVapiCost(vapiCost);
+            setOriginalMarkupPercentage(markupPercentage);
+            setOriginalLicenseCost(licenseCost);
+          } catch (error) {
+            console.error('Failed to refresh price changes:', error);
+            setFirebaseError("Failed to refresh scheduled price changes from Firebase.");
+          }
         }
         
         // Reset the date picker
@@ -443,21 +443,18 @@ const FinancialManagement = () => {
           await PlatformSettingsService.updatePricingSettings({
             vapiCostPerMinute: vapiCost,
             markupPercentage: markupPercentage,
-            annualSessionCost: sessionCost
+            annualLicenseCost: licenseCost
           });
           
           // Update original values to match current values
           setOriginalVapiCost(vapiCost);
           setOriginalMarkupPercentage(markupPercentage);
-          setOriginalSessionCost(sessionCost);
+          setOriginalLicenseCost(licenseCost);
           
           toast({
             title: "Global pricing updated",
-            description: 'VAPI: $' + vapiCost.toFixed(2) + '/min, Markup: ' + markupPercentage + '%, License: $' + sessionCost.toFixed(2) + '/year',
+            description: 'VAPI: $' + vapiCost.toFixed(2) + '/min, Markup: ' + markupPercentage + '%, License: $' + licenseCost.toFixed(2) + '/year',
           });
-          
-          // Refresh the scheduled price changes data to ensure UI is up to date
-          await refreshScheduledPriceChanges();
         } catch (error) {
           console.error('Failed to save global pricing:', error);
           if (error instanceof Error && error.message.includes('Firebase not initialized')) {
@@ -495,7 +492,7 @@ const FinancialManagement = () => {
         institutionId: institution.id,
         customVapiCost: institution.pricingOverride.customVapiCost,
         customMarkupPercentage: institution.pricingOverride.customMarkupPercentage,
-        customSessionCost: institution.pricingOverride.customSessionCost,
+        customLicenseCost: institution.pricingOverride.customLicenseCost,
         isEnabled: institution.pricingOverride.isEnabled
       });
     } else {
@@ -504,7 +501,7 @@ const FinancialManagement = () => {
         institutionId: institution.id,
         customVapiCost: vapiCost,
         customMarkupPercentage: markupPercentage,
-        customSessionCost: sessionCost,
+        customLicenseCost: licenseCost,
         isEnabled: false
       });
     }
@@ -521,7 +518,7 @@ const FinancialManagement = () => {
       const pricingOverride: InstitutionPricingOverride = {
         customVapiCost: currentOverride.customVapiCost,
         customMarkupPercentage: currentOverride.customMarkupPercentage,
-        customSessionCost: currentOverride.customSessionCost,
+        customLicenseCost: currentOverride.customLicenseCost,
         isEnabled: currentOverride.isEnabled
       };
       
@@ -562,7 +559,7 @@ const FinancialManagement = () => {
         const pricingOverride = institution.pricingOverride || {
           customVapiCost: vapiCost,
           customMarkupPercentage: markupPercentage,
-          customSessionCost: sessionCost,
+          customLicenseCost: licenseCost,
           isEnabled: true
         };
         
@@ -610,7 +607,7 @@ const FinancialManagement = () => {
       return {
         vapiCost: institution.pricingOverride.customVapiCost,
         markupPercentage: institution.pricingOverride.customMarkupPercentage,
-        sessionCost: institution.pricingOverride.customSessionCost
+        licenseCost: institution.pricingOverride.customLicenseCost
       };
     }
     
@@ -618,7 +615,7 @@ const FinancialManagement = () => {
     return {
       vapiCost,
       markupPercentage,
-      sessionCost
+      licenseCost
     };
   };
   
@@ -643,31 +640,6 @@ const FinancialManagement = () => {
     setFilteredInstitutions(filtered);
   }, [searchTerm, statusFilter, institutions]);
   
-  // Update localStorage when tab changes
-  const handleTabChange = (value: string) => {
-    console.log('Tab changed to:', value);
-    setActiveTab(value);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('financialManagementActiveTab', value);
-        console.log('Saved tab to localStorage:', value);
-      } catch (error) {
-        console.error('Error saving to localStorage:', error);
-      }
-    }
-  };
-  
-  // Listen for hash changes to support browser back/forward buttons
-  useEffect(() => {
-    console.log('Component mounted, current hash:', window.location.hash);
-    // Remove the hash change listener since we're using localStorage
-  }, []);
-  
-  // Set initial hash if none exists
-  useEffect(() => {
-    // Remove hash setting since we're using localStorage
-  }, [activeTab]);
-  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -676,6 +648,20 @@ const FinancialManagement = () => {
     );
   }
   
+  // Listen for hash changes to support browser back/forward buttons
+  useEffect(() => {
+    console.log('Component mounted, current hash:', window.location.hash);
+
+  }, []);
+  
+  // Set initial hash if none exists
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.location.hash) {
+      window.location.hash = activeTab;
+      console.log('Setting initial hash to:', activeTab);
+    }
+  }, [activeTab]);
+
   return (
     <div className="space-y-6">
       {firebaseError && (
@@ -708,18 +694,15 @@ const FinancialManagement = () => {
         {/* Overview Dashboard Content */}
         <TabsContent value="overview" className="space-y-6">
           <FinancialDashboard
-            institutions={institutions}
-            vapiCost={vapiCost}
-            markupPercentage={markupPercentage}
-            licenseCost={licenseCost}
             totalInstitutions={totalInstitutions}
             activeInstitutions={activeInstitutions}
             totalStudents={totalStudents}
+            totalRevenue={totalRevenue}
             totalLicenseRevenue={totalLicenseRevenue}
             totalSessionRevenue={totalSessionRevenue}
-            totalRevenue={totalRevenue}
-            estimatedProfit={estimatedProfit}
             estimatedMargin={estimatedMargin}
+            estimatedProfit={estimatedProfit}
+            institutions={institutions}
           />
         </TabsContent>
         
@@ -728,57 +711,43 @@ const FinancialManagement = () => {
           <GlobalPricingControl
             vapiCost={vapiCost}
             markupPercentage={markupPercentage}
+            calculatedSessionPrice={calculatedSessionPrice}
             licenseCost={licenseCost}
-            originalVapiCost={originalVapiCost}
-            originalMarkupPercentage={originalMarkupPercentage}
-            originalLicenseCost={originalLicenseCost}
-            onVapiCostChange={(value) => setVapiCost(value)}
-            onMarkupPercentageChange={(value) => setMarkupPercentage(value)}
-            onLicenseCostChange={(value) => setLicenseCost(value)}
-            onRefresh={refreshScheduledPriceChanges}
+            setVapiCost={setVapiCost}
+            setMarkupPercentage={setMarkupPercentage}
+            setLicenseCost={setLicenseCost}
+            handleVapiCostChange={handleVapiCostChange}
+            handleMarkupChange={handleMarkupChange}
+            handleLicenseCostChange={handleLicenseCostChange}
+            isScheduleEnabled={isScheduleEnabled}
+            setIsScheduleEnabled={setIsScheduleEnabled}
+            scheduledDate={scheduledDate}
+            setScheduledDate={setScheduledDate}
+            isCalendarOpen={isCalendarOpen}
+            setIsCalendarOpen={setIsCalendarOpen}
+            scheduleChange={scheduleChange}
+            applyGlobalPricing={applyGlobalPricing}
           />
           
           <InstitutionPricingOverrides
             institutions={institutions}
-            filteredInstitutions={filteredInstitutions}
             searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
             statusFilter={statusFilter}
-            vapiCost={vapiCost}
-            markupPercentage={markupPercentage}
-            licenseCost={licenseCost}
-            onSearchTermChange={(term) => setSearchTerm(term)}
-            onStatusFilterChange={(filter) => setStatusFilter(filter)}
-            onRefresh={async () => {
-              // Refresh institutions
-              try {
-                const institutionsData = await InstitutionService.getAllInstitutions();
-                const formattedInstitutions: FinancialInstitution[] = institutionsData.map((inst) => ({
-                  id: inst.id,
-                  name: inst.name,
-                  students: inst.stats?.totalStudents || 0,
-                  licenseRevenue: (inst.stats?.totalStudents || 0) * (licenseCost / 4),
-                  sessionRevenue: (inst.stats?.totalInterviews || 0) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)),
-                  status: inst.isActive ? 'active' : 'pending',
-                  pricingOverride: inst.pricingOverride || undefined
-                }));
-                setInstitutions(formattedInstitutions);
-              } catch (error) {
-                console.error('Failed to refresh institutions:', error);
-                toast({
-                  title: "Error",
-                  description: "Failed to refresh institution data",
-                  variant: "destructive",
-                });
-              }
-              
-              // Refresh scheduled price changes
-              await refreshScheduledPriceChanges();
-            }}
+            setStatusFilter={setStatusFilter}
+            getInstitutionPricing={getInstitutionPricing}
+            handleCustomPricingToggle={handleCustomPricingToggle}
+            handleEditInstitution={handleEditInstitution}
+            editingInstitution={editingInstitution}
+            isEditDialogOpen={isEditDialogOpen}
+            setIsEditDialogOpen={setIsEditDialogOpen}
+            currentOverride={currentOverride}
+            setCurrentOverride={setCurrentOverride}
+            handleSaveOverride={handleSaveOverride}
           />
           
           <PriceChangeScheduleTable
             scheduledPriceChanges={scheduledPriceChanges}
-            onRefresh={refreshScheduledPriceChanges}
           />
         </TabsContent>
         
@@ -789,10 +758,6 @@ const FinancialManagement = () => {
             markupPercentage={markupPercentage}
             calculatedSessionPrice={calculatedSessionPrice}
             estimatedMargin={estimatedMargin}
-            institutionCount={totalInstitutions}
-            studentCount={totalStudents}
-            totalRevenue={totalRevenue}
-            totalSessions={scheduledPriceChanges.length}
           />
         </TabsContent>
         
@@ -800,25 +765,26 @@ const FinancialManagement = () => {
         <TabsContent value="reports" className="space-y-6">
           <FinancialReports
             institutions={institutions}
-            institutionCount={totalInstitutions}
-            studentCount={totalStudents}
-            totalRevenue={totalRevenue}
+            getInstitutionPricing={getInstitutionPricing}
           />
         </TabsContent>
         
         {/* Quick Edit Content */}
         <TabsContent value="quickedit" className="space-y-6">
           <QuickEdit
-            institutions={institutions}
             vapiCost={vapiCost}
             markupPercentage={markupPercentage}
             licenseCost={licenseCost}
-            calculatedSessionPrice={calculatedSessionPrice}
-            onVapiCostChange={(value) => setVapiCost(value)}
-            onMarkupPercentageChange={(value) => setMarkupPercentage(value)}
-            onLicenseCostChange={(value) => setLicenseCost(value)}
+            setVapiCost={setVapiCost}
+            setMarkupPercentage={setMarkupPercentage}
+            setLicenseCost={setLicenseCost}
+            institutions={institutions}
             selectedInstitution={selectedInstitution}
-            onSelectedInstitutionChange={(value) => setSelectedInstitution(value)}
+            setSelectedInstitution={setSelectedInstitution}
+            handleLicenseCostChange={handleLicenseCostChange}
+            handleVapiCostChange={handleVapiCostChange}
+            handleMarkupChange={handleMarkupChange}
+            calculatedSessionPrice={calculatedSessionPrice}
           />
         </TabsContent>
         
@@ -918,7 +884,7 @@ const FinancialManagement = () => {
                         ${Number((currentOverride.customVapiCost * (1 + currentOverride.customMarkupPercentage / 100)).toFixed(2))}/minute
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        For a 15-minute session: ${Number((currentOverride.customVapiCost * (1 + currentOverride.customMarkupPercentage / 100) * 15).toFixed(2))}
+                        For a 15-minute session: ${Number((currentOverride.customVapiCost * (1 + currentOverride.customMarkupPercentage) * 15).toFixed(2))}
                       </div>
                     </div>
                     <div>
