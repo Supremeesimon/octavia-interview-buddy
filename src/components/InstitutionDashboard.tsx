@@ -57,6 +57,17 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [dashboardScheduledInterviews, setDashboardScheduledInterviews] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   
+  // License information state
+  const [totalLicenses, setTotalLicenses] = useState(1000);
+  const [usedLicenses, setUsedLicenses] = useState(300);
+  const [availableLicenses, setAvailableLicenses] = useState(700);
+  const [licenseUsagePercentage, setLicenseUsagePercentage] = useState(30);
+  
+  // Student analytics state
+  const [approvedStudents, setApprovedStudents] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [rejectedStudents, setRejectedStudents] = useState(0);
+  
   // Fetch institution details and dashboard data
   useEffect(() => {
     const fetchData = async () => {
@@ -71,15 +82,28 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
         // TODO: Implement proper institution fetching by ID
         
         // Fetch real data for the dashboard
-        const [studentsData, teachersData, interviewsData] = await Promise.all([
+        const [studentsData, teachersData, interviewsData, studentAnalytics, licenseInfo] = await Promise.all([
           InstitutionDashboardService.getInstitutionStudents(user.institutionId),
           InstitutionDashboardService.getInstitutionTeachers(user.institutionId),
-          InstitutionDashboardService.getInstitutionScheduledInterviews(user.institutionId)
+          InstitutionDashboardService.getInstitutionScheduledInterviews(user.institutionId),
+          InstitutionDashboardService.getStudentAnalytics(user.institutionId),
+          InstitutionDashboardService.getLicenseInfo(user.institutionId)
         ]);
         
         setDashboardStudents(studentsData);
         setDashboardTeachers(teachersData);
         setDashboardScheduledInterviews(interviewsData);
+        
+        // Update license info
+        setTotalLicenses(licenseInfo.totalLicenses);
+        setUsedLicenses(licenseInfo.usedLicenses);
+        setAvailableLicenses(licenseInfo.availableLicenses);
+        setLicenseUsagePercentage(licenseInfo.usagePercentage);
+        
+        // Update student analytics
+        setApprovedStudents(studentAnalytics.activeStudents);
+        setPendingApprovals(studentAnalytics.pendingApprovals);
+        setRejectedStudents(studentAnalytics.rejectedStudents);
         
         setLoadingInstitution(false);
         setLoadingData(false);
@@ -104,123 +128,15 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [signupLink, setSignupLink] = useState(generateSignupLink());
   const [teacherSignupLink, setTeacherSignupLink] = useState(generateSignupLink('teacher'));
   
-  // Derived from real data
-  const totalLicenses = 1000;
-  const usedLicenses = dashboardStudents.length + 300; // Example calculation
-  const pendingApprovals = dashboardStudents.filter(student => student.status === 'Pending').length;
-  const approvedStudents = dashboardStudents.filter(student => student.status === 'Active').length;
-  const rejectedStudents = dashboardStudents.filter(student => student.status === 'Rejected').length;
-  
-  const resumeAnalytics = [
-    { 
-      id: 1, 
-      studentName: "Emma Thompson", 
-      resumeViews: 24,
-      timeOnSections: { summary: "40s", experience: "75s", education: "30s", skills: "50s" },
-      contactClicks: 5,
-      downloads: 3,
-      improvementScore: 87,
-      aiUsage: 12,
-      resumesGenerated: 3,
-      jobMatches: 8,
-      jobClickRate: "65%"
-    },
-    { 
-      id: 2, 
-      studentName: "John Davis", 
-      resumeViews: 18,
-      timeOnSections: { summary: "35s", experience: "60s", education: "25s", skills: "40s" },
-      contactClicks: 3,
-      downloads: 2,
-      improvementScore: 72,
-      aiUsage: 8,
-      resumesGenerated: 2,
-      jobMatches: 6,
-      jobClickRate: "50%"
-    },
-    { 
-      id: 3, 
-      studentName: "Wei Zhang", 
-      resumeViews: 32,
-      timeOnSections: { summary: "45s", experience: "90s", education: "35s", skills: "65s" },
-      contactClicks: 7,
-      downloads: 4,
-      improvementScore: 93,
-      aiUsage: 15,
-      resumesGenerated: 4,
-      jobMatches: 12,
-      jobClickRate: "75%"
-    }
-  ];
-  
-  const interviewAnalytics = [
-    {
-      id: 1,
-      studentName: "Emma Thompson",
-      responseQuality: 85,
-      commonMistakes: ["Lack of specificity", "Filler words"],
-      avgResponseTime: "45s",
-      sentiment: "Confident",
-      keywordUsage: "High",
-      practiceAttempts: 12,
-      topicPerformance: { behavioral: 88, technical: 82, situational: 86 },
-      feedbackEngagement: "90%",
-      improvementTrajectory: "+15%",
-      benchmarkPercentile: "88th",
-      difficultyTolerance: "High",
-      confidenceLevel: "Moderate",
-      improvementScore: 82,
-      dropOffRate: "5%"
-    },
-    {
-      id: 2,
-      studentName: "John Davis",
-      responseQuality: 78,
-      commonMistakes: ["Rambling", "Limited examples"],
-      avgResponseTime: "52s",
-      sentiment: "Somewhat nervous",
-      keywordUsage: "Medium",
-      practiceAttempts: 8,
-      topicPerformance: { behavioral: 75, technical: 80, situational: 79 },
-      feedbackEngagement: "75%",
-      improvementTrajectory: "+10%",
-      benchmarkPercentile: "65th",
-      difficultyTolerance: "Medium",
-      confidenceLevel: "Low",
-      improvementScore: 74,
-      dropOffRate: "12%"
-    },
-    {
-      id: 3,
-      studentName: "Wei Zhang",
-      responseQuality: 92,
-      commonMistakes: ["Technical overexplanation"],
-      avgResponseTime: "38s",
-      sentiment: "Very confident",
-      keywordUsage: "Very High",
-      practiceAttempts: 15,
-      topicPerformance: { behavioral: 90, technical: 95, situational: 92 },
-      feedbackEngagement: "95%",
-      improvementTrajectory: "+20%",
-      benchmarkPercentile: "95th",
-      difficultyTolerance: "Very High",
-      confidenceLevel: "High",
-      improvementScore: 93,
-      dropOffRate: "2%"
-    }
-  ];
-  
+  // Analytics data will be fetched from the service
+  const resumeAnalytics = [];
+  const interviewAnalytics = [];
   const platformEngagement = {
-    resumeInterviewCorrelation: "78%",
-    mostUsedFeatures: ["Interview Practice", "Resume Review", "Job Matching"],
-    licenseActivationRate: "84%",
-    studentsAtRisk: 15,
-    departmentPerformance: [
-      { name: "Computer Science", avgScore: 87 },
-      { name: "Business", avgScore: 82 },
-      { name: "Engineering", avgScore: 85 },
-      { name: "Liberal Arts", avgScore: 79 }
-    ]
+    resumeInterviewCorrelation: "0%",
+    mostUsedFeatures: [],
+    licenseActivationRate: "0%",
+    studentsAtRisk: 0,
+    departmentPerformance: []
   };
   
   const copySignupLink = () => {
