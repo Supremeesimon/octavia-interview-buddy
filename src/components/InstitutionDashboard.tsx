@@ -298,10 +298,10 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
             <Users className="text-primary h-5 w-5" />
           </div>
           <div className="text-3xl font-bold mb-2">{usedSessions} / {totalSessions}</div>
-          <Progress value={(usedSessions / totalSessions) * 100} className="h-2 mb-2" tooltip="Progress bar showing session usage" />
+          <Progress value={totalSessions > 0 ? (usedSessions / totalSessions) * 100 : 0} className="h-2 mb-2" tooltip="Progress bar showing session usage" />
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>{totalSessions - usedSessions} sessions available</span>
-            <span>{Math.round((usedSessions / totalSessions) * 100)}% used</span>
+            <span>{totalSessions > 0 ? totalSessions - usedSessions : 0} sessions available</span>
+            <span>{totalSessions > 0 ? Math.round((usedSessions / totalSessions) * 100) : 0}% used</span>
           </div>
         </Card>
         

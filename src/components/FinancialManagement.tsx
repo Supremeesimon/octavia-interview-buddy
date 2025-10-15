@@ -120,7 +120,7 @@ const FinancialManagement = () => {
   
   const [vapiCost, setVapiCost] = useState(0.11); // Default cost per minute in dollars
   const [markupPercentage, setMarkupPercentage] = useState(36.36); // Default markup percentage
-  const [licenseCost, setLicenseCost] = useState(19.96); // Default annual session cost
+  const [licenseCost, setLicenseCost] = useState(19.96); // Default annual interview session cost
   const [originalVapiCost, setOriginalVapiCost] = useState(0.11); // Original value from Firebase
   const [originalMarkupPercentage, setOriginalMarkupPercentage] = useState(36.36); // Original value from Firebase
   const [originalLicenseCost, setOriginalLicenseCost] = useState(19.96); // Original value from Firebase
@@ -694,15 +694,18 @@ const FinancialManagement = () => {
         {/* Overview Dashboard Content */}
         <TabsContent value="overview" className="space-y-6">
           <FinancialDashboard
+            institutions={institutions}
+            vapiCost={vapiCost}
+            markupPercentage={markupPercentage}
+            licenseCost={licenseCost}
             totalInstitutions={totalInstitutions}
             activeInstitutions={activeInstitutions}
             totalStudents={totalStudents}
-            totalRevenue={totalRevenue}
             totalLicenseRevenue={totalLicenseRevenue}
             totalSessionRevenue={totalSessionRevenue}
-            estimatedMargin={estimatedMargin}
+            totalRevenue={totalRevenue}
             estimatedProfit={estimatedProfit}
-            institutions={institutions}
+            estimatedMargin={estimatedMargin}
           />
         </TabsContent>
         
@@ -871,7 +874,7 @@ const FinancialManagement = () => {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Annual cost per student license
+                    Annual cost per student interview session
                   </p>
                 </div>
                 
