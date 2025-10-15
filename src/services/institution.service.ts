@@ -217,7 +217,11 @@ export class InstitutionService {
       
       // Generate new token and link
       const newToken = uuidv4();
-      const newLink = `${window.location.origin}/signup-institution/${newToken}`;
+      // Use a more robust approach for generating the link
+      const origin = typeof window !== 'undefined' && window.location?.origin 
+        ? window.location.origin 
+        : 'http://localhost:8080';
+      const newLink = `${origin}/signup-institution/${newToken}`;
       
       // Update the institution document
       const institutionRef = doc(db, this.COLLECTION_NAME, institutionId);

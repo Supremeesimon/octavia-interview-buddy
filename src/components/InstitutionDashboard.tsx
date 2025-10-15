@@ -106,6 +106,20 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
         setPendingApprovals(studentAnalytics.pendingApprovals);
         setRejectedStudents(studentAnalytics.rejectedStudents);
         
+        // Initialize signup links after institution data is loaded
+        if (institutionData) {
+          const studentLink = institutionData.customSignupLink 
+            ? `${institutionData.customSignupLink}?type=student`
+            : `https://octavia.ai/signup-institution/${user.institutionId}?type=student`;
+          
+          const teacherLink = institutionData.customSignupLink 
+            ? `${institutionData.customSignupLink}?type=teacher`
+            : `https://octavia.ai/signup-institution/${user.institutionId}?type=teacher`;
+          
+          setSignupLink(studentLink);
+          setTeacherSignupLink(teacherLink);
+        }
+        
         setLoadingInstitution(false);
         setLoadingData(false);
       } catch (error) {
@@ -127,16 +141,19 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
     }
     
     // Fallback for now
-    const institutionId = user?.institutionId || "institution-xyz";
-    return `https://octavia.ai/signup-institution/${institutionId}?type=${userType}`;
+    if (user?.institutionId) {
+      return `https://octavia.ai/signup-institution/${user.institutionId}?type=${userType}`;
+    }
+    
+    return '';
   };
   
-  const [signupLink, setSignupLink] = useState(generateSignupLink());
-  const [teacherSignupLink, setTeacherSignupLink] = useState(generateSignupLink('teacher'));
+  const [signupLink, setSignupLink] = useState('');
+  const [teacherSignupLink, setTeacherSignupLink] = useState('');
   
   // Analytics data will be fetched from the service
-  const resumeAnalytics = [];
-  const interviewAnalytics = [];
+  const resumeAnalytics: any[] = [];
+  const interviewAnalytics: any[] = [];
   const platformEngagement = {
     resumeInterviewCorrelation: "0%",
     mostUsedFeatures: [],
