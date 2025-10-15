@@ -79,7 +79,8 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
       
       try {
         // Fetch institution details
-        // TODO: Implement proper institution fetching by ID
+        const institutionData = await InstitutionService.getInstitutionById(user.institutionId);
+        setInstitution(institutionData);
         
         // Fetch real data for the dashboard
         const [studentsData, teachersData, interviewsData, studentAnalytics, licenseInfo] = await Promise.all([
@@ -120,9 +121,14 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   // Generate a unique signup link for the institution
   const generateSignupLink = (userType: 'student' | 'teacher' = 'student') => {
     // Use the actual institution ID from the user context
-    const institutionId = user?.institutionId || "institution-xyz"; // Fallback for now
-    const timestamp = Date.now().toString(36);
-    return `https://octavia.ai/signup-institution/${institutionId}?type=${userType}&t=${timestamp}`;
+    if (institution && institution.customSignupLink) {
+      // Use the institution's custom signup link with the user type parameter
+      return `${institution.customSignupLink}?type=${userType}`;
+    }
+    
+    // Fallback for now
+    const institutionId = user?.institutionId || "institution-xyz";
+    return `https://octavia.ai/signup-institution/${institutionId}?type=${userType}`;
   };
   
   const [signupLink, setSignupLink] = useState(generateSignupLink());
@@ -154,14 +160,41 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
     toast.success(`Student #${studentId} rejected`);
   };
   
-  const regenerateLink = (userType: 'student' | 'teacher' = 'student') => {
-    const newLink = generateSignupLink(userType);
-    if (userType === 'student') {
-      setSignupLink(newLink);
+  const regenerateLink = async (userType: 'student' | 'teacher' = 'student') => {
+    if (institution && user.institutionId) {
+      try {
+        // Regenerate the institution's signup token
+        const { link } = await InstitutionService.regenerateSignupToken(user.institutionId);
+        
+        // Update the institution state with the new link
+        setInstitution({
+          ...institution,
+          customSignupLink: link
+        });
+        
+        // Update the signup links with the new link and user type
+        const newLink = `${link}?type=${userType}`;
+        if (userType === 'student') {
+          setSignupLink(newLink);
+        } else {
+          setTeacherSignupLink(newLink);
+        }
+        
+        toast.success(`New ${userType} signup link generated successfully!`);
+      } catch (error) {
+        console.error('Error regenerating signup link:', error);
+        toast.error(`Failed to regenerate ${userType} signup link`);
+      }
     } else {
-      setTeacherSignupLink(newLink);
+      // Fallback to the old method
+      const newLink = generateSignupLink(userType);
+      if (userType === 'student') {
+        setSignupLink(newLink);
+      } else {
+        setTeacherSignupLink(newLink);
+      }
+      toast.success(`New ${userType} signup link generated successfully!`);
     }
-    toast.success(`New ${userType} signup link generated successfully!`);
   };
   
   const copyTeacherSignupLink = () => {
