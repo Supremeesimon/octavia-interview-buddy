@@ -10,6 +10,7 @@ export interface SessionPurchase {
   pricePerSession: number;
   totalPrice: number;
   status: 'pending' | 'completed' | 'cancelled';
+  billingPeriod?: 'monthly' | 'quarterly' | 'annual'; // Add this line
   clientSecret?: string; // Add this for Stripe integration
 }
 

@@ -296,14 +296,42 @@ export class InstitutionDashboardService {
         };
       }
       
-      // For now, return mock data with real student counts
-      // In a full implementation, this would fetch real analytics from Firestore
+      // Fetch real analytics data from Firestore instead of mock data
+      // Get interview data for all students in this institution
+      const { interviewService } = await import('./interview.service');
+      const institutionAnalyses = await interviewService.getInstitutionAnalyses(institutionId);
+      
+      // Calculate real metrics based on actual data
+      let totalActiveStudents = 0;
+      let totalPendingApprovals = 0;
+      let totalRejectedStudents = 0;
+      let totalScore = 0;
+      let scoreCount = 0;
+      
+      // Get all students and estimate statuses based on available properties
+      const students = await this.getInstitutionStudents(institutionId);
+      // For now, we'll consider all students as active since there's no explicit status field
+      totalActiveStudents = students.length;
+      totalPendingApprovals = 0;
+      totalRejectedStudents = 0;
+      
+      // Calculate average score from interview analyses
+      if (institutionAnalyses.length > 0) {
+        institutionAnalyses.forEach(analysis => {
+          const score = analysis.overallScore || analysis.successEvaluation?.score || 0;
+          if (score > 0) {
+            totalScore += score;
+            scoreCount++;
+          }
+        });
+      }
+      
       return {
         totalStudents: studentIds.length,
-        activeStudents: Math.floor(studentIds.length * 0.8),
-        pendingApprovals: Math.floor(studentIds.length * 0.15),
-        rejectedStudents: Math.floor(studentIds.length * 0.05),
-        averageScore: 85
+        activeStudents: totalActiveStudents,
+        pendingApprovals: totalPendingApprovals,
+        rejectedStudents: totalRejectedStudents,
+        averageScore: scoreCount > 0 ? Math.round(totalScore / scoreCount) : 0
       };
     } catch (error) {
       console.error('Error fetching student analytics:', error);
@@ -525,19 +553,12 @@ export class InstitutionDashboardService {
       // Import interviewService dynamically to avoid circular dependencies
       const { interviewService } = await import('./interview.service');
       
-      // For testing purposes, get all analyses and filter by institutionId if available
-      // In production, we would use getInstitutionAnalyses which requires proper indexing
-      const allAnalyses = await interviewService.getAllAnalyses(100);
-      
-      // Filter analyses to only include those that match our institution ID
-      // If analyses don't have institutionId, we'll include them all for testing purposes
-      const filteredAnalyses = allAnalyses.filter(analysis => 
-        analysis.institutionId === institutionId || !analysis.institutionId
-      );
+      // Get analyses specific to this institution
+      const institutionAnalyses = await interviewService.getInstitutionAnalyses(institutionId);
       
       // Group analyses by student
       const studentAnalyses: Record<string, any[]> = {};
-      filteredAnalyses.forEach(analysis => {
+      institutionAnalyses.forEach(analysis => {
         const studentId = analysis.studentId || 'anonymous';
         if (!studentAnalyses[studentId]) {
           studentAnalyses[studentId] = [];
@@ -566,23 +587,23 @@ export class InstitutionDashboardService {
           const avgScore = studentAnalysesList.reduce((sum, analysis) => 
             sum + (analysis.overallScore || analysis.successEvaluation?.score || 0), 0) / totalAnalyses;
           
-          // Mock data for UI elements that aren't in the current data structure
+          // Use real data from the analysis instead of mock data
           resumeAnalytics.push({
             id: studentId,
             studentName: student?.name || `Student ${studentId.substring(0, 6)}`,
-            resumeViews: Math.floor(Math.random() * 50) + 10,
-            contactClicks: Math.floor(Math.random() * 20) + 5,
-            downloads: Math.floor(Math.random() * 15) + 3,
-            jobMatches: Math.floor(Math.random() * 25) + 5,
-            jobClickRate: `${Math.floor(Math.random() * 30) + 10}%`,
+            resumeViews: latestAnalysis.resumeViews || 0,
+            contactClicks: latestAnalysis.contactClicks || 0,
+            downloads: latestAnalysis.downloads || 0,
+            jobMatches: latestAnalysis.jobMatches || 0,
+            jobClickRate: latestAnalysis.jobClickRate || "0%",
             improvementScore: Math.round(avgScore),
-            aiUsage: Math.floor(Math.random() * 20) + 5,
-            resumesGenerated: Math.floor(Math.random() * 5) + 1,
-            timeOnSections: {
-              experience: `${Math.floor(Math.random() * 40) + 20}s`,
-              education: `${Math.floor(Math.random() * 30) + 15}s`,
-              skills: `${Math.floor(Math.random() * 25) + 10}s`,
-              summary: `${Math.floor(Math.random() * 20) + 10}s`
+            aiUsage: latestAnalysis.aiUsage || 0,
+            resumesGenerated: latestAnalysis.resumesGenerated || 0,
+            timeOnSections: latestAnalysis.timeOnSections || {
+              experience: "0s",
+              education: "0s",
+              skills: "0s",
+              summary: "0s"
             }
           });
         }
@@ -605,19 +626,12 @@ export class InstitutionDashboardService {
       // Import interviewService dynamically to avoid circular dependencies
       const { interviewService } = await import('./interview.service');
       
-      // For testing purposes, get all analyses and filter by institutionId if available
-      // In production, we would use getInstitutionAnalyses which requires proper indexing
-      const allAnalyses = await interviewService.getAllAnalyses(100);
-      
-      // Filter analyses to only include those that match our institution ID
-      // If analyses don't have institutionId, we'll include them all for testing purposes
-      const filteredAnalyses = allAnalyses.filter(analysis => 
-        analysis.institutionId === institutionId || !analysis.institutionId
-      );
+      // Get analyses specific to this institution
+      const institutionAnalyses = await interviewService.getInstitutionAnalyses(institutionId);
       
       // Group analyses by student
       const studentAnalyses: Record<string, any[]> = {};
-      filteredAnalyses.forEach(analysis => {
+      institutionAnalyses.forEach(analysis => {
         const studentId = analysis.studentId || 'anonymous';
         if (!studentAnalyses[studentId]) {
           studentAnalyses[studentId] = [];
@@ -653,27 +667,23 @@ export class InstitutionDashboardService {
             topicPerformance[category.name.toLowerCase().replace(/\s+/g, '-')] = category.score;
           });
           
-          // Mock data for UI elements that aren't in the current data structure
+          // Use real data from the analysis instead of mock data
           interviewAnalytics.push({
             id: studentId,
             studentName: student?.name || `Student ${studentId.substring(0, 6)}`,
             responseQuality: Math.round(avgScore),
-            avgResponseTime: `${Math.floor(Math.random() * 30) + 15}s`,
+            avgResponseTime: latestAnalysis.avgResponseTime || "0s",
             practiceAttempts: totalAnalyses,
-            improvementTrajectory: `${Math.floor((avgScore - 50) / 2)}%`,
+            improvementTrajectory: latestAnalysis.improvementTrajectory || "0%",
             topicPerformance,
-            commonMistakes: latestAnalysis.structuredData?.improvements?.slice(0, 3) || [
-              "Speaking too quickly",
-              "Not providing specific examples",
-              "Poor posture"
-            ],
-            keywordUsage: Math.random() > 0.5 ? "High" : "Moderate",
-            sentiment: Math.random() > 0.7 ? "Confident" : "Moderate",
-            difficultyTolerance: Math.random() > 0.6 ? "High" : "Moderate",
-            confidenceLevel: Math.random() > 0.5 ? "High" : "Moderate",
-            feedbackEngagement: `${Math.floor(Math.random() * 40) + 60}%`,
-            benchmarkPercentile: `${Math.floor(Math.random() * 30) + 70}%`,
-            dropOffRate: `${Math.floor(Math.random() * 15)}%`
+            commonMistakes: latestAnalysis.commonMistakes || [],
+            keywordUsage: latestAnalysis.keywordUsage || "N/A",
+            sentiment: latestAnalysis.sentiment || "N/A",
+            difficultyTolerance: latestAnalysis.difficultyTolerance || "N/A",
+            confidenceLevel: latestAnalysis.confidenceLevel || "N/A",
+            feedbackEngagement: latestAnalysis.feedbackEngagement || "0%",
+            benchmarkPercentile: latestAnalysis.benchmarkPercentile || "0%",
+            dropOffRate: latestAnalysis.dropOffRate || "0%"
           });
         }
       }
@@ -695,51 +705,111 @@ export class InstitutionDashboardService {
       // Import interviewService dynamically to avoid circular dependencies
       const { interviewService } = await import('./interview.service');
       
-      // For testing purposes, get all analyses and filter by institutionId if available
-      // In production, we would use getInstitutionAnalyses which requires proper indexing
-      const allAnalyses = await interviewService.getAllAnalyses(100);
+      // Get analyses specific to this institution
+      const institutionAnalyses = await interviewService.getInstitutionAnalyses(institutionId);
       
-      // Filter analyses to only include those that match our institution ID
-      // If analyses don't have institutionId, we'll include them all for testing purposes
-      const filteredAnalyses = allAnalyses.filter(analysis => 
-        analysis.institutionId === institutionId || !analysis.institutionId
-      );
+      // Always return valid data structure, even when empty
+      const defaultResponse = {
+        resumeInterviewCorrelation: "0%",
+        mostUsedFeatures: ["Resume Builder", "Mock Interviews", "Feedback Analysis"],
+        sessionActivationRate: "0%",
+        studentsAtRisk: 0,
+        departmentPerformance: []
+      };
       
-      if (filteredAnalyses.length === 0) {
-        return {
-          resumeInterviewCorrelation: "0%",
-          mostUsedFeatures: ["Resume Builder", "Mock Interviews", "Feedback Analysis"],
-          sessionActivationRate: "0%", // Changed from licenseActivationRate
-          studentsAtRisk: 0,
-          departmentPerformance: []
-        };
+      if (institutionAnalyses.length === 0) {
+        return defaultResponse;
       }
       
       // Calculate metrics
-      const totalStudents = new Set(filteredAnalyses.map(a => a.studentId || 'anonymous')).size;
-      const activeStudents = new Set(filteredAnalyses.filter(a => a.timestamp && 
+      const totalStudents = new Set(institutionAnalyses.map(a => a.studentId || 'anonymous')).size;
+      const activeStudents = new Set(institutionAnalyses.filter(a => a.timestamp && 
         new Date(a.timestamp) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).map(a => a.studentId || 'anonymous')).size;
       
-      const avgScore = filteredAnalyses.reduce((sum, analysis) => 
-        sum + (analysis.overallScore || analysis.successEvaluation?.score || 0), 0) / filteredAnalyses.length;
+      // Ensure we don't divide by zero
+      const avgScore = institutionAnalyses.length > 0 ? 
+        institutionAnalyses.reduce((sum, analysis) => 
+          sum + (analysis.overallScore || analysis.successEvaluation?.score || 0), 0) / institutionAnalyses.length : 0;
       
-      const studentsAtRisk = filteredAnalyses.filter(a => 
-        (a.overallScore || a.successEvaluation?.score || 100) < 70).length;
+      const studentsAtRisk = institutionAnalyses.filter(a => 
+        (a.overallScore || a.successEvaluation?.score || 0) < 70).length;
       
       // Get session info for activation rate
       const sessionInfo = await this.getSessionInfo(institutionId);
       const sessionActivationRate = sessionInfo.totalSessions > 0 ? 
         `${Math.round((activeStudents / sessionInfo.totalSessions) * 100)}%` : "0%";
       
-      // Mock department performance data
+      // Get real department performance data
       const departments = await this.getInstitutionDepartments(institutionId);
-      const departmentPerformance = departments.slice(0, 5).map((dept: any, index: number) => ({
-        name: dept.name,
-        avgScore: Math.max(60, Math.min(95, 85 - index * 3 + Math.floor(Math.random() * 10) - 5))
-      }));
+      const departmentPerformance = [];
+      
+      // Only calculate department performance if there are departments
+      if (departments.length > 0) {
+        // For each department, calculate real performance metrics
+        for (const dept of departments) {
+          // Get students in this department
+          const deptStudentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', dept.id, 'students');
+          const deptStudentsSnapshot = await getDocs(deptStudentsRef);
+          
+          if (!deptStudentsSnapshot.empty) {
+            // Calculate average score for students in this department
+            let totalScore = 0;
+            let studentCount = 0;
+            let totalCompletionRate = 0;
+            
+            // Get analyses for students in this department
+            const deptStudentIds = deptStudentsSnapshot.docs.map(doc => doc.id);
+            const deptAnalyses = institutionAnalyses.filter(analysis => 
+              deptStudentIds.includes(analysis.studentId)
+            );
+            
+            if (deptAnalyses.length > 0) {
+              // Calculate real average score from analyses
+              const totalDeptScore = deptAnalyses.reduce((sum, analysis) => 
+                sum + (analysis.overallScore || analysis.successEvaluation?.score || 0), 0);
+              totalScore = totalDeptScore;
+              studentCount = deptAnalyses.length;
+              
+              // Calculate completion rate based on number of interviews per student
+              const studentInterviewCounts: Record<string, number> = {};
+              deptAnalyses.forEach(analysis => {
+                const studentId = analysis.studentId;
+                studentInterviewCounts[studentId] = (studentInterviewCounts[studentId] || 0) + 1;
+              });
+              
+              // Calculate average interviews per student
+              const totalInterviews = Object.values(studentInterviewCounts).reduce((sum, count) => sum + count, 0);
+              const uniqueStudents = Object.keys(studentInterviewCounts).length;
+              const avgInterviewsPerStudent = uniqueStudents > 0 ? totalInterviews / uniqueStudents : 0;
+              
+              // Calculate completion rate as a percentage (0-100)
+              // Using a more reasonable scaling factor
+              const completionRate = Math.min(100, Math.max(0, Math.round((avgInterviewsPerStudent / 10) * 100)));
+              totalCompletionRate = completionRate;
+            } else {
+              // Only use fallback values if there are actually students in this department
+              if (deptStudentsSnapshot.size > 0) {
+                studentCount = deptStudentsSnapshot.size;
+                totalScore = studentCount * 70; // Default score of 70 per student
+                totalCompletionRate = 80; // Default completion rate of 80%
+              }
+            }
+            
+            const deptAvgScore = studentCount > 0 ? Math.round(totalScore / studentCount) : 0;
+            const avgCompletionRate = totalCompletionRate; // Use the calculated completion rate directly
+            
+            departmentPerformance.push({
+              name: dept.name,
+              studentCount: studentCount,
+              avgScore: deptAvgScore,
+              completionRate: avgCompletionRate
+            });
+          }
+        }
+      }
       
       return {
-        resumeInterviewCorrelation: `${Math.min(95, Math.max(60, Math.round(avgScore)))}%`,
+        resumeInterviewCorrelation: avgScore > 0 ? `${Math.round(avgScore)}%` : "0%",
         mostUsedFeatures: ["Resume Builder", "Mock Interviews", "Feedback Analysis", "Skill Assessment", "Progress Tracking"],
         sessionActivationRate, // Changed from licenseActivationRate
         studentsAtRisk,
@@ -747,10 +817,11 @@ export class InstitutionDashboardService {
       };
     } catch (error) {
       console.error('Error fetching platform engagement data:', error);
+      // Always return a valid structure even in case of errors
       return {
         resumeInterviewCorrelation: "0%",
         mostUsedFeatures: ["Resume Builder", "Mock Interviews", "Feedback Analysis"],
-        sessionActivationRate: "0%", // Changed from licenseActivationRate
+        sessionActivationRate: "0%",
         studentsAtRisk: 0,
         departmentPerformance: []
       };

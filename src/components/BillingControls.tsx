@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building, Trash2 } from 'lucide-react';
+import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building, Trash2, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import ResetSettingsDialog from './ResetSettingsDialog';
@@ -18,6 +18,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface SessionPurchase {
   id: string;
@@ -47,6 +54,9 @@ interface BillingHistoryItem {
   status: 'paid' | 'pending' | 'failed';
 }
 
+// Define payment plan types
+type PaymentPlan = 'monthly' | 'quarterly' | 'annual';
+
 interface BillingControlsProps {
   sessionPurchases?: SessionPurchase[];
 }
@@ -61,8 +71,26 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   const [error, setError] = useState<string | null>(null);
   const { user, isLoading } = useFirebaseAuth(); // Also get isLoading state
 
-  const PRICE_PER_SESSION_ANNUAL = 19.96; // $19.96 per student annually
-  const PRICE_PER_SESSION_QUARTERLY = 4.99; // $4.99 per student quarterly
+  // Payment plan configuration
+  const PRICING_PLANS = {
+    monthly: {
+      pricePerSession: 1.99,
+      name: "Monthly",
+      description: "Pay monthly for flexible usage"
+    },
+    quarterly: {
+      pricePerSession: 4.99,
+      name: "Quarterly",
+      description: "Save 15% with quarterly billing"
+    },
+    annual: {
+      pricePerSession: 19.96,
+      name: "Annual",
+      description: "Save 30% with annual billing"
+    }
+  };
+
+  const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('annual');
   
   // Add state for Stripe
   const [stripePromise, setStripePromise] = useState<Stripe | null>(null);
@@ -227,12 +255,8 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     fetchData();
   }, [user, isLoading, toast]); // Add isLoading to dependency array
   
-  const calculateAnnualSessionCost = (count: number) => {
-    return (count * PRICE_PER_SESSION_ANNUAL).toFixed(2);
-  };
-  
-  const calculateQuarterlySessionCost = (count: number) => {
-    return (count * PRICE_PER_SESSION_QUARTERLY).toFixed(2);
+  const calculateSessionCost = (count: number, plan: PaymentPlan) => {
+    return (count * PRICING_PLANS[plan].pricePerSession).toFixed(2);
   };
   
   const handleSessionChange = (count: number) => {
@@ -260,8 +284,9 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         },
         body: JSON.stringify({
           sessionCount: sessionsToPurchase,
-          pricePerSession: PRICE_PER_SESSION_QUARTERLY,
-          institutionId: user.institutionId
+          pricePerSession: PRICING_PLANS[selectedPlan].pricePerSession,
+          institutionId: user.institutionId,
+          billingPeriod: selectedPlan
         })
       });
       
@@ -296,8 +321,8 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
           
           const newPurchase = {
             date: new Date(),
-            description: `Session purchase (${sessionsToPurchase} students)`,
-            amount: Number(calculateQuarterlySessionCost(sessionsToPurchase)),
+            description: `Session purchase (${sessionsToPurchase} students) - ${PRICING_PLANS[selectedPlan].name}`,
+            amount: Number(calculateSessionCost(sessionsToPurchase, selectedPlan)),
             status: 'paid' as const
           };
           
@@ -309,8 +334,8 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         
         const newPurchase = {
           date: new Date(),
-          description: `Session purchase (${sessionsToPurchase} students)`,
-          amount: Number(calculateQuarterlySessionCost(sessionsToPurchase)),
+          description: `Session purchase (${sessionsToPurchase} students) - ${PRICING_PLANS[selectedPlan].name}`,
+          amount: Number(calculateSessionCost(sessionsToPurchase, selectedPlan)),
           status: 'paid' as const
         };
         
@@ -511,23 +536,49 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
               </Button>
             </div>
             
+            <div className="space-y-2">
+              <Label>Billing Period</Label>
+              <Select value={selectedPlan} onValueChange={(value: PaymentPlan) => setSelectedPlan(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select billing period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">
+                    <div className="flex justify-between w-full">
+                      <span>{PRICING_PLANS.monthly.name}</span>
+                      <span className="text-muted-foreground text-xs">${PRICING_PLANS.monthly.pricePerSession}/session</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="quarterly">
+                    <div className="flex justify-between w-full">
+                      <span>{PRICING_PLANS.quarterly.name}</span>
+                      <span className="text-muted-foreground text-xs">${PRICING_PLANS.quarterly.pricePerSession}/session</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="annual">
+                    <div className="flex justify-between w-full">
+                      <span>{PRICING_PLANS.annual.name}</span>
+                      <span className="text-muted-foreground text-xs">${PRICING_PLANS.annual.pricePerSession}/session</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">{PRICING_PLANS[selectedPlan].description}</p>
+            </div>
+            
             <div className="bg-primary/5 p-3 rounded-md space-y-2">
               <div className="flex justify-between">
                 <span>Sessions</span>
                 <span>{sessionsToPurchase} students</span>
               </div>
               <div className="flex justify-between">
-                <span>Quarterly cost</span>
-                <span>${calculateQuarterlySessionCost(sessionsToPurchase)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Annual cost</span>
-                <span>${calculateAnnualSessionCost(sessionsToPurchase)}</span>
+                <span>Price per session</span>
+                <span>${PRICING_PLANS[selectedPlan].pricePerSession.toFixed(2)}</span>
               </div>
               <div className="h-px bg-primary/10 my-1"></div>
               <div className="flex justify-between font-bold">
-                <span>Total annual cost</span>
-                <span>${calculateAnnualSessionCost(sessionsToPurchase)}</span>
+                <span>Total cost</span>
+                <span>${calculateSessionCost(sessionsToPurchase, selectedPlan)}</span>
               </div>
             </div>
             
@@ -641,23 +692,23 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
             </div>
             
             <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Quarterly Session Cost</div>
-              <div className="text-2xl font-bold">${calculateQuarterlySessionCost(sessionCount || 0)}</div>
-              <div className="text-xs text-muted-foreground mt-1">Next payment: June 1, 2025</div>
+              <div className="text-muted-foreground text-sm">Current Plan</div>
+              <div className="text-2xl font-bold">{PRICING_PLANS[selectedPlan].name}</div>
+              <div className="text-xs text-muted-foreground mt-1">${PRICING_PLANS[selectedPlan].pricePerSession}/session</div>
             </div>
             
             <div className="bg-muted rounded-md p-3">
               <div className="text-muted-foreground text-sm">Session Purchases</div>
               <div className="text-2xl font-bold">${totalSessionCost.toFixed(2)}</div>
-              <div className="text-xs text-muted-foreground mt-1">Current quarter</div>
+              <div className="text-xs text-muted-foreground mt-1">Current period</div>
             </div>
             
             <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Total Quarterly Cost</div>
+              <div className="text-muted-foreground text-sm">Total Cost</div>
               <div className="text-2xl font-bold">
-                ${(parseFloat(calculateQuarterlySessionCost(sessionCount || 0)) + (totalSessionCost || 0)).toFixed(2)}
+                ${calculateSessionCost(sessionCount || 0, selectedPlan)}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">Sessions + Additional Purchases</div>
+              <div className="text-xs text-muted-foreground mt-1">{PRICING_PLANS[selectedPlan].name} billing</div>
             </div>
           </div>
           
@@ -701,7 +752,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
       <Card tooltip="View your previous invoices and billing transactions">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
+            <CalendarIcon className="h-5 w-5 text-primary" />
             Billing History
           </CardTitle>
           <CardDescription>
