@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,8 @@ import { ShoppingCart, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ConfirmationDialog from '../ConfirmationDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { loadStripe } from '@stripe/stripe-js';
+import { SessionService } from '@/services/session.service';
 
 interface SessionPurchaseProps {
   sessionLength: number;
@@ -19,8 +20,20 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
   const [additionalSessions, setAdditionalSessions] = useState('');
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const [stripePromise, setStripePromise] = useState<any>(null);
   
-  const handleAddSessions = () => {
+  useEffect(() => {
+    const initializeStripe = async () => {
+      if (process.env.VITE_STRIPE_PUBLISHABLE_KEY) {
+        const stripe = await loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY);
+        setStripePromise(stripe);
+      }
+    };
+    
+    initializeStripe();
+  }, []);
+  
+  const handleAddSessions = async () => {
     const sessionsToAdd = parseInt(additionalSessions);
     if (isNaN(sessionsToAdd) || sessionsToAdd <= 0) {
       toast({
@@ -31,19 +44,101 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
       return;
     }
     
-    const totalCost = parseFloat((sessionsToAdd * parseFloat(sessionCost)).toFixed(2));
-    
-    toast({
-      title: "Sessions purchased",
-      description: `${sessionsToAdd} sessions added to your pool for $${totalCost.toFixed(2)}`,
-    });
-    
-    // Notify parent component about session purchase for billing update
-    if (onSessionPurchase) {
-      onSessionPurchase(sessionsToAdd, totalCost);
+    try {
+      const response = await fetch('/api/sessions/purchases', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          sessionCount: sessionsToAdd,
+          pricePerSession: parseFloat(sessionCost)
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        // Handle different error statuses appropriately
+        if (response.status >= 500) {
+          // Server error - show toast
+          toast({
+            title: "Server error",
+            description: result.message || "Failed to process session purchase",
+            variant: "destructive"
+          });
+        } else if (response.status >= 400) {
+          // Client error - show toast with specific message
+          toast({
+            title: "Purchase failed",
+            description: result.message || "Invalid purchase request",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+      
+      if (result.data.clientSecret && stripePromise) {
+        const stripe = await stripePromise;
+        if (stripe) {
+          const { error } = await stripe.confirmCardPayment(result.data.clientSecret);
+          
+          if (error) {
+            toast({
+              title: "Payment failed",
+              description: error.message,
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          const totalCost = parseFloat((sessionsToAdd * parseFloat(sessionCost)).toFixed(2));
+          
+          toast({
+            title: "Sessions purchased",
+            description: `${sessionsToAdd} sessions added to your pool for $${totalCost.toFixed(2)}`,
+          });
+          
+          if (onSessionPurchase) {
+            onSessionPurchase(sessionsToAdd, totalCost);
+          }
+          
+          setAdditionalSessions('');
+        }
+      } else {
+        const totalCost = parseFloat((sessionsToAdd * parseFloat(sessionCost)).toFixed(2));
+        
+        toast({
+          title: "Sessions purchased",
+          description: `${sessionsToAdd} sessions added to your pool for $${totalCost.toFixed(2)}`,
+        });
+        
+        if (onSessionPurchase) {
+          onSessionPurchase(sessionsToAdd, totalCost);
+        }
+        
+        setAdditionalSessions('');
+      }
+    } catch (error: any) {
+      // Handle network errors and other unexpected errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        // Network error
+        toast({
+          title: "Network error",
+          description: "Unable to connect to the server. Please check your connection.",
+          variant: "destructive"
+        });
+      } else {
+        // Unexpected error
+        toast({
+          title: "Purchase failed",
+          description: error instanceof Error ? error.message : "An unexpected error occurred",
+          variant: "destructive"
+        });
+      }
+      console.error('Purchase error:', error);
     }
-    
-    setAdditionalSessions('');
   };
   
   const calculateBundleCost = (sessions: number) => {

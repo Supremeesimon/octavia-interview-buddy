@@ -41,6 +41,7 @@ import InstitutionInterests from '@/components/InstitutionInterests';
 import { InstitutionService } from '@/services/institution.service';
 import { InstitutionInterestService } from '@/services/institution-interest.service';
 import { authService } from '@/services/auth.service';
+import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
 import { Institution, User } from '@/types';
 import { getGreetingWithName } from '@/utils/greeting.utils';
 
@@ -71,6 +72,8 @@ const AdminDashboard = () => {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [institutionInterests, setInstitutionInterests] = useState<InstitutionInterest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [departmentStats, setDepartmentStats] = useState<Record<string, any[]>>({});
+  const [expandedInstitutions, setExpandedInstitutions] = useState<Record<string, boolean>>({});
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     interviewsCompleted: 0,
@@ -103,6 +106,14 @@ const AdminDashboard = () => {
       // Fetch institutions
       const institutionData = await InstitutionService.getAllInstitutions();
       setInstitutions(institutionData);
+      
+      // Fetch department stats for each institution
+      const deptStats: Record<string, any[]> = {};
+      for (const inst of institutionData) {
+        const stats = await getDepartmentStats(inst.id);
+        deptStats[inst.id] = stats;
+      }
+      setDepartmentStats(deptStats);
       
       // Fetch institution interests
       const interestData = await InstitutionInterestService.getAllInterests();
@@ -293,6 +304,44 @@ const AdminDashboard = () => {
     } catch (error) {
       toast.error("Failed to approve institution");
       console.error("Error approving institution:", error);
+    }
+  };
+  
+  // Function to get department-level statistics for an institution
+  const getDepartmentStats = async (institutionId: string) => {
+    try {
+      // Fetch students and teachers for the institution
+      const [students, teachers] = await Promise.all([
+        InstitutionDashboardService.getInstitutionStudents(institutionId),
+        InstitutionDashboardService.getInstitutionTeachers(institutionId)
+      ]);
+      
+      // Group by department
+      const departmentMap: Record<string, { students: number; teachers: number; departmentName: string }> = {};
+      
+      // Count students by department
+      students.forEach(student => {
+        const deptId = student.department || 'unassigned';
+        if (!departmentMap[deptId]) {
+          departmentMap[deptId] = { students: 0, teachers: 0, departmentName: student.department || 'Unassigned' };
+        }
+        departmentMap[deptId].students += 1;
+      });
+      
+      // Count teachers by department
+      teachers.forEach(teacher => {
+        const deptId = teacher.department || 'unassigned';
+        if (!departmentMap[deptId]) {
+          departmentMap[deptId] = { students: 0, teachers: 0, departmentName: teacher.department || 'Unassigned' };
+        }
+        departmentMap[deptId].teachers += 1;
+      });
+      
+      // Convert to array
+      return Object.values(departmentMap);
+    } catch (error) {
+      console.error("Error fetching department stats:", error);
+      return [];
     }
   };
   
@@ -596,88 +645,136 @@ const AdminDashboard = () => {
                       </TableRow>
                     ) : (
                       institutionsData.map((institution) => (
-                        <TableRow key={institution.id}>
-                          <TableCell className="font-medium">{institution.name}</TableCell>
-                          <TableCell>
-                            {institution.activeStudents}/{institution.totalStudents}
-                            <div className="w-24 mt-1">
-                              <Progress 
-                                value={(institution.activeStudents / institution.totalStudents) * 100} 
-                                className="h-1.5" 
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell>{institution.interviewsCompleted}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              {institution.avgScore}/100
-                              <div 
-                                className={`h-2 w-2 rounded-full ${
-                                  institution.avgScore >= 85 ? 'bg-green-500' : 
-                                  institution.avgScore >= 75 ? 'bg-amber-500' : 
-                                  'bg-red-500'
-                                }`}
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell>{institution.resumeUploads}</TableCell>
-                          <TableCell>{institution.licensesUsed}</TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs 
-                              ${institution.engagement === 'Very High' || institution.engagement === 'High' ? 
-                                'bg-green-100 text-green-800' : 
-                                institution.engagement === 'Medium' ? 
-                                'bg-amber-100 text-amber-800' : 
-                                'bg-red-100 text-red-800'
-                              }`}>
-                              {institution.engagement}
-                            </span>
-                            {institution.approvalStatus === 'pending' && (
-                              <div className="mt-1">
-                                <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
-                                  Pending Approval
-                                </span>
+                        <React.Fragment key={institution.id}>
+                          <TableRow>
+                            <TableCell className="font-medium">{institution.name}</TableCell>
+                            <TableCell>
+                              {institution.activeStudents}/{institution.totalStudents}
+                              <div className="w-24 mt-1">
+                                <Progress 
+                                  value={(institution.activeStudents / institution.totalStudents) * 100} 
+                                  className="h-1.5" 
+                                />
                               </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            </TableCell>
+                            <TableCell>{institution.interviewsCompleted}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                {institution.avgScore}/100
+                                <div 
+                                  className={`h-2 w-2 rounded-full ${
+                                    institution.avgScore >= 85 ? 'bg-green-500' : 
+                                    institution.avgScore >= 75 ? 'bg-amber-500' : 
+                                    'bg-red-500'
+                                  }`}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell>{institution.resumeUploads}</TableCell>
+                            <TableCell>{institution.licensesUsed}</TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs 
+                                ${institution.engagement === 'Very High' || institution.engagement === 'High' ? 
+                                  'bg-green-100 text-green-800' : 
+                                  institution.engagement === 'Medium' ? 
+                                  'bg-amber-100 text-amber-800' : 
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                {institution.engagement}
+                              </span>
                               {institution.approvalStatus === 'pending' && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  tooltip="Approve this institution"
-                                  onClick={() => handleApproveInstitution(institution.id)}
-                                >
-                                  <CheckCircle className="h-4 w-4 text-green-500" />
-                                </Button>
+                                <div className="mt-1">
+                                  <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                                    Pending Approval
+                                  </span>
+                                </div>
                               )}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                {institution.approvalStatus === 'pending' && (
                                   <Button 
-                                    variant="ghost" 
+                                    variant="outline" 
                                     size="sm"
-                                    tooltip="Actions for this institution"
+                                    tooltip="Approve this institution"
+                                    onClick={() => handleApproveInstitution(institution.id)}
                                   >
-                                    Actions
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
                                   </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem 
-                                    onClick={() => handleViewInstitutionAnalytics(institution.id)}
-                                    className="cursor-pointer"
-                                  >
-                                    View Analytics
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>Edit</DropdownMenuItem>
-                                  <DropdownMenuItem>Manage Users</DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-red-600">Deactivate</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                                )}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      tooltip="Actions for this institution"
+                                    >
+                                      Actions
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem 
+                                      onClick={() => handleViewInstitutionAnalytics(institution.id)}
+                                      className="cursor-pointer"
+                                    >
+                                      View Analytics
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => {
+                                        setExpandedInstitutions(prev => ({
+                                          ...prev,
+                                          [institution.id]: !prev[institution.id]
+                                        }));
+                                      }}
+                                      className="cursor-pointer"
+                                    >
+                                      {expandedInstitutions[institution.id] ? 'Hide Departments' : 'Show Departments'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem>Manage Users</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="text-red-600">Deactivate</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {expandedInstitutions[institution.id] && (
+                            <TableRow>
+                              <TableCell colSpan={9} className="p-0">
+                                <div className="pl-8 pr-4 py-4 bg-muted/50">
+                                  <h4 className="font-medium mb-2">Department Breakdown</h4>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Department</TableHead>
+                                        <TableHead>Students</TableHead>
+                                        <TableHead>Teachers</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {departmentStats[institution.id]?.length > 0 ? (
+                                        departmentStats[institution.id].map((dept, index) => (
+                                          <TableRow key={index}>
+                                            <TableCell>{dept.departmentName}</TableCell>
+                                            <TableCell>{dept.students}</TableCell>
+                                            <TableCell>{dept.teachers}</TableCell>
+                                          </TableRow>
+                                        ))
+                                      ) : (
+                                        <TableRow>
+                                          <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                            No department data available
+                                          </TableCell>
+                                        </TableRow>
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
                       ))
                     )}
                   </TableBody>

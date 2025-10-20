@@ -415,8 +415,8 @@ export class InstitutionHierarchyService {
               id: externalUserDoc.id,
               ...data,
               role: 'student',
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date()
+              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+              updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
             } as UserProfile,
             role: 'student'
           };
@@ -446,8 +446,8 @@ export class InstitutionHierarchyService {
                   id: adminDoc.id,
                   ...data,
                   role: 'institution_admin',
-                  createdAt: data.createdAt?.toDate() || new Date(),
-                  updatedAt: data.updatedAt?.toDate() || new Date()
+                  createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+                  updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
                 } as UserProfile,
                 role: 'institution_admin',
                 institutionId
@@ -479,8 +479,8 @@ export class InstitutionHierarchyService {
                       id: teacherDoc.id,
                       ...data,
                       role: 'teacher',
-                      createdAt: data.createdAt?.toDate() || new Date(),
-                      updatedAt: data.updatedAt?.toDate() || new Date()
+                      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+                      updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
                     } as UserProfile,
                     role: 'teacher',
                     institutionId,
@@ -505,8 +505,8 @@ export class InstitutionHierarchyService {
                       id: studentDoc.id,
                       ...data,
                       role: 'student',
-                      createdAt: data.createdAt?.toDate() || new Date(),
-                      updatedAt: data.updatedAt?.toDate() || new Date()
+                      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+                      updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
                     } as UserProfile,
                     role: 'student',
                     institutionId,

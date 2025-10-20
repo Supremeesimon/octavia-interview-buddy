@@ -538,11 +538,21 @@ const authController = {
 
       let decodedToken;
       try {
-        decodedToken = await firebaseAdmin.auth().verifyIdToken(firebaseToken);
+        // Add additional validation for the token
+        if (typeof firebaseToken !== 'string' || firebaseToken.length < 10) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid Firebase token format'
+          });
+        }
+        
+        decodedToken = await firebaseAdmin.auth().verifyIdToken(firebaseToken, true); // checkRevoked=true
       } catch (error) {
+        console.error('Firebase token verification error:', error);
         return res.status(401).json({
           success: false,
-          message: 'Invalid Firebase token'
+          message: 'Invalid or expired Firebase token',
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
       }
 
@@ -619,7 +629,8 @@ const authController = {
       console.error('Token exchange error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Internal server error during token exchange',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }

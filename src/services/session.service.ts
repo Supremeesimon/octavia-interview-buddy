@@ -10,6 +10,7 @@ export interface SessionPurchase {
   pricePerSession: number;
   totalPrice: number;
   status: 'pending' | 'completed' | 'cancelled';
+  clientSecret?: string; // Add this for Stripe integration
 }
 
 export interface SessionAllocation {
@@ -34,18 +35,47 @@ export interface SessionPool {
 }
 
 export class SessionService {
-  private static baseUrl = '/api/sessions'; // Add /api prefix to match backend routes
+  private static baseUrl = '/api/sessions';
+  private static stripeBaseUrl = '/api/stripe'; // Add Stripe base URL
 
   // Session Purchase Methods
   static async getSessionPurchases(institutionId: string): Promise<SessionPurchase[]> {
     try {
       const response: ApiResponse<SessionPurchase[]> = await apiClient.get(`${this.baseUrl}/purchases/${institutionId}`);
+      // Handle case where response.data might be null or undefined
+      if (!response.data) {
+        return [];
+      }
       return response.data.map((purchase: any) => ({
         ...purchase,
-        purchaseDate: new Date(purchase.purchaseDate),
+        purchaseDate: purchase.purchaseDate ? new Date(purchase.purchaseDate) : new Date(),
       }));
-    } catch (error) {
-      toast.error('Failed to fetch session purchases');
+    } catch (error: any) {
+      // Handle different types of errors appropriately
+      // Don't show error toast for 404 errors as it may be normal not to have purchases yet
+      if (error.status === 404) {
+        return [];
+      }
+      
+      // For 400 responses (bad request), don't show toast but still throw the error
+      if (error.status === 400) {
+        console.warn('Session purchases request failed with 400 (Bad Request):', error.message);
+        return [];
+      }
+      
+      // Show error toast for actual errors (network issues, 5xx server errors, etc.)
+      // but not for normal client errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to fetch session purchases');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to fetch session purchases');
+      } else {
+        // Other errors (401, 403, etc.) - log but don't show toast
+        console.warn(`Session purchases request failed with status ${error.status}:`, error.message);
+      }
+      
       throw error;
     }
   }
@@ -62,8 +92,19 @@ export class SessionService {
         ...response.data,
         purchaseDate: new Date(response.data.purchaseDate),
       };
-    } catch (error) {
-      toast.error('Failed to create session purchase');
+    } catch (error: any) {
+      // Show error toast for actual errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to create session purchase');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to create session purchase');
+      } else if (error.status >= 400) {
+        // Client error
+        toast.error(error.message || 'Failed to create session purchase');
+      }
+      
       throw error;
     }
   }
@@ -92,8 +133,8 @@ export class SessionService {
         return null;
       }
       
-      // For 400 responses (bad request), don't show toast but still throw the error
-      // This might happen if institutionId is missing
+      // For 400 responses (bad request), don't show toast but still log
+      // This might happen if institutionId is missing from the user context
       if (error.status === 400) {
         console.warn('Session pool request failed with 400 (Bad Request):', error.message);
         return null;
@@ -203,6 +244,99 @@ export class SessionService {
       toast.success('Session allocation deleted');
     } catch (error) {
       toast.error('Failed to delete session allocation');
+      throw error;
+    }
+  }
+
+  // Add Stripe-related methods
+  static async getPaymentMethods(): Promise<any[]> {
+    try {
+      const response: ApiResponse<any[]> = await apiClient.get(`${this.stripeBaseUrl}/payment-methods`);
+      return response.data;
+    } catch (error: any) {
+      // Handle different types of errors appropriately
+      // Don't show error toast for 404 errors as it may be normal not to have payment methods yet
+      if (error.status === 404) {
+        return [];
+      }
+      
+      // For 400 responses (bad request), don't show toast but still throw the error
+      if (error.status === 400) {
+        console.warn('Payment methods request failed with 400 (Bad Request):', error.message);
+        return [];
+      }
+      
+      // Show error toast for actual errors (network issues, 5xx server errors, etc.)
+      // but not for normal client errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to fetch payment methods');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to fetch payment methods');
+      } else {
+        // Other errors (401, 403, etc.) - log but don't show toast
+        console.warn(`Payment methods request failed with status ${error.status}:`, error.message);
+      }
+      
+      throw error;
+    }
+  }
+
+  static async savePaymentMethod(paymentMethodId: string): Promise<any> {
+    try {
+      const response: ApiResponse<any> = await apiClient.post(`${this.stripeBaseUrl}/payment-methods`, {
+        paymentMethodId
+      });
+      toast.success('Payment method saved successfully');
+      return response.data;
+    } catch (error: any) {
+      // Show error toast for actual errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to save payment method');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to save payment method');
+      } else if (error.status >= 400) {
+        // Client error
+        toast.error(error.message || 'Failed to save payment method');
+      }
+      
+      throw error;
+    }
+  }
+
+  static async getInvoices(): Promise<any[]> {
+    try {
+      const response: ApiResponse<any[]> = await apiClient.get(`${this.stripeBaseUrl}/invoices`);
+      return response.data;
+    } catch (error: any) {
+      // Handle different types of errors appropriately
+      // Don't show error toast for 404 errors as it may be normal not to have invoices yet
+      if (error.status === 404) {
+        return [];
+      }
+      
+      // For 400 responses (bad request), don't show toast but still throw the error
+      if (error.status === 400) {
+        console.warn('Invoices request failed with 400 (Bad Request):', error.message);
+        return [];
+      }
+      
+      // Show error toast for actual errors (network issues, 5xx server errors, etc.)
+      // but not for normal client errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to fetch invoices');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to fetch invoices');
+      } else {
+        // Other errors (401, 403, etc.) - log but don't show toast
+        console.warn(`Invoices request failed with status ${error.status}:`, error.message);
+      }
+      
       throw error;
     }
   }

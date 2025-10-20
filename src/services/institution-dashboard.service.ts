@@ -21,11 +21,17 @@ export class InstitutionDashboardService {
       const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
       const departmentsSnapshot = await getDocs(departmentsRef);
       
+      console.log(`Found ${departmentsSnapshot.size} departments for institution ${institutionId}`);
+      
       // For each department, get all students
       for (const departmentDoc of departmentsSnapshot.docs) {
         const departmentId = departmentDoc.id;
+        console.log(`Checking department ${departmentId} for students`);
+        
         const studentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students');
         const studentsSnapshot = await getDocs(studentsRef);
+        
+        console.log(`Found ${studentsSnapshot.size} students in department ${departmentId}`);
         
         for (const studentDoc of studentsSnapshot.docs) {
           const data = studentDoc.data();
@@ -48,6 +54,7 @@ export class InstitutionDashboardService {
         }
       }
       
+      console.log(`Returning ${students.length} total students for institution ${institutionId}`);
       return students;
     } catch (error) {
       console.error('Error fetching institution students:', error);
@@ -68,11 +75,17 @@ export class InstitutionDashboardService {
       const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
       const departmentsSnapshot = await getDocs(departmentsRef);
       
+      console.log(`Found ${departmentsSnapshot.size} departments for institution ${institutionId} (teachers)`);
+      
       // For each department, get all teachers
       for (const departmentDoc of departmentsSnapshot.docs) {
         const departmentId = departmentDoc.id;
+        console.log(`Checking department ${departmentId} for teachers`);
+        
         const teachersRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'teachers');
         const teachersSnapshot = await getDocs(teachersRef);
+        
+        console.log(`Found ${teachersSnapshot.size} teachers in department ${departmentId}`);
         
         for (const teacherDoc of teachersSnapshot.docs) {
           const data = teacherDoc.data();
@@ -94,6 +107,7 @@ export class InstitutionDashboardService {
         }
       }
       
+      console.log(`Returning ${teachers.length} total teachers for institution ${institutionId}`);
       return teachers;
     } catch (error) {
       console.error('Error fetching institution teachers:', error);
@@ -165,17 +179,24 @@ export class InstitutionDashboardService {
       const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
       const departmentsSnapshot = await getDocs(departmentsRef);
       
+      console.log(`Found ${departmentsSnapshot.size} departments for institution ${institutionId} (student IDs)`);
+      
       // For each department, get all students
       for (const departmentDoc of departmentsSnapshot.docs) {
         const departmentId = departmentDoc.id;
+        console.log(`Checking department ${departmentId} for student IDs`);
+        
         const studentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments', departmentId, 'students');
         const studentsSnapshot = await getDocs(studentsRef);
+        
+        console.log(`Found ${studentsSnapshot.size} student IDs in department ${departmentId}`);
         
         studentsSnapshot.forEach((studentDoc) => {
           studentIds.push(studentDoc.id);
         });
       }
       
+      console.log(`Returning ${studentIds.length} total student IDs for institution ${institutionId}`);
       return studentIds;
     } catch (error) {
       console.error('Error fetching student IDs for institution:', error);
@@ -283,7 +304,7 @@ export class InstitutionDashboardService {
    * @param institutionId - The ID of the institution
    * @returns Session information
    */
-  static async getLicenseInfo(institutionId: string): Promise<any> {
+  static async getSessionInfo(institutionId: string): Promise<any> {
     try {
       // Try to get session data from the new SessionService first
       try {
@@ -363,7 +384,7 @@ export class InstitutionDashboardService {
    * @param institutionId - The ID of the institution
    * @returns Comprehensive session and usage statistics
    */
-  static async getLicenseStatistics(institutionId: string): Promise<any> {
+  static async getSessionStatistics(institutionId: string): Promise<any> {
     try {
       // Try to get session data from the new SessionService first
       try {
@@ -688,7 +709,7 @@ export class InstitutionDashboardService {
         (a.overallScore || a.successEvaluation?.score || 100) < 70).length;
       
       // Get session info for activation rate
-      const sessionInfo = await this.getLicenseInfo(institutionId);
+      const sessionInfo = await this.getSessionInfo(institutionId);
       const sessionActivationRate = sessionInfo.totalSessions > 0 ? 
         `${Math.round((activeStudents / sessionInfo.totalSessions) * 100)}%` : "0%";
       

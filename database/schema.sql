@@ -19,6 +19,7 @@ CREATE TYPE interview_type AS ENUM ('behavioral', 'technical', 'general', 'indus
 CREATE TYPE resume_type AS ENUM ('pdf', 'linkedin', 'voice');
 CREATE TYPE session_purchase_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
 CREATE TYPE call_status AS ENUM ('idle', 'connecting', 'connected', 'ended', 'error');
+CREATE TYPE institution_approval_status AS ENUM ('pending', 'approved', 'rejected');
 
 -- =============================================================================
 -- CORE USER TABLES
@@ -42,31 +43,23 @@ CREATE TABLE users (
     firebase_uid VARCHAR(255) UNIQUE, -- Add Firebase UID column
     
     -- Indexes
-    CONSTRAINT valid_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+    CONSTRAINT valid_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[[A-Za-z]{2,}$')
 );
 
 -- Institutions table
 CREATE TABLE institutions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
-    domain VARCHAR(255) UNIQUE NOT NULL,
-    website TEXT,
+    domain VARCHAR(255) UNIQUE,
+    contact_email VARCHAR(255),
+    contact_phone VARCHAR(50),
+    address TEXT,
     logo_url TEXT,
-    admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    
-    -- Settings
-    allowed_bookings_per_month INTEGER DEFAULT 0,
-    session_length INTEGER DEFAULT 15, -- minutes
-    require_resume_upload BOOLEAN DEFAULT TRUE,
-    enable_department_allocations BOOLEAN DEFAULT FALSE,
-    enable_student_groups BOOLEAN DEFAULT FALSE,
-    
-    -- Email notification settings
-    enable_interview_reminders BOOLEAN DEFAULT TRUE,
-    enable_feedback_emails BOOLEAN DEFAULT TRUE,
-    enable_weekly_reports BOOLEAN DEFAULT FALSE,
-    reminder_hours INTEGER DEFAULT 24,
+    website_url TEXT,
+    approval_status institution_approval_status DEFAULT 'pending',
+    is_active BOOLEAN DEFAULT false,
+    platform_admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    stripe_customer_id VARCHAR(255), -- Add this line for Stripe customer ID
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

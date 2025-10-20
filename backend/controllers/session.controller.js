@@ -1,9 +1,18 @@
 const db = require('../config/database');
+const StripeService = require('../services/stripe.service');
 
 const sessionController = {
   // Get session purchases for institution
   async getSessionPurchases(req, res) {
     try {
+      // Check if user has institutionId
+      if (!req.user || !req.user.institutionId) {
+        return res.status(400).json({
+          success: false,
+          message: 'User is not associated with an institution. Only institution administrators can access session purchases.'
+        });
+      }
+
       const institutionId = req.user.institutionId;
 
       const result = await db.query(
@@ -23,7 +32,7 @@ const sessionController = {
       console.error('Get session purchases error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Internal server error while fetching session purchases'
       });
     }
   },
@@ -32,7 +41,7 @@ const sessionController = {
   async createSessionPurchase(req, res) {
     try {
       const institutionId = req.user.institutionId;
-      const { sessionCount, pricePerSession } = req.body;
+      const { sessionCount, pricePerSession, paymentMethodId } = req.body;
 
       // Validate input
       if (!sessionCount || sessionCount <= 0) {
@@ -43,13 +52,51 @@ const sessionController = {
       }
 
       const totalAmount = sessionCount * pricePerSession;
+      const totalAmountCents = Math.round(totalAmount * 100); // Convert to cents
 
-      // Insert new session purchase
+      // Get institution details for customer creation
+      const institutionResult = await db.query(
+        'SELECT name, email, stripe_customer_id FROM institutions WHERE id = $1',
+        [institutionId]
+      );
+
+      const institution = institutionResult.rows[0];
+      if (!institution) {
+        return res.status(404).json({
+          success: false,
+          message: 'Institution not found'
+        });
+      }
+
+      // Create or retrieve Stripe customer
+      let customerId = institution.stripe_customer_id;
+      if (!customerId) {
+        const customer = await StripeService.createCustomer(
+          institutionId,
+          institution.email,
+          institution.name
+        );
+        customerId = customer.id;
+      }
+
+      // Create payment intent
+      const paymentIntent = await StripeService.createPaymentIntent(
+        totalAmountCents,
+        'usd',
+        institutionId,
+        {
+          sessionCount: sessionCount.toString(),
+          pricePerSession: pricePerSession.toString(),
+          description: `Purchase of ${sessionCount} interview sessions`
+        }
+      );
+
+      // Insert new session purchase with pending status
       const result = await db.query(
-        `INSERT INTO session_purchases (institution_id, session_count, price_per_session, total_amount, status)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO session_purchases (institution_id, session_count, price_per_session, total_amount, status, payment_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id, session_count, price_per_session, total_amount, status, created_at`,
-        [institutionId, sessionCount, pricePerSession, totalAmount, 'pending']
+        [institutionId, sessionCount, pricePerSession, totalAmount, 'pending', paymentIntent.id]
       );
 
       const newPurchase = result.rows[0];
@@ -57,7 +104,10 @@ const sessionController = {
       res.status(201).json({
         success: true,
         message: 'Session purchase created successfully',
-        data: newPurchase
+        data: {
+          ...newPurchase,
+          clientSecret: paymentIntent.client_secret // Send client secret to frontend
+        }
       });
     } catch (error) {
       console.error('Create session purchase error:', error);
@@ -78,7 +128,7 @@ const sessionController = {
       if (!institutionId) {
         return res.status(400).json({
           success: false,
-          message: 'Institution ID not found in user data'
+          message: 'User is not associated with an institution. Only institution administrators can access session pools.'
         });
       }
 
@@ -107,7 +157,7 @@ const sessionController = {
       console.error('Get session pool error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Internal server error while fetching session pool'
       });
     }
   },

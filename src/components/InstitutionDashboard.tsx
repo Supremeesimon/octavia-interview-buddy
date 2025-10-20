@@ -54,9 +54,11 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [loadingInstitution, setLoadingInstitution] = useState(true);
   const [dashboardStudents, setDashboardStudents] = useState<any[]>([]);
+  const [studentFetchError, setStudentFetchError] = useState<string | null>(null);
   const [dashboardTeachers, setDashboardTeachers] = useState<any[]>([]);
   const [dashboardScheduledInterviews, setDashboardScheduledInterviews] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [hasDepartments, setHasDepartments] = useState<boolean>(true);
   
   // Analytics data state
   const [resumeAnalytics, setResumeAnalytics] = useState<any[]>([]);
@@ -70,10 +72,10 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   });
   
   // Session information state (renamed from license information)
-  const [totalSessions, setTotalSessions] = useState(1000);
-  const [usedSessions, setUsedSessions] = useState(300);
-  const [availableSessions, setAvailableSessions] = useState(700);
-  const [sessionUsagePercentage, setSessionUsagePercentage] = useState(30);
+  const [totalSessions, setTotalSessions] = useState(0);
+  const [usedSessions, setUsedSessions] = useState(0);
+  const [availableSessions, setAvailableSessions] = useState(0);
+  const [sessionUsagePercentage, setSessionUsagePercentage] = useState(0);
   
   // Student analytics state
   const [approvedStudents, setApprovedStudents] = useState(0);
@@ -94,29 +96,53 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
         const institutionData = await InstitutionService.getInstitutionById(user.institutionId);
         setInstitution(institutionData);
         
-        // Fetch real data for the dashboard
-        const [studentsData, teachersData, interviewsData, studentAnalytics, licenseInfo] = await Promise.all([
-          InstitutionDashboardService.getInstitutionStudents(user.institutionId),
-          InstitutionDashboardService.getInstitutionTeachers(user.institutionId),
-          InstitutionDashboardService.getInstitutionScheduledInterviews(user.institutionId),
-          InstitutionDashboardService.getStudentAnalytics(user.institutionId),
-          InstitutionDashboardService.getLicenseInfo(user.institutionId)
-        ]);
-        
-        setDashboardStudents(studentsData);
-        setDashboardTeachers(teachersData);
-        setDashboardScheduledInterviews(interviewsData);
-        
-        // Update session info (renamed from license info)
-        setTotalSessions(licenseInfo.totalLicenses);
-        setUsedSessions(licenseInfo.usedLicenses);
-        setAvailableSessions(licenseInfo.availableLicenses);
-        setSessionUsagePercentage(licenseInfo.usagePercentage);
-        
-        // Update student analytics
-        setApprovedStudents(studentAnalytics.activeStudents);
-        setPendingApprovals(studentAnalytics.pendingApprovals);
-        setRejectedStudents(studentAnalytics.rejectedStudents);
+        // Check if institution has departments
+        try {
+          // Check if institution has departments
+          const departmentsRef = collection(db, 'institutions', user.institutionId, 'departments');
+          const departmentsSnapshot = await getDocs(departmentsRef);
+          setHasDepartments(!departmentsSnapshot.empty);
+          
+          // Fetch real data for the dashboard
+          const [studentsData, teachersData, interviewsData, studentAnalytics, sessionInfo] = await Promise.all([
+            InstitutionDashboardService.getInstitutionStudents(user.institutionId),
+            InstitutionDashboardService.getInstitutionTeachers(user.institutionId),
+            InstitutionDashboardService.getInstitutionScheduledInterviews(user.institutionId),
+            InstitutionDashboardService.getStudentAnalytics(user.institutionId),
+            InstitutionDashboardService.getSessionInfo(user.institutionId)
+          ]);
+          
+          setDashboardStudents(studentsData);
+          setDashboardTeachers(teachersData);
+          setDashboardScheduledInterviews(interviewsData);
+          
+          // Update session info
+          setTotalSessions(sessionInfo.totalSessions);
+          setUsedSessions(sessionInfo.usedSessions);
+          setAvailableSessions(sessionInfo.availableSessions);
+          setSessionUsagePercentage(sessionInfo.usagePercentage);
+          
+          // Update student analytics
+          setApprovedStudents(studentAnalytics.activeStudents);
+          setPendingApprovals(studentAnalytics.pendingApprovals);
+          setRejectedStudents(studentAnalytics.rejectedStudents);
+          
+          setStudentFetchError(null);
+        } catch (error) {
+          console.error('Error fetching dashboard data:', error);
+          setStudentFetchError(error instanceof Error ? error.message : 'Unknown error');
+          // Set default values to prevent UI crashes
+          setDashboardStudents([]);
+          setDashboardTeachers([]);
+          setDashboardScheduledInterviews([]);
+          setTotalSessions(0);
+          setUsedSessions(0);
+          setAvailableSessions(0);
+          setSessionUsagePercentage(0);
+          setApprovedStudents(0);
+          setPendingApprovals(0);
+          setRejectedStudents(0);
+        }
         
         // Initialize signup links after institution data is loaded
         if (institutionData) {
@@ -518,7 +544,13 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredStudents.length > 0 ? (
+                    {studentFetchError ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center text-red-500">
+                          Error loading students: {studentFetchError}
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredStudents.length > 0 ? (
                       filteredStudents.map(student => (
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">
@@ -580,7 +612,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                     ) : (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
-                          No students found matching your filters
+                          No students found in your institution
                         </TableCell>
                       </TableRow>
                     )}
