@@ -99,9 +99,8 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
         // Check if institution has departments
         try {
           // Check if institution has departments
-          const departmentsRef = collection(db, 'institutions', user.institutionId, 'departments');
-          const departmentsSnapshot = await getDocs(departmentsRef);
-          setHasDepartments(!departmentsSnapshot.empty);
+          const hasDepartments = await InstitutionDashboardService.institutionHasDepartments(user.institutionId);
+          setHasDepartments(hasDepartments);
           
           // Fetch real data for the dashboard
           const [studentsData, teachersData, interviewsData, studentAnalytics, sessionInfo] = await Promise.all([

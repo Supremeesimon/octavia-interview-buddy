@@ -9,6 +9,24 @@ export class InstitutionDashboardService {
   private static readonly INTERVIEWS_COLLECTION = 'interviews';
 
   /**
+   * Check if an institution has departments
+   * @param institutionId - The ID of the institution
+   * @returns Boolean indicating if the institution has departments
+   */
+  static async institutionHasDepartments(institutionId: string): Promise<boolean> {
+    try {
+      const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
+      const departmentsSnapshot = await getDocs(departmentsRef);
+      
+      console.log(`Institution ${institutionId} has ${departmentsSnapshot.size} departments`);
+      return !departmentsSnapshot.empty;
+    } catch (error) {
+      console.error('Error checking institution departments:', error);
+      return false; // Default to false if we can't determine
+    }
+  }
+
+  /**
    * Fetch all students belonging to an institution
    * @param institutionId - The ID of the institution
    * @returns Array of student user profiles
