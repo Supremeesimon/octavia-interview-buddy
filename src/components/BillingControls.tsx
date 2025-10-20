@@ -18,13 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface SessionPurchase {
   id: string;
@@ -54,9 +47,6 @@ interface BillingHistoryItem {
   status: 'paid' | 'pending' | 'failed';
 }
 
-// Define payment plan types
-type PaymentPlan = 'monthly' | 'quarterly' | 'annual';
-
 interface BillingControlsProps {
   sessionPurchases?: SessionPurchase[];
 }
@@ -64,6 +54,7 @@ interface BillingControlsProps {
 const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   const { toast } = useToast();
   const [sessionCount, setSessionCount] = useState(0);
+  const [usedSessions, setUsedSessions] = useState(0);
   const [sessionsToPurchase, setSessionsToPurchase] = useState(100);
   const [cards, setCards] = useState<PaymentMethod[]>([]);
   const [billingHistory, setBillingHistory] = useState<BillingHistoryItem[]>([]);
@@ -71,27 +62,9 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   const [error, setError] = useState<string | null>(null);
   const { user, isLoading } = useFirebaseAuth(); // Also get isLoading state
 
-  // Payment plan configuration
-  const PRICING_PLANS = {
-    monthly: {
-      pricePerSession: 1.99,
-      name: "Monthly",
-      description: "Pay monthly for flexible usage"
-    },
-    quarterly: {
-      pricePerSession: 4.99,
-      name: "Quarterly",
-      description: "Save 15% with quarterly billing"
-    },
-    annual: {
-      pricePerSession: 19.96,
-      name: "Annual",
-      description: "Save 30% with annual billing"
-    }
-  };
+  // Simple pricing - no plans, just credit-based pricing
+  const PRICE_PER_SESSION = 1.99;
 
-  const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('annual');
-  
   // Add state for Stripe
   const [stripePromise, setStripePromise] = useState<Stripe | null>(null);
   const [isAddingCard, setIsAddingCard] = useState(false);
@@ -148,8 +121,10 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
           const sessionPool = await SessionService.getSessionPool();
           if (sessionPool) {
             setSessionCount(sessionPool.totalSessions || 0);
+            setUsedSessions(sessionPool.usedSessions || 0);
           } else {
             setSessionCount(0);
+            setUsedSessions(0);
           }
         } catch (error: any) {
           // Handle different types of errors appropriately
@@ -255,105 +230,8 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     fetchData();
   }, [user, isLoading, toast]); // Add isLoading to dependency array
   
-  const calculateSessionCost = (count: number, plan: PaymentPlan) => {
-    return (count * PRICING_PLANS[plan].pricePerSession).toFixed(2);
-  };
-  
-  const handleSessionChange = (count: number) => {
-    setSessionsToPurchase(count);
-  };
-  
-  const handlePurchaseSessions = async () => {
-    try {
-      // Check if user is authenticated and has institution
-      if (!user || !user.institutionId) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in as an institution administrator to purchase sessions",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      // Create session purchase with payment intent
-      const response = await fetch('/api/sessions/purchases', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        },
-        body: JSON.stringify({
-          sessionCount: sessionsToPurchase,
-          pricePerSession: PRICING_PLANS[selectedPlan].pricePerSession,
-          institutionId: user.institutionId,
-          billingPeriod: selectedPlan
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to create session purchase');
-      }
-      
-      // If we have a client secret, confirm the payment with Stripe
-      if (result.data.clientSecret && stripePromise) {
-        const stripe = await stripePromise;
-        if (stripe) {
-          const { error } = await stripe.confirmCardPayment(result.data.clientSecret);
-          
-          if (error) {
-            toast({
-              title: "Payment failed",
-              description: error.message,
-              variant: "destructive"
-            });
-            return;
-          }
-          
-          toast({
-            title: "Purchase successful",
-            description: `Added ${sessionsToPurchase} student sessions to your institution`,
-          });
-          
-          // Update local state
-          setSessionCount(prev => prev + sessionsToPurchase);
-          
-          const newPurchase = {
-            date: new Date(),
-            description: `Session purchase (${sessionsToPurchase} students) - ${PRICING_PLANS[selectedPlan].name}`,
-            amount: Number(calculateSessionCost(sessionsToPurchase, selectedPlan)),
-            status: 'paid' as const
-          };
-          
-          setBillingHistory([newPurchase, ...billingHistory]);
-        }
-      } else {
-        // Fallback to simulated purchase if Stripe is not configured
-        setSessionCount(prev => prev + sessionsToPurchase);
-        
-        const newPurchase = {
-          date: new Date(),
-          description: `Session purchase (${sessionsToPurchase} students) - ${PRICING_PLANS[selectedPlan].name}`,
-          amount: Number(calculateSessionCost(sessionsToPurchase, selectedPlan)),
-          status: 'paid' as const
-        };
-        
-        setBillingHistory([newPurchase, ...billingHistory]);
-        
-        toast({
-          title: "Purchase successful",
-          description: `Added ${sessionsToPurchase} student sessions to your institution`,
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Purchase failed",
-        description: error instanceof Error ? error.message : "Failed to complete purchase",
-        variant: "destructive"
-      });
-      console.error('Purchase error:', error);
-    }
+  const calculateSessionCost = (count: number) => {
+    return (count * PRICE_PER_SESSION).toFixed(2);
   };
   
   const handleAddCard = () => {
@@ -433,6 +311,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   };
   
   const totalSessionCost = (billingHistory || []).reduce((total, item) => total + (item.amount || 0), 0);
+  const availableSessions = sessionCount - usedSessions;
   
   if (loading) {
     return (
@@ -492,112 +371,67 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card tooltip="Purchase access sessions for your students to use the platform">
+      {/* Account Summary and Payment Methods in a responsive grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Account Summary Card */}
+        <Card className="lg:col-span-2" tooltip="Overview of your institution's subscription and financial details">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Purchase Sessions
+              <Building className="h-5 w-5 text-primary" />
+              Account Summary
             </CardTitle>
             <CardDescription>
-              Get access to the platform for your students to book interviews
+              Overview of your institution's interview session usage
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label htmlFor="session-purchase">Current sessions:</Label>
-                <span className="font-medium">{sessionCount} students</span>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-muted rounded-md p-3">
+                <div className="text-muted-foreground text-sm">Total Interview Sessions</div>
+                <div className="text-2xl font-bold">{sessionCount}</div>
+                <div className="text-xs text-muted-foreground mt-1">Purchased sessions</div>
               </div>
               
-              <Label htmlFor="session-purchase">Number of sessions to purchase</Label>
-              <div className="flex space-x-2">
-                <Input
-                  id="session-purchase"
-                  type="number"
-                  min="1"
-                  value={sessionsToPurchase}
-                  onChange={(e) => handleSessionChange(parseInt(e.target.value) || 100)}
-                  className="text-right"
-                />
-                <span className="flex items-center text-muted-foreground px-2">students</span>
+              <div className="bg-muted rounded-md p-3">
+                <div className="text-muted-foreground text-sm">Used Interview Sessions</div>
+                <div className="text-2xl font-bold">{usedSessions}</div>
+                <div className="text-xs text-muted-foreground mt-1">Sessions consumed</div>
+              </div>
+              
+              <div className="bg-muted rounded-md p-3">
+                <div className="text-muted-foreground text-sm">Available Interview Sessions</div>
+                <div className="text-2xl font-bold">{availableSessions}</div>
+                <div className="text-xs text-muted-foreground mt-1">Ready for students</div>
+              </div>
+              
+              <div className="bg-muted rounded-md p-3">
+                <div className="text-muted-foreground text-sm">Total Spent</div>
+                <div className="text-2xl font-bold">${totalSessionCost.toFixed(2)}</div>
+                <div className="text-xs text-muted-foreground mt-1">All time</div>
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" onClick={() => handleSessionChange(100)}>
-                100 Sessions
-              </Button>
-              <Button variant="outline" onClick={() => handleSessionChange(500)}>
-                500 Sessions
-              </Button>
-              <Button variant="outline" onClick={() => handleSessionChange(1000)}>
-                1000 Sessions
-              </Button>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Billing Period</Label>
-              <Select value={selectedPlan} onValueChange={(value: PaymentPlan) => setSelectedPlan(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select billing period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">
-                    <div className="flex justify-between w-full">
-                      <span>{PRICING_PLANS.monthly.name}</span>
-                      <span className="text-muted-foreground text-xs">${PRICING_PLANS.monthly.pricePerSession}/session</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="quarterly">
-                    <div className="flex justify-between w-full">
-                      <span>{PRICING_PLANS.quarterly.name}</span>
-                      <span className="text-muted-foreground text-xs">${PRICING_PLANS.quarterly.pricePerSession}/session</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="annual">
-                    <div className="flex justify-between w-full">
-                      <span>{PRICING_PLANS.annual.name}</span>
-                      <span className="text-muted-foreground text-xs">${PRICING_PLANS.annual.pricePerSession}/session</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">{PRICING_PLANS[selectedPlan].description}</p>
-            </div>
-            
-            <div className="bg-primary/5 p-3 rounded-md space-y-2">
-              <div className="flex justify-between">
-                <span>Sessions</span>
-                <span>{sessionsToPurchase} students</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Price per session</span>
-                <span>${PRICING_PLANS[selectedPlan].pricePerSession.toFixed(2)}</span>
-              </div>
-              <div className="h-px bg-primary/10 my-1"></div>
-              <div className="flex justify-between font-bold">
-                <span>Total cost</span>
-                <span>${calculateSessionCost(sessionsToPurchase, selectedPlan)}</span>
-              </div>
-            </div>
-            
-            <div className="text-sm text-muted-foreground mt-2">
-              <p>Each session gives a student access to the platform to book interview sessions from your shared pool.</p>
-              <p className="mt-1">You can purchase additional sessions separately in the Session Pool tab.</p>
+            <div className="bg-primary/5 p-4 rounded-md">
+              <h3 className="font-medium mb-2">Interview Session Usage</h3>
+              <ul className="space-y-1 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>Total Interview Sessions: All sessions purchased by your institution</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>Used Interview Sessions: Sessions already consumed by students</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>Available Interview Sessions: Sessions remaining for student use</span>
+                </li>
+              </ul>
             </div>
           </CardContent>
-          <CardFooter>
-            <Button 
-              className="w-full"
-              onClick={handlePurchaseSessions}
-            >
-              <Wallet className="h-4 w-4 mr-2" />
-              Purchase Sessions
-            </Button>
-          </CardFooter>
         </Card>
         
+        {/* Payment Methods Card */}
         <Card tooltip="Manage your payment methods and billing preferences">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -673,82 +507,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         </Card>
       </div>
       
-      <Card tooltip="Overview of your institution's subscription and financial details">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building className="h-5 w-5 text-primary" />
-            Account Summary
-          </CardTitle>
-          <CardDescription>
-            Overview of your institution's subscription and session purchases
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Active Sessions</div>
-              <div className="text-2xl font-bold">{sessionCount}</div>
-              <div className="text-xs text-muted-foreground mt-1">Students</div>
-            </div>
-            
-            <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Current Plan</div>
-              <div className="text-2xl font-bold">{PRICING_PLANS[selectedPlan].name}</div>
-              <div className="text-xs text-muted-foreground mt-1">${PRICING_PLANS[selectedPlan].pricePerSession}/session</div>
-            </div>
-            
-            <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Session Purchases</div>
-              <div className="text-2xl font-bold">${totalSessionCost.toFixed(2)}</div>
-              <div className="text-xs text-muted-foreground mt-1">Current period</div>
-            </div>
-            
-            <div className="bg-muted rounded-md p-3">
-              <div className="text-muted-foreground text-sm">Total Cost</div>
-              <div className="text-2xl font-bold">
-                ${calculateSessionCost(sessionCount || 0, selectedPlan)}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">{PRICING_PLANS[selectedPlan].name} billing</div>
-            </div>
-          </div>
-          
-          <div className="bg-primary/5 p-4 rounded-md">
-            <h3 className="font-medium mb-2">Session Benefits</h3>
-            <ul className="space-y-1 text-sm">
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-0.5">•</span>
-                <span>Each student gets access to the Octavia AI platform</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-0.5">•</span>
-                <span>Students can book sessions from your shared institution pool</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-0.5">•</span>
-                <span>Access to detailed analytics and performance reports</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-0.5">•</span>
-                <span>Customizable settings for session allocation and management</span>
-              </li>
-            </ul>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="outline">View Invoice History</Button>
-          <Button variant="outline">Download Current Invoice</Button>
-          <ResetSettingsDialog 
-            settingsType="Billing"
-            onConfirm={() => {
-              toast({
-                title: "Billing settings reset",
-                description: "All billing settings have been reset to defaults",
-              });
-            }}
-          />
-        </CardFooter>
-      </Card>
-      
+      {/* Billing History */}
       <Card tooltip="View your previous invoices and billing transactions">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

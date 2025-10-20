@@ -17,7 +17,7 @@ const sessionController = {
 
       const result = await db.query(
         `SELECT id, session_count, price_per_session, total_amount, payment_id,
-                payment_method_id, status, purchase_metadata, billing_period, created_at, updated_at
+                payment_method_id, status, purchase_metadata, created_at, updated_at
          FROM session_purchases 
          WHERE institution_id = $1 
          ORDER BY created_at DESC`,
@@ -41,7 +41,7 @@ const sessionController = {
   async createSessionPurchase(req, res) {
     try {
       const institutionId = req.user.institutionId;
-      const { sessionCount, pricePerSession, paymentMethodId, billingPeriod } = req.body;
+      const { sessionCount, pricePerSession, paymentMethodId } = req.body;
 
       // Validate input
       if (!sessionCount || sessionCount <= 0) {
@@ -87,16 +87,15 @@ const sessionController = {
         {
           sessionCount: sessionCount.toString(),
           pricePerSession: pricePerSession.toString(),
-          billingPeriod: billingPeriod || 'annual',
-          description: `Purchase of ${sessionCount} interview sessions - ${billingPeriod || 'annual'} billing`
+          description: `Purchase of ${sessionCount} interview sessions`
         }
       );
 
-      // Save session purchase record with billing period
+      // Save session purchase record
       const purchaseResult = await db.query(
         `INSERT INTO session_purchases 
-         (institution_id, session_count, price_per_session, total_amount, payment_id, payment_method_id, status, billing_period, purchase_metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (institution_id, session_count, price_per_session, total_amount, payment_id, payment_method_id, status, purchase_metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id`,
         [
           institutionId, 
@@ -106,12 +105,10 @@ const sessionController = {
           paymentIntent.id, 
           paymentMethodId || null, 
           'pending',
-          billingPeriod || 'annual',
           JSON.stringify({
             sessionCount: sessionCount.toString(),
             pricePerSession: pricePerSession.toString(),
-            billingPeriod: billingPeriod || 'annual',
-            description: `Purchase of ${sessionCount} interview sessions - ${billingPeriod || 'annual'} billing`
+            description: `Purchase of ${sessionCount} interview sessions`
           })
         ]
       );

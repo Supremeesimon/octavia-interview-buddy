@@ -37,8 +37,10 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
   
   useEffect(() => {
     const initializeStripe = async () => {
-      if (process.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-        const stripe = await loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY);
+      // Use import.meta.env instead of process.env for Vite projects
+      const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      if (stripeKey) {
+        const stripe = await loadStripe(stripeKey);
         setStripePromise(stripe);
       }
     };
@@ -52,16 +54,20 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
       setLoadingPaymentMethods(true);
       try {
         const methods = await SessionService.getPaymentMethods();
-        setPaymentMethods(methods);
+        // Ensure methods is an array before using it
+        const safeMethods = Array.isArray(methods) ? methods : [];
+        setPaymentMethods(safeMethods);
         // Set the default payment method as selected
-        const defaultMethod = methods.find((method: PaymentMethod) => method.isDefault);
+        const defaultMethod = safeMethods.find((method: PaymentMethod) => method.isDefault);
         if (defaultMethod) {
           setSelectedPaymentMethod(defaultMethod.id);
-        } else if (methods.length > 0) {
-          setSelectedPaymentMethod(methods[0].id);
+        } else if (safeMethods.length > 0) {
+          setSelectedPaymentMethod(safeMethods[0].id);
         }
       } catch (error) {
         console.error('Failed to fetch payment methods:', error);
+        // Set empty array on error to prevent null reference
+        setPaymentMethods([]);
       } finally {
         setLoadingPaymentMethods(false);
       }
@@ -117,7 +123,7 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
         return;
       }
       
-      if (result.data.clientSecret && stripePromise) {
+      if (result.data?.clientSecret && stripePromise) {
         const stripe = await stripePromise;
         if (stripe) {
           const { error } = await stripe.confirmCardPayment(result.data.clientSecret);
@@ -199,52 +205,56 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
           Buy additional interview sessions for your students
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="add-sessions">Number of sessions to purchase</Label>
-              <div className="flex space-x-2">
-                <Input
-                  id="add-sessions"
-                  type="number"
-                  min="1"
-                  placeholder="Enter quantity"
-                  value={additionalSessions}
-                  onChange={(e) => setAdditionalSessions(e.target.value)}
-                />
+      <CardContent className="space-y-6 pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Purchase Options */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="add-sessions">Number of sessions to purchase</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="add-sessions"
+                    type="number"
+                    min="1"
+                    placeholder="Enter quantity"
+                    value={additionalSessions}
+                    onChange={(e) => setAdditionalSessions(e.target.value)}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Each session allows one student to have a {sessionLength}-minute interview with Octavia AI.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Each session allows one student to have a {sessionLength}-minute interview with Octavia AI.
-              </p>
+              
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                {loadingPaymentMethods ? (
+                  <p className="text-sm text-muted-foreground">Loading payment methods...</p>
+                ) : paymentMethods && paymentMethods.length > 0 ? (
+                  <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method.id} value={method.id}>
+                          {method.brand} •••• {method.last4} (Expires {method.expMonth}/{method.expYear.toString().slice(-2)})
+                          {method.isDefault && " (Default)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No saved payment methods. You'll need to enter card details.</p>
+                )}
+              </div>
             </div>
             
-            <div className="space-y-2">
-              <Label>Payment Method</Label>
-              {loadingPaymentMethods ? (
-                <p className="text-sm text-muted-foreground">Loading payment methods...</p>
-              ) : paymentMethods.length > 0 ? (
-                <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((method) => (
-                      <SelectItem key={method.id} value={method.id}>
-                        {method.brand} •••• {method.last4} (Expires {method.expMonth}/{method.expYear.toString().slice(-2)})
-                        {method.isDefault && " (Default)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <p className="text-sm text-muted-foreground">No saved payment methods. You'll need to enter card details.</p>
-              )}
-            </div>
-            
-            <div className="space-y-2 mt-4">
+            {/* Quick Purchase Options */}
+            <div className="space-y-3">
               <div className="font-medium">Quick Purchase Options</div>
-              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3">
                 <ConfirmationDialog
                   details={{
                     title: "Confirm Purchase",
@@ -318,9 +328,10 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
             </div>
           </div>
           
+          {/* Order Summary */}
           <div className="border rounded-lg p-4 bg-muted/30">
             <h3 className="font-medium text-lg mb-4">Order Summary</h3>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex justify-between py-1">
                 <span>Sessions:</span>
                 <span>{additionalSessions || 0}</span>

@@ -10,8 +10,7 @@ export interface SessionPurchase {
   pricePerSession: number;
   totalPrice: number;
   status: 'pending' | 'completed' | 'cancelled';
-  billingPeriod?: 'monthly' | 'quarterly' | 'annual'; // Add this line
-  clientSecret?: string; // Add this for Stripe integration
+  clientSecret?: string;
 }
 
 export interface SessionAllocation {
@@ -37,7 +36,7 @@ export interface SessionPool {
 
 export class SessionService {
   private static baseUrl = '/api/sessions';
-  private static stripeBaseUrl = '/api/stripe'; // Add Stripe base URL
+  private static stripeBaseUrl = '/api/stripe';
 
   // Session Purchase Methods
   static async getSessionPurchases(institutionId: string): Promise<SessionPurchase[]> {
@@ -253,7 +252,8 @@ export class SessionService {
   static async getPaymentMethods(): Promise<any[]> {
     try {
       const response: ApiResponse<any[]> = await apiClient.get(`${this.stripeBaseUrl}/payment-methods`);
-      return response.data;
+      // Ensure we return an array even if response.data is null/undefined
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error: any) {
       // Handle different types of errors appropriately
       // Don't show error toast for 404 errors as it may be normal not to have payment methods yet
@@ -333,7 +333,8 @@ export class SessionService {
   static async getInvoices(): Promise<any[]> {
     try {
       const response: ApiResponse<any[]> = await apiClient.get(`${this.stripeBaseUrl}/invoices`);
-      return response.data;
+      // Ensure we return an array even if response.data is null/undefined
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error: any) {
       // Handle different types of errors appropriately
       // Don't show error toast for 404 errors as it may be normal not to have invoices yet

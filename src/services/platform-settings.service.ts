@@ -54,7 +54,18 @@ export class PlatformSettingsService {
         annualLicenseCost: 19.96,
         updatedAt: new Date()
       };
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a permission error
+      if (error.code === 'permission-denied') {
+        console.warn('Permission denied when fetching platform pricing settings. User may not have access.');
+        // Return default values instead of throwing error
+        return {
+          vapiCostPerMinute: 0.11,
+          markupPercentage: 36.36,
+          annualLicenseCost: 19.96,
+          updatedAt: new Date()
+        };
+      }
       console.error('Error fetching platform pricing settings:', error);
       return null;
     }
@@ -113,7 +124,21 @@ export class PlatformSettingsService {
         highVapiCostAlertEnabled: true,
         updatedAt: new Date()
       };
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a permission error
+      if (error.code === 'permission-denied') {
+        console.warn('Permission denied when fetching platform margin alert settings. User may not have access.');
+        // Return default values instead of throwing error
+        return {
+          lowMarginThreshold: 25,
+          highVapiCostThreshold: 0.15,
+          autoPriceAdjustment: false,
+          emailNotifications: true,
+          lowMarginAlertEnabled: true,
+          highVapiCostAlertEnabled: true,
+          updatedAt: new Date()
+        };
+      }
       console.error('Error fetching platform margin alert settings:', error);
       return null;
     }
@@ -178,7 +203,24 @@ export class PlatformSettingsService {
         highVapiCostAlertEnabled: true,
         updatedAt: new Date()
       };
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a permission error
+      if (error.code === 'permission-denied') {
+        console.warn('Permission denied when fetching all platform settings. User may not have access.');
+        // Return default values instead of throwing error
+        return {
+          vapiCostPerMinute: 0.11,
+          markupPercentage: 36.36,
+          annualLicenseCost: 19.96,
+          lowMarginThreshold: 25,
+          highVapiCostThreshold: 0.15,
+          autoPriceAdjustment: false,
+          emailNotifications: true,
+          lowMarginAlertEnabled: true,
+          highVapiCostAlertEnabled: true,
+          updatedAt: new Date()
+        };
+      }
       console.error('Error fetching all platform settings:', error);
       return null;
     }

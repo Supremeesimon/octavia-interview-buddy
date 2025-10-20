@@ -4,7 +4,6 @@ import SessionDuration from './session/SessionDuration';
 import SessionPurchase from './session/SessionPurchase';
 import SessionAllocation from './session/SessionAllocation';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
 import { PlatformSettingsService } from '@/services/platform-settings.service';
 import { InstitutionService } from '@/services/institution.service';
 import { SessionService } from '@/services/session.service';
@@ -46,11 +45,15 @@ const SessionManagement = ({
         
         // If we have an institution ID, check for institution-specific pricing override
         if (institutionId) {
-          const institution = await InstitutionService.getInstitutionById(institutionId);
-          if (institution?.pricingOverride?.isEnabled) {
-            // Use institution-specific pricing
-            calculatedPrice = institution.pricingOverride.customVapiCost * 
-                             (1 + institution.pricingOverride.customMarkupPercentage / 100);
+          try {
+            const institution = await InstitutionService.getInstitutionById(institutionId);
+            if (institution?.pricingOverride?.isEnabled) {
+              // Use institution-specific pricing
+              calculatedPrice = institution.pricingOverride.customVapiCost * 
+                               (1 + institution.pricingOverride.customMarkupPercentage / 100);
+            }
+          } catch (error) {
+            console.warn('Could not fetch institution-specific pricing, using platform defaults:', error);
           }
         }
         
@@ -67,20 +70,22 @@ const SessionManagement = ({
   // Fetch interview session data from the backend
   useEffect(() => {
     const fetchSessionData = async () => {
-      if (!institutionId) return;
+      if (!institutionId) {
+        setLoading(false);
+        return;
+      }
       
       setLoading(true);
       try {
-        // Try to get interview session data from the new SessionService first
+        // Get interview session data from the SessionService
         const sessionPool = await SessionService.getSessionPool();
         if (sessionPool) {
           setTotalSessions(sessionPool.totalSessions);
           setUsedSessions(sessionPool.usedSessions);
         } else {
-          // Fallback to the old method
-          const licenseInfo = await InstitutionDashboardService.getLicenseInfo(institutionId);
-          setTotalSessions(licenseInfo.totalLicenses);
-          setUsedSessions(licenseInfo.usedLicenses);
+          // If no session pool exists, set defaults
+          setTotalSessions(0);
+          setUsedSessions(0);
         }
       } catch (error: any) {
         console.error('Error fetching interview session data:', error);
@@ -102,16 +107,9 @@ const SessionManagement = ({
           });
         }
         // For 404, 400, 401, 403 and other client errors, don't show toast as they're normal states
-        // Try fallback method even if there was an error with SessionService
-        if (institutionId) {
-          try {
-            const licenseInfo = await InstitutionDashboardService.getLicenseInfo(institutionId);
-            setTotalSessions(licenseInfo.totalLicenses);
-            setUsedSessions(licenseInfo.usedLicenses);
-          } catch (fallbackError) {
-            console.error('Error with fallback method:', fallbackError);
-          }
-        }
+        // Set default values
+        setTotalSessions(0);
+        setUsedSessions(0);
       } finally {
         setLoading(false);
       }
@@ -120,6 +118,15 @@ const SessionManagement = ({
     // Only fetch if we don't have props or if props are undefined
     if (institutionId && (propTotalSessions === undefined || propUsedSessions === undefined)) {
       fetchSessionData();
+    } else {
+      // If we have props, set the state immediately
+      if (propTotalSessions !== undefined) {
+        setTotalSessions(propTotalSessions);
+      }
+      if (propUsedSessions !== undefined) {
+        setUsedSessions(propUsedSessions);
+      }
+      setLoading(false);
     }
   }, [institutionId, propTotalSessions, propUsedSessions, toast]);
   
@@ -136,6 +143,7 @@ const SessionManagement = ({
   const sessionCost = (sessionLength * pricePerMinute).toFixed(2);
   
   const handleSessionPurchase = async (sessions: number, cost: number) => {
+    // Update local state first for immediate UI feedback
     setTotalSessions(prev => prev + sessions);
     
     // Notify parent component about session purchase for billing update
@@ -178,6 +186,7 @@ const SessionManagement = ({
   
   return (
     <div className="space-y-6 overflow-hidden w-full">
+      {/* Session Pool Status and Duration in a responsive grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SessionPoolStatus 
           totalSessions={totalSessions} 
@@ -190,13 +199,18 @@ const SessionManagement = ({
         />
       </div>
       
-      <SessionPurchase 
-        sessionLength={sessionLength} 
-        sessionCost={sessionCost} 
-        onSessionPurchase={handleSessionPurchase} 
-      />
-      
-      <SessionAllocation institutionId={institutionId} />
+      {/* Session Purchase and Allocation in a responsive layout */}
+      <div className="grid grid-cols-1 gap-6">
+        <SessionPurchase 
+          sessionLength={sessionLength} 
+          sessionCost={sessionCost} 
+          onSessionPurchase={handleSessionPurchase} 
+        />
+        
+        {institutionId && (
+          <SessionAllocation institutionId={institutionId} />
+        )}
+      </div>
     </div>
   );
 };

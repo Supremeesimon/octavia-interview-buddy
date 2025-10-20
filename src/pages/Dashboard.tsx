@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy, useEffect } from 'react';
 import Header from '@/components/Header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -26,11 +26,46 @@ const LoadingSpinner = () => (
 );
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview');
   const [sessionPurchases, setSessionPurchases] = useState<SessionPurchase[]>([]);
   const isMobile = useIsMobile();
   const { user, isLoading } = useFirebaseAuth();
   const navigate = useNavigate();
+  
+  // Get initial tab from localStorage or default to 'overview'
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedTab = localStorage.getItem('dashboardActiveTab');
+        const validTabs = ['overview', 'session', 'billing'];
+        const initialTab = savedTab && validTabs.includes(savedTab) ? savedTab : 'overview';
+        return initialTab;
+      } catch (error) {
+        console.error('Error reading from localStorage:', error);
+        return 'overview';
+      }
+    }
+    return 'overview';
+  };
+
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Set the initial tab after component mounts
+  useEffect(() => {
+    const initialTab = getInitialTab();
+    setActiveTab(initialTab);
+  }, []);
+  
+  // Update localStorage when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('dashboardActiveTab', value);
+      } catch (error) {
+        console.error('Error saving to localStorage:', error);
+      }
+    }
+  };
   
   // Redirect to login if not authenticated
   if (!isLoading && !user) {
@@ -82,9 +117,8 @@ const Dashboard = () => {
             <h1 className="text-2xl md:text-3xl font-bold mb-6">Institution Dashboard</h1>
             
             <Tabs 
-              defaultValue="overview" 
               className="w-full mb-6"
-              onValueChange={setActiveTab}
+              onValueChange={handleTabChange}
               value={activeTab}
             >
               <TabsList className="w-full grid grid-cols-3 mb-4">

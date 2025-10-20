@@ -20,7 +20,6 @@ CREATE TYPE resume_type AS ENUM ('pdf', 'linkedin', 'voice');
 CREATE TYPE session_purchase_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
 CREATE TYPE call_status AS ENUM ('idle', 'connecting', 'connected', 'ended', 'error');
 CREATE TYPE institution_approval_status AS ENUM ('pending', 'approved', 'rejected');
-CREATE TYPE billing_period AS ENUM ('monthly', 'quarterly', 'annual'); -- Add this line
 
 -- =============================================================================
 -- CORE USER TABLES
@@ -87,9 +86,6 @@ CREATE TABLE session_purchases (
     payment_id VARCHAR(255), -- Stripe payment intent ID
     payment_method_id VARCHAR(255), -- Stripe payment method ID
     status session_purchase_status DEFAULT 'pending',
-    
-    -- Billing period
-    billing_period billing_period DEFAULT 'annual', -- Add this line
     
     -- Metadata
     purchase_metadata JSONB,
