@@ -41,11 +41,11 @@ const LoadingSpinner = () => (
 
 const AdminControlPanel = () => {
   const isMobile = useIsMobile();
-  const { user: currentUser, isLoading } = useFirebaseAuth();
+  const { user: currentUser, isLoading: authLoading } = useFirebaseAuth();
   
   // Log the currentUser for debugging
   console.log('AdminControlPanel - currentUser:', currentUser);
-  console.log('AdminControlPanel - isLoading:', isLoading);
+  console.log('AdminControlPanel - authLoading:', authLoading);
   
   // Get initial tab from localStorage or default to 'dashboard'
   const getInitialTab = () => {
@@ -69,6 +69,7 @@ const AdminControlPanel = () => {
   const [resources, setResources] = useState<any[]>([]);
   const [loadingInstitutions, setLoadingInstitutions] = useState(true);
   const [loadingResources, setLoadingResources] = useState(true);
+  const [componentLoading, setComponentLoading] = useState(true);
   
   // Fetch institutions data
   useEffect(() => {
@@ -80,11 +81,14 @@ const AdminControlPanel = () => {
         console.error('Error fetching institutions:', error);
       } finally {
         setLoadingInstitutions(false);
+        if (!loadingResources) {
+          setComponentLoading(false);
+        }
       }
     };
     
     fetchInstitutions();
-  }, [activeTab]); // Add activeTab as dependency to refresh when switching tabs
+  }, [activeTab, loadingResources]); // Add activeTab as dependency to refresh when switching tabs
   
   // Fetch resources data
   useEffect(() => {
@@ -96,11 +100,14 @@ const AdminControlPanel = () => {
         console.error('Error fetching resources:', error);
       } finally {
         setLoadingResources(false);
+        if (!loadingInstitutions) {
+          setComponentLoading(false);
+        }
       }
     };
     
     fetchResources();
-  }, []);
+  }, [loadingInstitutions]);
   
   // Set the initial tab after component mounts
   useEffect(() => {
@@ -142,6 +149,9 @@ const AdminControlPanel = () => {
   console.log('Institutions count:', institutionCount);
   console.log('Formatted institutions for ResourceManagement:', formattedInstitutions);
   
+  // Determine overall loading state
+  const isLoading = authLoading || componentLoading;
+  
   return (
     <div className="min-h-screen flex flex-col overflow-hidden w-full">
       <Header />
@@ -167,117 +177,123 @@ const AdminControlPanel = () => {
               )}
             </div>
             
-            <Tabs 
-              className="w-full mb-6"
-              onValueChange={handleTabChange}
-              value={activeTab}
-            >
-              <TabsList className={`${isMobile ? 'grid-cols-2 gap-2 mb-4' : 'w-full grid-cols-8'} grid overflow-x-auto`}>
-                <TabsTrigger 
-                  value="dashboard" 
-                  tooltip="Platform overview, metrics, and performance statistics"
-                  className={activeTab === "dashboard" ? "border-b-2 border-primary" : ""}
-                >
-                  Dashboard
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="institutions" 
-                  tooltip="Manage institution accounts, settings, and subscription status"
-                  className={activeTab === "institutions" ? "border-b-2 border-primary" : ""}
-                >
-                  Institutions
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="students" 
-                  tooltip="Manage student accounts, access, and activity metrics"
-                  className={activeTab === "students" ? "border-b-2 border-primary" : ""}
-                >
-                  Students
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="resources" 
-                  tooltip="Upload and manage platform resources, templates, and content"
-                  className={activeTab === "resources" ? "border-b-2 border-primary" : ""}
-                >
-                  Resources
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="broadcasting" 
-                  tooltip="Send announcements and notifications to platform users"
-                  className={activeTab === "broadcasting" ? "border-b-2 border-primary" : ""}
-                >
-                  Broadcast
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="analytics" 
-                  tooltip="Advanced data analysis and performance insights"
-                  className={activeTab === "analytics" ? "border-b-2 border-primary" : ""}
-                >
-                  Analytics
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="financial" 
-                  tooltip="Platform pricing management, margins, and revenue tracking"
-                  className={activeTab === "financial" ? "border-b-2 border-primary" : ""}
-                >
-                  Financial
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="gemini-test" 
-                  tooltip="Test Gemini API integration"
-                  className={activeTab === "gemini-test" ? "border-b-2 border-primary" : ""}
-                >
-                  Gemini Test
-                </TabsTrigger>
-              </TabsList>
-              
-              <div className="overflow-hidden">
-                <TabsContent value="dashboard">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <AdminDashboard />
-                  </Suspense>
-                </TabsContent>
-                <TabsContent value="institutions">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <InstitutionManagement />
-                  </Suspense>
-                </TabsContent>
-                <TabsContent value="students">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <StudentManagement />
-                  </Suspense>
-                </TabsContent>
-                <TabsContent value="resources">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <ResourceManagement 
-                      institutionCount={institutionCount}
-                      totalResources={totalResources}
-                      institutions={formattedInstitutions}
-                    />
-                  </Suspense>
-                </TabsContent>
-                <TabsContent value="broadcasting">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <BroadcastSystem />
-                  </Suspense>
-                </TabsContent>
-                <TabsContent value="analytics">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <AIAnalytics />
-                  </Suspense>
-                </TabsContent>
-                <TabsContent value="financial">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <FinancialManagement />
-                  </Suspense>
-                </TabsContent>
-                <TabsContent value="gemini-test">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <GeminiTest />
-                  </Suspense>
-                </TabsContent>
+            {isLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <LoadingSpinner />
               </div>
-            </Tabs>
+            ) : (
+              <Tabs 
+                className="w-full mb-6"
+                onValueChange={handleTabChange}
+                value={activeTab}
+              >
+                <TabsList className={`${isMobile ? 'grid-cols-2 gap-2 mb-4' : 'w-full grid-cols-8'} grid overflow-x-auto`}>
+                  <TabsTrigger 
+                    value="dashboard" 
+                    tooltip="Platform overview, metrics, and performance statistics"
+                    className={activeTab === "dashboard" ? "border-b-2 border-primary" : ""}
+                  >
+                    Dashboard
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="institutions" 
+                    tooltip="Manage institution accounts, settings, and subscription status"
+                    className={activeTab === "institutions" ? "border-b-2 border-primary" : ""}
+                  >
+                    Institutions
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="students" 
+                    tooltip="Manage student accounts, access, and activity metrics"
+                    className={activeTab === "students" ? "border-b-2 border-primary" : ""}
+                  >
+                    Students
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="resources" 
+                    tooltip="Upload and manage platform resources, templates, and content"
+                    className={activeTab === "resources" ? "border-b-2 border-primary" : ""}
+                  >
+                    Resources
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="broadcasting" 
+                    tooltip="Send announcements and notifications to platform users"
+                    className={activeTab === "broadcasting" ? "border-b-2 border-primary" : ""}
+                  >
+                    Broadcast
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="analytics" 
+                    tooltip="Advanced data analysis and performance insights"
+                    className={activeTab === "analytics" ? "border-b-2 border-primary" : ""}
+                  >
+                    Analytics
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="financial" 
+                    tooltip="Platform pricing management, margins, and revenue tracking"
+                    className={activeTab === "financial" ? "border-b-2 border-primary" : ""}
+                  >
+                    Financial
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="gemini-test" 
+                    tooltip="Test Gemini API integration"
+                    className={activeTab === "gemini-test" ? "border-b-2 border-primary" : ""}
+                  >
+                    Gemini Test
+                  </TabsTrigger>
+                </TabsList>
+                
+                <div className="overflow-hidden">
+                  <TabsContent value="dashboard">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <AdminDashboard />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="institutions">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <InstitutionManagement />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="students">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <StudentManagement />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="resources">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <ResourceManagement 
+                        institutionCount={institutionCount}
+                        totalResources={totalResources}
+                        institutions={formattedInstitutions}
+                      />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="broadcasting">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <BroadcastSystem />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="analytics">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <AIAnalytics />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="financial">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <FinancialManagement />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="gemini-test">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <GeminiTest />
+                    </Suspense>
+                  </TabsContent>
+                </div>
+              </Tabs>
+            )}
           </div>
         </TooltipProvider>
       </main>

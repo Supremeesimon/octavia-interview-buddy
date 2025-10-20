@@ -57,6 +57,10 @@ interface FinancialInstitution {
   sessionRevenue: number;
   status: 'active' | 'pending';
   pricingOverride?: InstitutionPricingOverride;
+  stats?: {
+    totalStudents?: number;
+    totalInterviews?: number;
+  };
 }
 
 // Interface for institution pricing override
@@ -640,14 +644,6 @@ const FinancialManagement = () => {
     setFilteredInstitutions(filtered);
   }, [searchTerm, statusFilter, institutions]);
   
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-  
   // Listen for hash changes to support browser back/forward buttons
   useEffect(() => {
     console.log('Component mounted, current hash:', window.location.hash);
@@ -661,6 +657,14 @@ const FinancialManagement = () => {
       console.log('Setting initial hash to:', activeTab);
     }
   }, [activeTab]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -714,43 +718,65 @@ const FinancialManagement = () => {
           <GlobalPricingControl
             vapiCost={vapiCost}
             markupPercentage={markupPercentage}
-            calculatedSessionPrice={calculatedSessionPrice}
             licenseCost={licenseCost}
-            setVapiCost={setVapiCost}
-            setMarkupPercentage={setMarkupPercentage}
-            setLicenseCost={setLicenseCost}
-            handleVapiCostChange={handleVapiCostChange}
-            handleMarkupChange={handleMarkupChange}
-            handleLicenseCostChange={handleLicenseCostChange}
-            isScheduleEnabled={isScheduleEnabled}
-            setIsScheduleEnabled={setIsScheduleEnabled}
-            scheduledDate={scheduledDate}
-            setScheduledDate={setScheduledDate}
-            isCalendarOpen={isCalendarOpen}
-            setIsCalendarOpen={setIsCalendarOpen}
-            scheduleChange={scheduleChange}
-            applyGlobalPricing={applyGlobalPricing}
+            originalVapiCost={originalVapiCost}
+            originalMarkupPercentage={originalMarkupPercentage}
+            originalLicenseCost={originalLicenseCost}
+            onVapiCostChange={setVapiCost}
+            onMarkupPercentageChange={setMarkupPercentage}
+            onLicenseCostChange={setLicenseCost}
+            onRefresh={async () => {
+              // Refresh scheduled price changes
+              try {
+                const updatedPriceChanges = await PriceChangeService.getUpcomingPriceChanges();
+                setScheduledPriceChanges(updatedPriceChanges);
+              } catch (error) {
+                console.error('Failed to refresh price changes:', error);
+              }
+            }}
           />
           
           <InstitutionPricingOverrides
             institutions={institutions}
+            filteredInstitutions={filteredInstitutions}
             searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
             statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            getInstitutionPricing={getInstitutionPricing}
-            handleCustomPricingToggle={handleCustomPricingToggle}
-            handleEditInstitution={handleEditInstitution}
-            editingInstitution={editingInstitution}
-            isEditDialogOpen={isEditDialogOpen}
-            setIsEditDialogOpen={setIsEditDialogOpen}
-            currentOverride={currentOverride}
-            setCurrentOverride={setCurrentOverride}
-            handleSaveOverride={handleSaveOverride}
+            vapiCost={vapiCost}
+            markupPercentage={markupPercentage}
+            licenseCost={licenseCost}
+            onSearchTermChange={setSearchTerm}
+            onStatusFilterChange={setStatusFilter}
+            onRefresh={async () => {
+              // Refresh institutions data
+              try {
+                const updatedInstitutions = await InstitutionService.getAllInstitutions();
+                const formattedInstitutions: FinancialInstitution[] = updatedInstitutions.map((inst) => ({
+                  id: inst.id,
+                  name: inst.name,
+                  students: inst.stats?.totalStudents || 0,
+                  licenseRevenue: (inst.stats?.totalStudents || 0) * (licenseCost / 4),
+                  sessionRevenue: (inst.stats?.totalInterviews || 0) * 15 * Number((vapiCost * (1 + markupPercentage / 100)).toFixed(2)),
+                  status: inst.isActive ? 'active' : 'pending',
+                  pricingOverride: inst.pricingOverride || undefined
+                }));
+                setInstitutions(formattedInstitutions);
+              } catch (error) {
+                console.error('Failed to refresh institutions:', error);
+              }
+            }}
           />
           
           <PriceChangeScheduleTable
             scheduledPriceChanges={scheduledPriceChanges}
+            onRefresh={async () => {
+              // Refresh scheduled price changes
+              try {
+                const updatedPriceChanges = await PriceChangeService.getUpcomingPriceChanges();
+                setScheduledPriceChanges(updatedPriceChanges);
+              } catch (error) {
+                console.error('Failed to refresh price changes:', error);
+              }
+            }}
           />
         </TabsContent>
         
@@ -761,6 +787,10 @@ const FinancialManagement = () => {
             markupPercentage={markupPercentage}
             calculatedSessionPrice={calculatedSessionPrice}
             estimatedMargin={estimatedMargin}
+            institutionCount={totalInstitutions}
+            studentCount={totalStudents}
+            totalRevenue={totalRevenue}
+            totalSessions={institutions.reduce((acc, inst) => acc + (inst.students || 0), 0)}
           />
         </TabsContent>
         
@@ -768,26 +798,25 @@ const FinancialManagement = () => {
         <TabsContent value="reports" className="space-y-6">
           <FinancialReports
             institutions={institutions}
-            getInstitutionPricing={getInstitutionPricing}
+            institutionCount={totalInstitutions}
+            studentCount={totalStudents}
+            totalRevenue={totalRevenue}
           />
         </TabsContent>
         
         {/* Quick Edit Content */}
         <TabsContent value="quickedit" className="space-y-6">
           <QuickEdit
+            institutions={institutions}
             vapiCost={vapiCost}
             markupPercentage={markupPercentage}
             licenseCost={licenseCost}
-            setVapiCost={setVapiCost}
-            setMarkupPercentage={setMarkupPercentage}
-            setLicenseCost={setLicenseCost}
-            institutions={institutions}
-            selectedInstitution={selectedInstitution}
-            setSelectedInstitution={setSelectedInstitution}
-            handleLicenseCostChange={handleLicenseCostChange}
-            handleVapiCostChange={handleVapiCostChange}
-            handleMarkupChange={handleMarkupChange}
             calculatedSessionPrice={calculatedSessionPrice}
+            onVapiCostChange={setVapiCost}
+            onMarkupPercentageChange={setMarkupPercentage}
+            onLicenseCostChange={setLicenseCost}
+            selectedInstitution={selectedInstitution}
+            onSelectedInstitutionChange={setSelectedInstitution}
           />
         </TabsContent>
         

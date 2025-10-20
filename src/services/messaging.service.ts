@@ -42,13 +42,43 @@ export class MessagingService {
       
       const messages = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        return {
+        console.log('Raw message data:', data);
+        
+        // Handle date fields properly
+        let createdAt: Date;
+        if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+          createdAt = data.createdAt.toDate();
+        } else if (data.createdAt instanceof Date) {
+          createdAt = data.createdAt;
+        } else if (typeof data.createdAt === 'string') {
+          createdAt = new Date(data.createdAt);
+        } else {
+          // Fallback to current date if no createdAt is available
+          createdAt = new Date();
+        }
+        
+        let updatedAt: Date;
+        if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
+          updatedAt = data.updatedAt.toDate();
+        } else if (data.updatedAt instanceof Date) {
+          updatedAt = data.updatedAt;
+        } else if (typeof data.updatedAt === 'string') {
+          updatedAt = new Date(data.updatedAt);
+        } else {
+          // Fallback to createdAt or current date
+          updatedAt = createdAt;
+        }
+        
+        const processedMessage = {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          dateCreated: data.dateCreated || new Date().toISOString().split('T')[0]
+          createdAt,
+          updatedAt,
+          dateCreated: data.dateCreated || createdAt.toISOString().split('T')[0]
         } as Message;
+        
+        console.log('Processed message:', processedMessage);
+        return processedMessage;
       });
       
       console.log('Returning', messages.length, 'messages');
@@ -517,10 +547,25 @@ export class MessagingService {
       
       if (!db) {
         console.warn('Firebase not initialized');
-        return {};
+        return {
+          totalMessages: 0,
+          sentMessages: 0,
+          scheduledMessages: 0,
+          draftMessages: 0,
+          deliveryRate: 0,
+          typeDistribution: {
+            Announcement: 0,
+            Event: 0,
+            System: 0,
+            'Product Update': 0,
+            Engagement: 0
+          },
+          recentMessages: 0
+        };
       }
 
       const messages = await this.getAllMessages();
+      console.log('Messages for analytics:', messages);
       
       // Calculate analytics
       const totalMessages = messages.length;
@@ -528,8 +573,15 @@ export class MessagingService {
       const scheduledMessages = messages.filter(m => m.status === 'Scheduled').length;
       const draftMessages = messages.filter(m => m.status === 'Draft').length;
       
-      // Calculate delivery rates (simplified)
-      const deliveryRate = totalMessages > 0 ? (sentMessages / totalMessages) * 100 : 0;
+      console.log('Analytics breakdown:', {
+        totalMessages,
+        sentMessages,
+        scheduledMessages,
+        draftMessages
+      });
+      
+      // Calculate delivery rates (simplified but more accurate)
+      const deliveryRate = totalMessages > 0 ? Math.round((sentMessages / totalMessages) * 100) : 0;
       
       // Message type distribution
       const typeDistribution = {
@@ -540,13 +592,35 @@ export class MessagingService {
         Engagement: messages.filter(m => m.type === 'Engagement').length
       };
       
+      console.log('Type distribution:', typeDistribution);
+      
       // Recent activity (last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const recentMessages = messages.filter(m => 
-        m.createdAt >= thirtyDaysAgo
-      );
+      const recentMessages = messages.filter(m => {
+        // Handle different date formats
+        let messageDate: Date;
+        if (m.createdAt instanceof Date) {
+          messageDate = m.createdAt;
+        } else if (typeof m.createdAt === 'string') {
+          messageDate = new Date(m.createdAt);
+        } else if (m.dateCreated) {
+          // Fallback to dateCreated if createdAt is not available
+          messageDate = new Date(m.dateCreated);
+        } else {
+          // If no date is available, consider it recent
+          return true;
+        }
+        
+        // If date is invalid, consider it recent
+        if (isNaN(messageDate.getTime())) {
+          return true;
+        }
+        
+        console.log('Comparing dates:', messageDate, '>=', thirtyDaysAgo, '=', messageDate >= thirtyDaysAgo);
+        return messageDate >= thirtyDaysAgo;
+      });
       
       const analytics = {
         totalMessages,
@@ -558,11 +632,26 @@ export class MessagingService {
         recentMessages: recentMessages.length
       };
       
-      console.log('Message analytics:', analytics);
+      console.log('Final message analytics:', analytics);
       return analytics;
     } catch (error) {
       console.error('Error fetching message analytics:', error);
-      throw new Error('Failed to fetch message analytics');
+      // Return default values in case of error
+      return {
+        totalMessages: 0,
+        sentMessages: 0,
+        scheduledMessages: 0,
+        draftMessages: 0,
+        deliveryRate: 0,
+        typeDistribution: {
+          Announcement: 0,
+          Event: 0,
+          System: 0,
+          'Product Update': 0,
+          Engagement: 0
+        },
+        recentMessages: 0
+      };
     }
   }
 }

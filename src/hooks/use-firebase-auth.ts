@@ -52,48 +52,21 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
           // Get a fresh Firebase ID token with forced refresh
           const firebaseToken = await firebaseUser.getIdToken(true);
           
-          // Exchange Firebase token for backend JWT token
+          // Directly fetch user profile from Firebase service without backend token exchange
           try {
-            const response: ApiResponse<{ user: UserProfile; token: string }> = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken });
-            const backendUser = response.data.user;
-            const backendToken = response.data.token;
-            
-            // Set the backend token in apiClient
-            apiClient.setAuthToken(backendToken);
+            // Set the Firebase token in apiClient for any API calls that might need it
+            apiClient.setAuthToken(firebaseToken);
             
             // Fetch user profile from our service
             const userProfile = await firebaseAuthService.getCurrentUser();
             console.log('useFirebaseAuth: User profile fetched', { userProfile: !!userProfile });
-            setUser(userProfile || backendUser);
-          } catch (exchangeError: any) {
-            console.error('Error exchanging Firebase token for backend token:', exchangeError);
-            
-            // Check if it's a token error and try to refresh
-            if (exchangeError.status === 401) {
-              try {
-                // Try to get a fresh token and retry
-                const freshToken = await firebaseUser.getIdToken(true);
-                const retryResponse: ApiResponse<{ user: UserProfile; token: string }> = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken: freshToken });
-                const backendToken = retryResponse.data.token;
-                apiClient.setAuthToken(backendToken);
-                
-                // Fetch user profile from our service
-                const userProfile = await firebaseAuthService.getCurrentUser();
-                console.log('useFirebaseAuth: User profile fetched (retry)', { userProfile: !!userProfile });
-                setUser(userProfile);
-              } catch (retryError) {
-                console.error('Retry failed:', retryError);
-                // Fallback to Firebase-only auth
-                const userProfile = await firebaseAuthService.getCurrentUser();
-                console.log('useFirebaseAuth: User profile fetched (fallback)', { userProfile: !!userProfile });
-                setUser(userProfile);
-              }
-            } else {
-              // Fallback to Firebase-only auth for other errors
-              const userProfile = await firebaseAuthService.getCurrentUser();
-              console.log('useFirebaseAuth: User profile fetched (fallback)', { userProfile: !!userProfile });
-              setUser(userProfile);
-            }
+            setUser(userProfile);
+          } catch (error) {
+            console.error('Error fetching user profile:', error);
+            // Even if there's an error, we still want to set the user state
+            const userProfile = await firebaseAuthService.getCurrentUser();
+            console.log('useFirebaseAuth: User profile fetched (fallback)', { userProfile: !!userProfile });
+            setUser(userProfile);
           }
         } catch (error) {
           console.error('Error getting user profile:', error);
@@ -124,14 +97,8 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     try {
       const result = await firebaseAuthService.login({ email, password });
       
-      // Exchange Firebase token for backend JWT token
-      try {
-        const response: ApiResponse<{ user: UserProfile; token: string }> = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken: result.token });
-        const backendToken = response.data.token;
-        apiClient.setAuthToken(backendToken);
-      } catch (exchangeError) {
-        console.error('Error exchanging Firebase token for backend token:', exchangeError);
-      }
+      // Set the Firebase token in apiClient
+      apiClient.setAuthToken(result.token);
       
       return result;
     } catch (error) {
@@ -147,14 +114,8 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     try {
       const result = await firebaseAuthService.register(data);
       
-      // Exchange Firebase token for backend JWT token
-      try {
-        const response: ApiResponse<{ user: UserProfile; token: string }> = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken: result.token });
-        const backendToken = response.data.token;
-        apiClient.setAuthToken(backendToken);
-      } catch (exchangeError) {
-        console.error('Error exchanging Firebase token for backend token:', exchangeError);
-      }
+      // Set the Firebase token in apiClient
+      apiClient.setAuthToken(result.token);
       
       return result;
     } catch (error) {
@@ -170,14 +131,8 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     try {
       const result = await firebaseAuthService.loginWithGoogle(institutionContext);
       
-      // Exchange Firebase token for backend JWT token
-      try {
-        const response: ApiResponse<{ user: UserProfile; token: string }> = await apiClient.post('/auth/exchange-firebase-token', { firebaseToken: result.token });
-        const backendToken = response.data.token;
-        apiClient.setAuthToken(backendToken);
-      } catch (exchangeError) {
-        console.error('Error exchanging Firebase token for backend token:', exchangeError);
-      }
+      // Set the Firebase token in apiClient
+      apiClient.setAuthToken(result.token);
       
       return result;
     } catch (error) {

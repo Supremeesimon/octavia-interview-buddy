@@ -73,18 +73,22 @@ const BroadcastSystem = () => {
       try {
         // Fetch messages
         const messagesData = await MessagingService.getAllMessages();
+        console.log('Fetched messages:', messagesData);
         setMessages(messagesData);
         
         // Fetch templates
         const templatesData = await MessagingService.getAllTemplates();
+        console.log('Fetched templates:', templatesData);
         setTemplates(templatesData);
         
         // Fetch analytics
         const analyticsData = await MessagingService.getMessageAnalytics();
+        console.log('Fetched analytics:', analyticsData);
         setAnalytics(analyticsData);
         
         // Fetch institutions
         const institutionsData = await InstitutionService.getAllInstitutions();
+        console.log('Fetched institutions:', institutionsData);
         setInstitutions(institutionsData);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -223,9 +227,16 @@ const BroadcastSystem = () => {
       
       await MessagingService.createBroadcastHistory(historyRecord);
       
-      // Refresh messages
+      // Refresh messages and analytics
       const updatedMessages = await MessagingService.getAllMessages();
       setMessages(updatedMessages);
+      
+      // Add a small delay to ensure Firebase has time to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Refresh analytics
+      const updatedAnalytics = await MessagingService.getMessageAnalytics();
+      setAnalytics(updatedAnalytics);
       
       toast({
         title: "Message Sent",
@@ -291,9 +302,14 @@ const BroadcastSystem = () => {
       // Save to Firebase
       await MessagingService.updateMessage(selectedMessage.id, updatedMessage);
       
-      // Refresh messages
+      // Refresh messages and analytics
       const updatedMessages = await MessagingService.getAllMessages();
       setMessages(updatedMessages);
+      
+      // Refresh analytics
+      const updatedAnalytics = await MessagingService.getMessageAnalytics();
+      setAnalytics(updatedAnalytics);
+      
       setSelectedMessage(null);
       
       toast({
@@ -330,6 +346,11 @@ const BroadcastSystem = () => {
       // Refresh messages
       const updatedMessages = await MessagingService.getAllMessages();
       setMessages(updatedMessages);
+      
+      // Refresh analytics
+      const updatedAnalytics = await MessagingService.getMessageAnalytics();
+      setAnalytics(updatedAnalytics);
+      
       setMessageToDelete(null);
       
       toast({
@@ -469,6 +490,24 @@ const BroadcastSystem = () => {
     return matchesSearch && matchesType && matchesStatus;
   });
   
+  // Refresh data when switching to messages tab
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Refresh analytics when switching to messages tab
+    if (value === 'messages') {
+      refreshAnalytics();
+    }
+  };
+  
+  const refreshAnalytics = async () => {
+    try {
+      const updatedAnalytics = await MessagingService.getMessageAnalytics();
+      setAnalytics(updatedAnalytics);
+    } catch (error) {
+      console.error('Error refreshing analytics:', error);
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -485,7 +524,7 @@ const BroadcastSystem = () => {
       <Tabs 
         defaultValue={activeTab} 
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="w-full"
       >
         <TabsList className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} w-full`}>
@@ -593,60 +632,61 @@ const BroadcastSystem = () => {
                         {filteredMessages.map((message) => (
                           <TableRow key={message.id}>
                             <TableCell className="font-medium">{message.title}</TableCell>
-                          <TableCell>
-                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${message.type === 'Announcement' ? 'bg-blue-100 text-blue-800' : 
-                                message.type === 'Event' ? 'bg-green-100 text-green-800' : 
-                                message.type === 'System' ? 'bg-red-100 text-red-800' : 
-                                message.type === 'Product Update' ? 'bg-purple-100 text-purple-800' : 
-                                'bg-yellow-100 text-yellow-800'}`
-                            }>
-                              {message.type}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-[150px] truncate" title={message.target}>
-                              {message.target}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${message.status === 'Sent' ? 'bg-green-100 text-green-800' : 
-                                message.status === 'Scheduled' ? 'bg-yellow-100 text-yellow-800' : 
-                                message.status === 'Draft' ? 'bg-gray-100 text-gray-800' :
-                                'bg-blue-100 text-blue-800'}`
-                            }>
-                              {message.status === 'Sent' && <CheckCircle2 className="h-3 w-3" />}
-                              {message.status === 'Scheduled' && <Clock className="h-3 w-3" />}
-                              {message.status}
-                            </div>
-                          </TableCell>
-                          <TableCell>{message.dateCreated || '-'}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end space-x-2">
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleEditMessage(message)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => confirmDeleteMessage(message)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </>
-            )}
+                            <TableCell>
+                              <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                ${message.type === 'Announcement' ? 'bg-blue-100 text-blue-800' : 
+                                  message.type === 'Event' ? 'bg-green-100 text-green-800' : 
+                                  message.type === 'System' ? 'bg-red-100 text-red-800' : 
+                                  message.type === 'Product Update' ? 'bg-purple-100 text-purple-800' : 
+                                  'bg-yellow-100 text-yellow-800'}`
+                              }>
+                                {message.type}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="max-w-[150px] truncate" title={message.target}>
+                                {message.target}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium
+                                ${message.status === 'Sent' ? 'bg-green-100 text-green-800' : 
+                                  message.status === 'Scheduled' ? 'bg-yellow-100 text-yellow-800' : 
+                                  message.status === 'Draft' ? 'bg-gray-100 text-gray-800' :
+                                  'bg-blue-100 text-blue-800'}`
+                              }>
+                                {message.status === 'Sent' && <CheckCircle2 className="h-3 w-3" />}
+                                {message.status === 'Scheduled' && <Clock className="h-3 w-3" />}
+                                {message.status}
+                              </div>
+                            </TableCell>
+                            <TableCell>{message.dateCreated || '-'}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end space-x-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleEditMessage(message)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => confirmDeleteMessage(message)}
+                                  className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
