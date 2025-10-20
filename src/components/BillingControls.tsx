@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building } from 'lucide-react';
+import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import ResetSettingsDialog from './ResetSettingsDialog';
@@ -389,6 +389,24 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     });
   };
   
+  const handleDeleteCard = async (id: string) => {
+    try {
+      await SessionService.deletePaymentMethod(id);
+      // Refresh payment methods
+      fetchPaymentMethods();
+      toast({
+        title: "Payment method deleted",
+        description: "Your payment method has been deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete payment method",
+        variant: "destructive"
+      });
+    }
+  };
+  
   const totalSessionCost = (billingHistory || []).reduce((total, item) => total + (item.amount || 0), 0);
   
   if (loading) {
@@ -569,13 +587,22 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
                     </TableCell>
                     <TableCell className="text-right">
                       {!card.isDefault && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleMakeDefault(card.id)}
-                        >
-                          Make Default
-                        </Button>
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleMakeDefault(card.id)}
+                          >
+                            Make Default
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteCard(card.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

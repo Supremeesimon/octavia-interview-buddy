@@ -12,6 +12,9 @@ router.get('/payment-methods', authenticateToken, authorizeRole('institution_adm
 // Save payment method for institution
 router.post('/payment-methods', authenticateToken, authorizeRole('institution_admin'), stripeController.savePaymentMethod);
 
+// Delete payment method for institution
+router.delete('/payment-methods', authenticateToken, authorizeRole('institution_admin'), stripeController.deletePaymentMethod);
+
 // Get invoices for institution
 router.get('/invoices', authenticateToken, authorizeRole('institution_admin'), stripeController.getInvoices);
 

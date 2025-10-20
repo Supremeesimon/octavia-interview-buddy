@@ -127,6 +127,32 @@ const stripeController = {
   },
 
   /**
+   * Delete a payment method for the institution
+   */
+  async deletePaymentMethod(req, res) {
+    try {
+      const { paymentMethodId } = req.query;
+
+      // Delete payment method
+      const paymentMethod = await StripeService.deletePaymentMethod(paymentMethodId);
+
+      res.json({
+        success: true,
+        message: 'Payment method deleted successfully',
+        data: {
+          id: paymentMethod.id
+        }
+      });
+    } catch (error) {
+      console.error('Delete payment method error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  },
+
+  /**
    * Get invoices for the institution
    */
   async getInvoices(req, res) {

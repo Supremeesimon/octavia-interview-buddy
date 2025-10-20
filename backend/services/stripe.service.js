@@ -168,6 +168,22 @@ class StripeService {
       throw new Error(`Failed to save payment method: ${error.message}`);
     }
   }
+
+  /**
+   * Delete a payment method for an institution
+   * @param {string} paymentMethodId - The Stripe payment method ID
+   * @returns {Promise<Object>} The detached payment method
+   */
+  static async deletePaymentMethod(paymentMethodId) {
+    try {
+      // Detach the payment method from the customer
+      const paymentMethod = await stripe.paymentMethods.detach(paymentMethodId);
+      return paymentMethod;
+    } catch (error) {
+      console.error('Error deleting payment method:', error);
+      throw new Error(`Failed to delete payment method: ${error.message}`);
+    }
+  }
 }
 
 module.exports = StripeService;

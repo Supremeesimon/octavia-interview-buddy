@@ -307,6 +307,28 @@ export class SessionService {
     }
   }
 
+  static async deletePaymentMethod(paymentMethodId: string): Promise<any> {
+    try {
+      const response: ApiResponse<any> = await apiClient.delete(`${this.stripeBaseUrl}/payment-methods?paymentMethodId=${paymentMethodId}`);
+      toast.success('Payment method deleted successfully');
+      return response.data;
+    } catch (error: any) {
+      // Show error toast for actual errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to delete payment method');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to delete payment method');
+      } else if (error.status >= 400) {
+        // Client error
+        toast.error(error.message || 'Failed to delete payment method');
+      }
+      
+      throw error;
+    }
+  }
+
   static async getInvoices(): Promise<any[]> {
     try {
       const response: ApiResponse<any[]> = await apiClient.get(`${this.stripeBaseUrl}/invoices`);
