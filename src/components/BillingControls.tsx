@@ -527,7 +527,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
               <div className="h-px bg-primary/10 my-1"></div>
               <div className="flex justify-between font-bold">
                 <span>Total annual cost</span>
-                <span>${calculateAnnualSessionCost(sessionCount || 0)}</span>
+                <span>${calculateAnnualSessionCost(sessionsToPurchase)}</span>
               </div>
             </div>
             
