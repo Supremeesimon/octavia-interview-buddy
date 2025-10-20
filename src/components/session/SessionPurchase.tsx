@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ShoppingCart, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ConfirmationDialog from '../ConfirmationDialog';
@@ -16,8 +17,20 @@ interface SessionPurchaseProps {
   onSessionPurchase?: (sessions: number, cost: number) => void;
 }
 
+interface PaymentMethod {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  isDefault: boolean;
+}
+
 const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: SessionPurchaseProps) => {
   const [additionalSessions, setAdditionalSessions] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [stripePromise, setStripePromise] = useState<any>(null);
@@ -31,6 +44,30 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
     };
     
     initializeStripe();
+  }, []);
+  
+  // Fetch payment methods when component mounts
+  useEffect(() => {
+    const fetchPaymentMethods = async () => {
+      setLoadingPaymentMethods(true);
+      try {
+        const methods = await SessionService.getPaymentMethods();
+        setPaymentMethods(methods);
+        // Set the default payment method as selected
+        const defaultMethod = methods.find((method: PaymentMethod) => method.isDefault);
+        if (defaultMethod) {
+          setSelectedPaymentMethod(defaultMethod.id);
+        } else if (methods.length > 0) {
+          setSelectedPaymentMethod(methods[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to fetch payment methods:', error);
+      } finally {
+        setLoadingPaymentMethods(false);
+      }
+    };
+    
+    fetchPaymentMethods();
   }, []);
   
   const handleAddSessions = async () => {
@@ -53,7 +90,8 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
         },
         body: JSON.stringify({
           sessionCount: sessionsToAdd,
-          pricePerSession: parseFloat(sessionCost)
+          pricePerSession: parseFloat(sessionCost),
+          paymentMethodId: selectedPaymentMethod
         })
       });
       
@@ -179,6 +217,29 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
               <p className="text-sm text-muted-foreground">
                 Each session allows one student to have a {sessionLength}-minute interview with Octavia AI.
               </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              {loadingPaymentMethods ? (
+                <p className="text-sm text-muted-foreground">Loading payment methods...</p>
+              ) : paymentMethods.length > 0 ? (
+                <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a payment method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map((method) => (
+                      <SelectItem key={method.id} value={method.id}>
+                        {method.brand} •••• {method.last4} (Expires {method.expMonth}/{method.expYear.toString().slice(-2)})
+                        {method.isDefault && " (Default)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-muted-foreground">No saved payment methods. You'll need to enter card details.</p>
+              )}
             </div>
             
             <div className="space-y-2 mt-4">
