@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -380,6 +380,7 @@ const StudentDashboard = () => {
                 onBookingComplete={handleBookingComplete}
                 allowedBookingsPerMonth={2}
                 usedBookings={1}
+                sessionLength={sessionLength}
               />
             ) : scheduledInterview ? (
               <>

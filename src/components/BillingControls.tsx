@@ -8,9 +8,16 @@ import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building 
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import ResetSettingsDialog from './ResetSettingsDialog';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { SessionService } from '@/services/session.service';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import StripeElementsForm from './StripeElementsForm';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface SessionPurchase {
   id: string;
@@ -58,7 +65,9 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   const PRICE_PER_SESSION_QUARTERLY = 4.99; // $4.99 per student quarterly
   
   // Add state for Stripe
-  const [stripePromise, setStripePromise] = useState<any>(null);
+  const [stripePromise, setStripePromise] = useState<Stripe | null>(null);
+  const [isAddingCard, setIsAddingCard] = useState(false);
+  const [showAddCardDialog, setShowAddCardDialog] = useState(false);
   
   useEffect(() => {
     // Initialize Stripe
@@ -322,24 +331,49 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     }
   };
   
-  const handleAddCard = async () => {
-    // In a real implementation, this would open a Stripe Elements form
-    // For now, we'll add a mock card
-    const newCard: PaymentMethod = {
-      id: Date.now().toString(),
-      brand: 'Mastercard',
-      last4: '8888',
-      expMonth: 9,
-      expYear: 26,
-      isDefault: false
-    };
-    
-    setCards([...cards, newCard]);
-    
-    toast({
-      title: "Payment method added",
-      description: "Your new payment method has been added successfully",
-    });
+  const handleAddCard = () => {
+    setShowAddCardDialog(true);
+  };
+  
+  const handleAddCardSuccess = () => {
+    setShowAddCardDialog(false);
+    // Refresh payment methods
+    fetchPaymentMethods();
+  };
+  
+  const handleAddCardCancel = () => {
+    setShowAddCardDialog(false);
+  };
+  
+  const fetchPaymentMethods = async () => {
+    try {
+      const paymentMethods = await SessionService.getPaymentMethods();
+      // Handle case where paymentMethods might be null or undefined
+      const safePaymentMethods = Array.isArray(paymentMethods) ? paymentMethods : [];
+      setCards(safePaymentMethods);
+    } catch (error: any) {
+      // Handle different types of errors appropriately
+      // Don't show error toast for 404 errors as it may be normal not to have payment methods yet
+      if (error.status === undefined) {
+        // Network error
+        toast({
+          title: "Network error",
+          description: "Failed to load payment methods",
+          variant: "destructive"
+        });
+      } else if (error.status >= 500) {
+        // Server error
+        toast({
+          title: "Server error",
+          description: "Failed to load payment methods",
+          variant: "destructive"
+        });
+      }
+      // For 404 or 400 responses, don't show toast but still log
+      console.warn('Payment methods fetch warning:', error.message || error);
+      // Use empty array if failed to fetch
+      setCards([]);
+    }
   };
   
   const handleMakeDefault = async (id: string) => {
