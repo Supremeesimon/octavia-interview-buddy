@@ -289,9 +289,10 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // System configuration (platform admins only)
+    // System configuration (accessible to all authenticated users for pricing information)
     match /system_config/{doc=**} {
-      allow read, write: if isAuthenticated() && isPlatformAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isPlatformAdmin();
     }
 
     // Scheduled price changes (platform admins only)

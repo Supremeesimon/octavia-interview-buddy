@@ -27,7 +27,7 @@ const SessionManagement = ({
   const [totalSessions, setTotalSessions] = useState(propTotalSessions || 0);
   const [usedSessions, setUsedSessions] = useState(propUsedSessions || 0);
   const [loading, setLoading] = useState(false);
-  const [pricePerMinute, setPricePerMinute] = useState(0.15); // Default $0.15 per minute
+  const [pricePerMinute, setPricePerMinute] = useState(0.17); // Default $0.17 per minute (based on current platform settings)
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
@@ -37,7 +37,7 @@ const SessionManagement = ({
       try {
         // First get platform default settings
         const platformSettings = await PlatformSettingsService.getAllSettings();
-        let calculatedPrice = 0.15; // Default fallback
+        let calculatedPrice = 0.17; // Default fallback based on current platform settings
         
         if (platformSettings) {
           // Calculate price per minute based on VAPI cost and markup
@@ -57,7 +57,7 @@ const SessionManagement = ({
         setPricePerMinute(calculatedPrice);
       } catch (error) {
         console.error('Error fetching pricing settings:', error);
-        // Keep default value of 0.15 if there's an error
+        // Keep default value of 0.17 if there's an error
       }
     };
     

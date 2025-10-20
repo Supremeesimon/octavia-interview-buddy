@@ -32,6 +32,7 @@ import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import DebugDashboard from './DebugDashboard';
 import StudentMessageInbox from './StudentMessageInbox';
 import InterviewSessionRequest from './InterviewSessionRequest';
+import { InstitutionService } from '@/services/institution.service';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -43,11 +44,35 @@ const StudentDashboard = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0); // Add this for resetting file input
+  const [sessionLength, setSessionLength] = useState<number>(20); // Default session length
+  const [institutionSettingsLoaded, setInstitutionSettingsLoaded] = useState(false);
   
   // Add ref for file input
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const { user } = useFirebaseAuth();
+  
+  // Fetch institution settings to get session length
+  useEffect(() => {
+    const fetchInstitutionSettings = async () => {
+      if (user?.institutionId) {
+        try {
+          const institution = await InstitutionService.getInstitutionById(user.institutionId);
+          if (institution?.settings?.sessionLength) {
+            setSessionLength(institution.settings.sessionLength);
+          }
+        } catch (error) {
+          console.error('Error fetching institution settings:', error);
+        } finally {
+          setInstitutionSettingsLoaded(true);
+        }
+      } else {
+        setInstitutionSettingsLoaded(true);
+      }
+    };
+    
+    fetchInstitutionSettings();
+  }, [user?.institutionId]);
   const { uploadResume } = useFirebaseStorage();
   const { 
     interviews, 
@@ -156,7 +181,7 @@ const StudentDashboard = () => {
   };
 
   // Show loading state while data is being fetched
-  if (isLoading || isFeedbackLoading) {
+  if (isLoading || isFeedbackLoading || !institutionSettingsLoaded) {
     return (
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="flex justify-center items-center h-64">

@@ -14,13 +14,15 @@ interface BookingCalendarProps {
   // New props based on the error message
   allowedBookingsPerMonth?: number;
   usedBookings?: number;
+  sessionLength?: number; // Session duration in minutes
 }
 
 const BookingCalendar = ({ 
   onBookingComplete, 
   availableSessions = 0,
   allowedBookingsPerMonth = 0,
-  usedBookings = 0
+  usedBookings = 0,
+  sessionLength = 20 // Default to 20 minutes
 }: BookingCalendarProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -120,7 +122,7 @@ const BookingCalendar = ({
       <CardHeader>
         <CardTitle>Book Your Interview</CardTitle>
         <CardDescription>
-          Select a date and time for your interview with Octavia AI
+          Select a date and time for your {sessionLength}-minute interview with Octavia AI
         </CardDescription>
         
         <div className="mt-2 flex items-center text-sm">
