@@ -27,6 +27,7 @@ import { getGreetingWithName } from '@/utils/greeting.utils';
 const AdminDashboard = lazy(() => import('@/components/AdminDashboard'));
 const InstitutionManagement = lazy(() => import('@/components/InstitutionManagement'));
 const StudentManagement = lazy(() => import('@/components/StudentManagement'));
+const TeacherManagement = lazy(() => import('@/components/TeacherManagement'));
 const ResourceManagement = lazy(() => import('@/components/ResourceManagement'));
 const BroadcastSystem = lazy(() => import('@/components/BroadcastSystem'));
 const AIAnalytics = lazy(() => import('@/components/AIAnalytics'));
@@ -52,7 +53,7 @@ const AdminControlPanel = () => {
     if (typeof window !== 'undefined') {
       try {
         const savedTab = localStorage.getItem('adminControlPanelActiveTab');
-        const validTabs = ['dashboard', 'institutions', 'students', 'resources', 'broadcasting', 'analytics', 'financial', 'gemini-test'];
+        const validTabs = ['dashboard', 'institutions', 'students', 'teachers', 'resources', 'broadcasting', 'analytics', 'financial', 'gemini-test'];
         const initialTab = savedTab && validTabs.includes(savedTab) ? savedTab : 'dashboard';
         console.log('Admin panel initial tab from localStorage:', savedTab, 'Setting to:', initialTab);
         return initialTab;
@@ -187,7 +188,7 @@ const AdminControlPanel = () => {
                 onValueChange={handleTabChange}
                 value={activeTab}
               >
-                <TabsList className={`${isMobile ? 'grid-cols-2 gap-2 mb-4' : 'w-full grid-cols-8'} grid overflow-x-auto`}>
+                <TabsList className={`${isMobile ? 'grid-cols-2 gap-2 mb-4' : 'w-full grid-cols-9'} grid overflow-x-auto`}>
                   <TabsTrigger 
                     value="dashboard" 
                     tooltip="Platform overview, metrics, and performance statistics"
@@ -208,6 +209,13 @@ const AdminControlPanel = () => {
                     className={activeTab === "students" ? "border-b-2 border-primary" : ""}
                   >
                     Students
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="teachers" 
+                    tooltip="Manage teacher accounts, access, and activity metrics"
+                    className={activeTab === "teachers" ? "border-b-2 border-primary" : ""}
+                  >
+                    Teachers
                   </TabsTrigger>
                   <TabsTrigger 
                     value="resources" 
@@ -260,6 +268,11 @@ const AdminControlPanel = () => {
                   <TabsContent value="students">
                     <Suspense fallback={<LoadingSpinner />}>
                       <StudentManagement />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="teachers">
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <TeacherManagement />
                     </Suspense>
                   </TabsContent>
                   <TabsContent value="resources">
