@@ -35,6 +35,8 @@ app.use('/api/resumes', require('./routes/resume.routes'));
 app.use('/api/interviews', require('./routes/interview.routes'));
 app.use('/api/analytics', require('./routes/analytics.routes'));
 app.use('/api/stripe', require('./routes/stripe.routes'));
+app.use('/api/email', require('./routes/email.routes'));
+app.use('/api/brevo', require('./routes/brevo.routes'));
 
 // Serve React app for any non-API routes (only in local development)
 if (!process.env.FUNCTIONS_EMULATOR && !process.env.K_SERVICE) {

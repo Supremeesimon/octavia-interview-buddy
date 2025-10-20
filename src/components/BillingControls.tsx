@@ -718,6 +718,20 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
           </Table>
         </CardContent>
       </Card>
+      
+      {/* Add Card Dialog */}
+      <Dialog open={showAddCardDialog} onOpenChange={setShowAddCardDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Payment Method</DialogTitle>
+          </DialogHeader>
+          <StripeElementsForm 
+            onSuccess={handleAddCardSuccess}
+            onCancel={handleAddCardCancel}
+          />
+        </DialogContent>
+      </Dialog>
+      
     </div>
   );
 };

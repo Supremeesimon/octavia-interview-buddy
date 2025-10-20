@@ -13,11 +13,14 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Message, MessageTemplate, BroadcastHistory } from '@/types';
+import { apiClient } from '@/lib/api-client';
 
 export class MessagingService {
   private static readonly MESSAGES_COLLECTION = 'messages';
   private static readonly TEMPLATES_COLLECTION = 'message_templates';
   private static readonly BROADCAST_HISTORY_COLLECTION = 'broadcast_history';
+  private static readonly MAILERSEND_API_BASE_URL = '/api/email';
+  private static readonly BREVO_API_BASE_URL = '/api/brevo';
 
   // Message CRUD Operations
   static async getAllMessages(): Promise<Message[]> {
@@ -80,6 +83,136 @@ export class MessagingService {
       console.error('Error message:', error?.message);
       console.error('Error stack:', error?.stack);
       throw new Error(`Failed to create message: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to send email through MailerSend
+  static async sendEmail(to: string, subject: string, htmlContent: string, textContent?: string): Promise<any> {
+    try {
+      const response = await apiClient.post(`${this.MAILERSEND_API_BASE_URL}/send`, {
+        to,
+        subject,
+        htmlContent,
+        textContent
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending email:', error);
+      throw new Error(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to send email through Brevo as an alternative
+  static async sendEmailWithBrevo(to: string, subject: string, htmlContent: string, textContent?: string): Promise<any> {
+    try {
+      const response = await apiClient.post(`${this.BREVO_API_BASE_URL}/send`, {
+        to,
+        subject,
+        htmlContent,
+        textContent
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending email with Brevo:', error);
+      throw new Error(`Failed to send email with Brevo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to send bulk emails through MailerSend
+  static async sendBulkEmail(recipients: string[], subject: string, htmlContent: string, textContent?: string): Promise<any> {
+    try {
+      const response = await apiClient.post(`${this.MAILERSEND_API_BASE_URL}/send-bulk`, {
+        recipients,
+        subject,
+        htmlContent,
+        textContent
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending bulk email:', error);
+      throw new Error(`Failed to send bulk email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to send bulk emails through Brevo as an alternative
+  static async sendBulkEmailWithBrevo(recipients: string[], subject: string, htmlContent: string, textContent?: string): Promise<any> {
+    try {
+      const response = await apiClient.post(`${this.BREVO_API_BASE_URL}/send-bulk`, {
+        recipients,
+        subject,
+        htmlContent,
+        textContent
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending bulk email with Brevo:', error);
+      throw new Error(`Failed to send bulk email with Brevo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to send template email through MailerSend
+  static async sendTemplateEmail(to: string, templateId: string, variables?: Record<string, any>): Promise<any> {
+    try {
+      const response = await apiClient.post(`${this.MAILERSEND_API_BASE_URL}/send-template`, {
+        to,
+        templateId,
+        variables
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending template email:', error);
+      throw new Error(`Failed to send template email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to send template email through Brevo as an alternative
+  static async sendTemplateEmailWithBrevo(to: string, templateId: string, params?: Record<string, any>): Promise<any> {
+    try {
+      const response = await apiClient.post(`${this.BREVO_API_BASE_URL}/send-template`, {
+        to,
+        templateId,
+        params
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending template email with Brevo:', error);
+      throw new Error(`Failed to send template email with Brevo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to send SMS through MailerSend
+  static async sendSMS(phoneNumber: string, message: string): Promise<any> {
+    try {
+      const response = await apiClient.post(`${this.MAILERSEND_API_BASE_URL}/send-sms`, {
+        phoneNumber,
+        message
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending SMS:', error);
+      throw new Error(`Failed to send SMS: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // New method to send SMS through Brevo as an alternative
+  static async sendSMSWithBrevo(phoneNumber: string, message: string): Promise<any> {
+    try {
+      const response = await apiClient.post(`${this.BREVO_API_BASE_URL}/send-sms`, {
+        phoneNumber,
+        message
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending SMS with Brevo:', error);
+      throw new Error(`Failed to send SMS with Brevo: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

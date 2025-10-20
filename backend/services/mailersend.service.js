@@ -1,10 +1,10 @@
-const MailerSend = require('mailersend');
+const { MailerSend, EmailParams, Sender, Recipient } = require('mailersend');
 
 class MailerSendService {
   constructor() {
     // Initialize MailerSend with API key from environment variables
     this.mailerSend = new MailerSend({
-      api_key: process.env.MAILERSEND_API_KEY,
+      apiKey: process.env.MAILERSEND_API_KEY,
     });
     
     // Email configuration
@@ -22,18 +22,15 @@ class MailerSendService {
    */
   async sendEmail(to, subject, htmlContent, textContent = '') {
     try {
-      const emailParams = {
-        from: {
-          email: this.fromEmail,
-          name: this.fromName,
-        },
-        to: [{
-          email: to,
-        }],
-        subject: subject,
-        html: htmlContent,
-        text: textContent,
-      };
+      const sentFrom = new Sender(this.fromEmail, this.fromName);
+      const recipients = [new Recipient(to)];
+
+      const emailParams = new EmailParams()
+        .setFrom(sentFrom)
+        .setTo(recipients)
+        .setSubject(subject)
+        .setHtml(htmlContent)
+        .setText(textContent);
 
       const response = await this.mailerSend.email.send(emailParams);
       console.log('Email sent successfully:', response);
@@ -54,16 +51,15 @@ class MailerSendService {
    */
   async sendBulkEmail(recipients, subject, htmlContent, textContent = '') {
     try {
-      const emailParams = {
-        from: {
-          email: this.fromEmail,
-          name: this.fromName,
-        },
-        to: recipients.map(email => ({ email })),
-        subject: subject,
-        html: htmlContent,
-        text: textContent,
-      };
+      const sentFrom = new Sender(this.fromEmail, this.fromName);
+      const recipientObjects = recipients.map(email => new Recipient(email));
+
+      const emailParams = new EmailParams()
+        .setFrom(sentFrom)
+        .setTo(recipientObjects)
+        .setSubject(subject)
+        .setHtml(htmlContent)
+        .setText(textContent);
 
       const response = await this.mailerSend.email.send(emailParams);
       console.log('Bulk email sent successfully:', response);
@@ -83,23 +79,14 @@ class MailerSendService {
    */
   async sendTemplateEmail(to, templateId, variables = {}) {
     try {
-      const emailParams = {
-        from: {
-          email: this.fromEmail,
-          name: this.fromName,
-        },
-        to: [{
-          email: to,
-        }],
-        template_id: templateId,
-        variables: [{
-          email: to,
-          substitutions: Object.keys(variables).map(key => ({
-            var: key,
-            value: variables[key],
-          })),
-        }],
-      };
+      const sentFrom = new Sender(this.fromEmail, this.fromName);
+      const recipients = [new Recipient(to)];
+
+      const emailParams = new EmailParams()
+        .setFrom(sentFrom)
+        .setTo(recipients)
+        .setTemplateId(templateId)
+        .setVariables(variables);
 
       const response = await this.mailerSend.email.send(emailParams);
       console.log('Template email sent successfully:', response);
