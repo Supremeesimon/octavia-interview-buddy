@@ -11,6 +11,7 @@ import { Calendar as CalendarIcon, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { PlatformSettingsService } from '@/services/platform-settings.service';
+import { PricingSyncService } from '@/services/pricing-sync.service';
 import { PriceChangeService } from '@/services/price-change.service';
 
 interface GlobalPricingControlProps {
@@ -162,6 +163,40 @@ const GlobalPricingControl: React.FC<GlobalPricingControlProps> = ({
 
   const applyGlobalPricing = async () => {
     try {
+      // CRITICAL: Validate pricing before any operation
+      const pricingToSave = {
+        vapiCostPerMinute: vapiCost,
+        markupPercentage: markupPercentage,
+        annualLicenseCost: licenseCost
+      };
+      
+      if (!PricingSyncService.validatePricing({
+        vapiCost,
+        markupPercentage,
+        licenseCost
+      })) {
+        toast({
+          title: "Validation Error",
+          description: "Pricing values are outside acceptable ranges. Please check and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // CRITICAL: Show confirmation dialog for financial changes
+      const confirmed = window.confirm(
+        `CONFIRM FINANCIAL CHANGE:\n\n` +
+        `VAPI Cost: $${vapiCost.toFixed(2)}/min\n` +
+        `Markup: ${markupPercentage.toFixed(1)}%\n` +
+        `License Cost: $${licenseCost.toFixed(2)}/year\n\n` +
+        `This will affect all institutions and future transactions.\n` +
+        `Click OK to proceed or Cancel to abort.`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+      
       if (isScheduleEnabled) {
         // If scheduling is enabled but no date is selected, show an error
         if (!scheduledDate) {
@@ -178,11 +213,21 @@ const GlobalPricingControl: React.FC<GlobalPricingControlProps> = ({
       } else {
         // Apply changes immediately (current behavior)
         try {
-          await PlatformSettingsService.updatePricingSettings({
-            vapiCostPerMinute: vapiCost,
-            markupPercentage: markupPercentage,
-            annualLicenseCost: licenseCost
+          // CRITICAL: Force sync to database with validation
+          const syncSuccess = await PricingSyncService.forceSyncPlatformPricing({
+            vapiCost,
+            markupPercentage,
+            licenseCost
           });
+          
+          if (!syncSuccess) {
+            toast({
+              title: "Error",
+              description: "Failed to save pricing to database. Please check the console for details.",
+              variant: "destructive",
+            });
+            return;
+          }
           
           toast({
             title: "Global pricing updated",
@@ -192,7 +237,7 @@ const GlobalPricingControl: React.FC<GlobalPricingControlProps> = ({
           // Refresh the scheduled price changes data to ensure UI is up to date
           await onRefresh();
         } catch (error) {
-          console.error('Failed to save global pricing:', error);
+          console.error('CRITICAL: Failed to save global pricing:', error);
           if (error instanceof Error && error.message.includes('Firebase not initialized')) {
             toast({
               title: "Error",
@@ -209,7 +254,7 @@ const GlobalPricingControl: React.FC<GlobalPricingControlProps> = ({
         }
       }
     } catch (error) {
-      console.error('Failed to apply global pricing:', error);
+      console.error('CRITICAL: Failed to apply global pricing:', error);
       toast({
         title: "Error",
         description: "Failed to apply global pricing. Please check the console for details.",

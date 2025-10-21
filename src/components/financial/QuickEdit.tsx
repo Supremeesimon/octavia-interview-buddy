@@ -58,14 +58,57 @@ const QuickEdit: React.FC<QuickEditProps> = ({
 
   const handleApplyPriceChanges = async () => {
     try {
+      // CRITICAL: Validate pricing before any operation
+      const pricingToSave = {
+        vapiCost,
+        markupPercentage,
+        licenseCost
+      };
+      
+      if (!PricingSyncService.validatePricing({
+        vapiCost,
+        markupPercentage,
+        licenseCost
+      })) {
+        toast({
+          title: "Validation Error",
+          description: "Pricing values are outside acceptable ranges. Please check and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // CRITICAL: Show confirmation dialog for financial changes
+      const confirmed = window.confirm(
+        `CONFIRM FINANCIAL CHANGE:\n\n` +
+        `VAPI Cost: $${vapiCost.toFixed(2)}/min\n` +
+        `Markup: ${markupPercentage.toFixed(1)}%\n` +
+        `License Cost: $${licenseCost.toFixed(2)}/year\n\n` +
+        `This will affect all institutions and future transactions.\n` +
+        `Click OK to proceed or Cancel to abort.`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+      
       setLoading(true);
       
-      // Apply changes immediately (current behavior)
-      await PlatformSettingsService.updatePricingSettings({
-        vapiCostPerMinute: vapiCost,
-        markupPercentage: markupPercentage,
-        annualLicenseCost: licenseCost
+      // CRITICAL: Force sync to database with validation
+      const syncSuccess = await PricingSyncService.forceSyncPlatformPricing({
+        vapiCost,
+        markupPercentage,
+        licenseCost
       });
+      
+      if (!syncSuccess) {
+        toast({
+          title: "Error",
+          description: "Failed to save pricing to database. Please check the console for details.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       toast({
         title: "Global pricing updated",

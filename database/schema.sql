@@ -532,7 +532,7 @@ CREATE POLICY students_own_interviews ON interviews
 CREATE POLICY institution_admin_access ON institutions
     FOR ALL
     USING (
-        admin_id = current_setting('app.current_user_id')::uuid OR
+        platform_admin_id = current_setting('app.current_user_id')::uuid OR
         current_setting('app.current_user_role')::text = 'platform_admin'
     );
 

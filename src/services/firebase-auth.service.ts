@@ -956,6 +956,41 @@ export class FirebaseAuthService {
     return auth.currentUser;
   }
 
+  // Exchange Firebase ID token for backend JWT token
+  async exchangeFirebaseToken(firebaseToken: string): Promise<{ user: UserProfile; token: string }> {
+    try {
+      // Validate the token before sending
+      if (!firebaseToken || typeof firebaseToken !== 'string' || firebaseToken.length < 10) {
+        throw new Error('Invalid Firebase token format');
+      }
+
+      console.log('Exchanging Firebase token for backend JWT token');
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3005/api'}/auth/exchange-firebase-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ firebaseToken })
+      });
+
+      const data = await response.json();
+      console.log('Token exchange response:', response.status, data);
+
+      if (!response.ok) {
+        throw new Error(data.message || `Token exchange failed with status ${response.status}`);
+      }
+
+      return {
+        user: data.data.user,
+        token: data.data.token
+      };
+    } catch (error) {
+      console.error('Token exchange error:', error);
+      throw new Error(`Token exchange failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   // Determine user role based on email domain
   // Note: This is a heuristic and may not always be accurate
   // Roles should ideally be set during registration based on user selection

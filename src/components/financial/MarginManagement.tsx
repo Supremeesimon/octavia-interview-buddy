@@ -50,7 +50,7 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
 }) => {
   const { toast } = useToast();
   const [desiredMargin, setDesiredMargin] = useState<string>('35');
-  const [highVapiCostThreshold, setHighVapiCostThreshold] = useState<string>('0.15');
+  const [highVapiCostThreshold, setHighVapiCostThreshold] = useState<string>('0.15'); // This is for alerting purposes, not pricing
   const [lowMarginThreshold, setLowMarginThreshold] = useState<number>(25);
   const [autoPriceAdjustment, setAutoPriceAdjustment] = useState<boolean>(false);
   const [emailNotifications, setEmailNotifications] = useState<boolean>(true);
@@ -118,7 +118,7 @@ const MarginManagement: React.FC<MarginManagementProps> = ({
       // Save margin alert settings to Firebase
       await PlatformSettingsService.updateMarginAlertSettings({
         lowMarginThreshold: lowMarginThreshold,
-        highVapiCostThreshold: parseFloat(highVapiCostThreshold) || 0.15,
+        highVapiCostThreshold: parseFloat(highVapiCostThreshold) || 0.15, // This is for alerting purposes, not pricing
         autoPriceAdjustment: autoPriceAdjustment,
         emailNotifications: emailNotifications,
         lowMarginAlertEnabled: lowMarginAlertEnabled,

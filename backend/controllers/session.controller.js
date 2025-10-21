@@ -51,12 +51,19 @@ const sessionController = {
         });
       }
 
+      if (!pricePerSession || pricePerSession <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Price per session must be a positive number'
+        });
+      }
+
       const totalAmount = sessionCount * pricePerSession;
       const totalAmountCents = Math.round(totalAmount * 100); // Convert to cents
 
       // Get institution details for customer creation
       const institutionResult = await db.query(
-        'SELECT name, email, stripe_customer_id FROM institutions WHERE id = $1',
+        'SELECT name, contact_email, stripe_customer_id FROM institutions WHERE id = $1',
         [institutionId]
       );
 
@@ -71,25 +78,51 @@ const sessionController = {
       // Create or retrieve Stripe customer
       let customerId = institution.stripe_customer_id;
       if (!customerId) {
-        const customer = await StripeService.createCustomer(
-          institutionId,
-          institution.email,
-          institution.name
-        );
-        customerId = customer.id;
+        try {
+          const customer = await StripeService.createCustomer(
+            institutionId,
+            institution.contact_email,
+            institution.name
+          );
+          customerId = customer.id;
+        } catch (stripeError) {
+          console.error('Stripe customer creation error:', stripeError);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to create Stripe customer'
+          });
+        }
       }
 
       // Create payment intent
-      const paymentIntent = await StripeService.createPaymentIntent(
-        totalAmountCents,
-        'usd',
-        institutionId,
-        {
-          sessionCount: sessionCount.toString(),
-          pricePerSession: pricePerSession.toString(),
-          description: `Purchase of ${sessionCount} interview sessions`
-        }
-      );
+      let paymentIntent;
+      try {
+        paymentIntent = await StripeService.createPaymentIntent(
+          totalAmountCents,
+          'usd',
+          institutionId,
+          {
+            sessionCount: sessionCount.toString(),
+            pricePerSession: pricePerSession.toString(),
+            description: `Purchase of ${sessionCount} interview sessions`
+          }
+        );
+      } catch (stripeError) {
+        console.error('Stripe payment intent creation error:', stripeError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create payment intent'
+        });
+      }
+
+      // Validate payment intent
+      if (!paymentIntent || !paymentIntent.id || !paymentIntent.client_secret) {
+        console.error('Invalid payment intent received from Stripe:', paymentIntent);
+        return res.status(500).json({
+          success: false,
+          message: 'Invalid payment intent received from payment processor'
+        });
+      }
 
       // Save session purchase record
       const purchaseResult = await db.query(
@@ -125,10 +158,13 @@ const sessionController = {
       });
     } catch (error) {
       console.error('Create session purchase error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error while creating session purchase'
-      });
+      // Send a proper JSON response even in case of unexpected errors
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: 'Internal server error while creating session purchase'
+        });
+      }
     }
   },
 

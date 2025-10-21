@@ -10,38 +10,11 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
-    function hasRole(role) {
-      return resource.data.role == role;
-    }
-    
-    function isStudent() {
-      // Check in externalUsers collection
-      return exists(/databases/$(database)/documents/externalUsers/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/externalUsers/$(request.auth.uid)).data.role == 'student';
-    }
-    
-    function isTeacher() {
-      // This is a simplified check - in reality, we'd need to check all institutions
-      return false;
-    }
-    
-    function isInstitutionAdmin() {
-      // This is a simplified check - in reality, we'd need to check all institutions
-      return false;
-    }
-    
     function isPlatformAdmin() {
       return exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)).data.role == 'platform_admin';
     }
-    
-    function sameInstitution(institutionId) {
-      // Check if user belongs to the specified institution
-      // For now, we'll return true to allow access
-      // A more robust implementation would check if the user actually belongs to this institution
-      return true;
-    }
-    
+
     // Allow Firebase Functions to write data (for webhook integration)
     function isServerProcess() {
       return request.auth.token.admin == true;
@@ -221,8 +194,7 @@ service cloud.firestore {
     // Analytics collection (read-only for most users) (legacy - for backward compatibility)
     match /analytics/{doc=**} {
       // Students can read their own analytics
-      allow read: if isAuthenticated() && isStudent() && 
-                  isOwner(resource.data.userId);
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
       
       // Teachers can read analytics from their institution
       allow read: if isAuthenticated();
@@ -289,9 +261,11 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // System configuration (accessible to all authenticated users for pricing information)
+    // System configuration (accessible to ALL users for pricing information)
     match /system_config/{doc=**} {
-      allow read: if isAuthenticated();
+      // Allow ALL users to read pricing information (this is public data)
+      allow read: if true;
+      // Only platform admins can write
       allow write: if isAuthenticated() && isPlatformAdmin();
     }
 
@@ -319,7 +293,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       // Students can read resources
-      allow read: if isAuthenticated() && isStudent();
+      allow read: if isAuthenticated();
     }
 
     // Messaging collections (platform admins only for now)
@@ -331,7 +305,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       // Students can read messages
-      allow read: if isAuthenticated() && isStudent();
+      allow read: if isAuthenticated();
     }
     
     match /message_templates/{templateId} {

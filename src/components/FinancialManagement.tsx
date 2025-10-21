@@ -39,6 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import { InstitutionService } from '@/services/institution.service';
 import { PriceChangeService } from '@/services/price-change.service';
 import { PlatformSettingsService } from '@/services/platform-settings.service';
+import { PricingSyncService } from '@/services/pricing-sync.service';
 import { Institution, InstitutionPricingOverride, ScheduledPriceChange } from '@/types';
 import PriceChangeScheduleTable from '@/components/financial/PriceChangeScheduleTable';
 import InstitutionPricingOverrides from '@/components/financial/InstitutionPricingOverrides';
@@ -128,6 +129,7 @@ const FinancialManagement = () => {
   const [originalVapiCost, setOriginalVapiCost] = useState(0.11); // Original value from Firebase
   const [originalMarkupPercentage, setOriginalMarkupPercentage] = useState(36.36); // Original value from Firebase
   const [originalLicenseCost, setOriginalLicenseCost] = useState(19.96); // Original value from Firebase
+  const [isPricingSynced, setIsPricingSynced] = useState(true); // Add sync status state
   const [isScheduleEnabled, setIsScheduleEnabled] = useState(false); // Keep this state
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined); // Add this state
   const [isCalendarOpen, setIsCalendarOpen] = useState(false); // Add this state
@@ -152,7 +154,7 @@ const FinancialManagement = () => {
   // Add state for margin alert settings
   const [marginAlertSettings, setMarginAlertSettings] = useState<MarginAlertSettings>({
     lowMarginThreshold: 25,
-    highVapiCostThreshold: 0.15,
+    highVapiCostThreshold: 0.15, // This is for alerting purposes, not pricing
     autoPriceAdjustment: false,
     emailNotifications: true
   });
@@ -178,6 +180,7 @@ const FinancialManagement = () => {
             setOriginalVapiCost(pricingSettings.vapiCostPerMinute);
             setOriginalMarkupPercentage(pricingSettings.markupPercentage);
             setOriginalLicenseCost(pricingSettings.annualLicenseCost);
+            setIsPricingSynced(true); // Mark as synced since we just loaded from DB
           } else if (isMounted) {
             // Use default values if Firebase is not available
             setFirebaseError("Unable to load pricing settings from Firebase. Using default values.");
@@ -282,8 +285,42 @@ const FinancialManagement = () => {
     
     fetchData();
     
+    // Set up periodic sync verification
+    const syncInterval = setInterval(async () => {
+      try {
+        const syncResult = await PricingSyncService.syncPlatformPricing({
+          vapiCost,
+          markupPercentage,
+          licenseCost
+        });
+        
+        // If the values are not synced, update the UI to match the database
+        if (!syncResult.isSynced) {
+          setVapiCost(syncResult.vapiCost);
+          setMarkupPercentage(syncResult.markupPercentage);
+          setLicenseCost(syncResult.licenseCost);
+          
+          // Update original values as well
+          setOriginalVapiCost(syncResult.vapiCost);
+          setOriginalMarkupPercentage(syncResult.markupPercentage);
+          setOriginalLicenseCost(syncResult.licenseCost);
+          
+          // Update sync status
+          setIsPricingSynced(false);
+          
+          console.log('Pricing values automatically synced with database');
+        } else {
+          // If values are synced, update the sync status
+          setIsPricingSynced(true);
+        }
+      } catch (error) {
+        console.error('Error during periodic sync verification:', error);
+      }
+    }, 30000); // Check every 30 seconds
+    
     return () => {
       isMounted = false;
+      clearInterval(syncInterval);
     };
   }, []);
   
@@ -428,6 +465,40 @@ const FinancialManagement = () => {
   
   const applyGlobalPricing = async () => {
     try {
+      // CRITICAL: Validate pricing before any operation
+      const pricingToSave = {
+        vapiCostPerMinute: vapiCost,
+        markupPercentage: markupPercentage,
+        annualLicenseCost: licenseCost
+      };
+      
+      if (!PricingSyncService.validatePricing({
+        vapiCost: vapiCost,
+        markupPercentage: markupPercentage,
+        licenseCost: licenseCost
+      })) {
+        toast({
+          title: "Validation Error",
+          description: "Pricing values are outside acceptable ranges. Please check and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // CRITICAL: Show confirmation dialog for financial changes
+      const confirmed = window.confirm(
+        `CONFIRM FINANCIAL CHANGE:\n\n` +
+        `VAPI Cost: $${vapiCost.toFixed(2)}/min\n` +
+        `Markup: ${markupPercentage.toFixed(1)}%\n` +
+        `License Cost: $${licenseCost.toFixed(2)}/year\n\n` +
+        `This will affect all institutions and future transactions.\n` +
+        `Click OK to proceed or Cancel to abort.`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+      
       if (isScheduleEnabled) {
         // If scheduling is enabled but no date is selected, show an error
         if (!scheduledDate) {
@@ -444,11 +515,21 @@ const FinancialManagement = () => {
       } else {
         // Apply changes immediately (current behavior)
         try {
-          await PlatformSettingsService.updatePricingSettings({
-            vapiCostPerMinute: vapiCost,
+          // CRITICAL: Force sync to database with validation
+          const syncSuccess = await PricingSyncService.forceSyncPlatformPricing({
+            vapiCost: vapiCost,
             markupPercentage: markupPercentage,
-            annualLicenseCost: licenseCost
+            licenseCost: licenseCost
           });
+          
+          if (!syncSuccess) {
+            toast({
+              title: "Error",
+              description: "Failed to save pricing to database. Please check the console for details.",
+              variant: "destructive",
+            });
+            return;
+          }
           
           // Update original values to match current values
           setOriginalVapiCost(vapiCost);
@@ -457,10 +538,10 @@ const FinancialManagement = () => {
           
           toast({
             title: "Global pricing updated",
-            description: 'VAPI: $' + vapiCost.toFixed(2) + '/min, Markup: ' + markupPercentage + '%, License: $' + licenseCost.toFixed(2) + '/year',
+            description: `VAPI: $${vapiCost.toFixed(2)}/min, Markup: ${markupPercentage}%, License: $${licenseCost.toFixed(2)}/year`,
           });
         } catch (error) {
-          console.error('Failed to save global pricing:', error);
+          console.error('CRITICAL: Failed to save global pricing:', error);
           if (error instanceof Error && error.message.includes('Firebase not initialized')) {
             toast({
               title: "Error",
@@ -477,7 +558,7 @@ const FinancialManagement = () => {
         }
       }
     } catch (error) {
-      console.error('Failed to apply global pricing:', error);
+      console.error('CRITICAL: Failed to apply global pricing:', error);
       toast({
         title: "Error",
         description: "Failed to apply global pricing. Please check the console for details.",
@@ -710,6 +791,7 @@ const FinancialManagement = () => {
             totalRevenue={totalRevenue}
             estimatedProfit={estimatedProfit}
             estimatedMargin={estimatedMargin}
+            isSynced={isPricingSynced} // Pass sync status
           />
         </TabsContent>
         
@@ -903,39 +985,8 @@ const FinancialManagement = () => {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Annual cost per student interview session
+                    Annual cost per student license
                   </p>
-                </div>
-                
-                <div className="bg-muted p-4 rounded-md">
-                  <h3 className="font-medium mb-2">Calculated Pricing</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <div className="text-sm text-muted-foreground">Session Minute Price</div>
-                      <div className="text-lg font-bold">
-                        ${Number((currentOverride.customVapiCost * (1 + currentOverride.customMarkupPercentage / 100)).toFixed(2))}/minute
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        For a 15-minute session: ${Number((currentOverride.customVapiCost * (1 + currentOverride.customMarkupPercentage) * 15).toFixed(2))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">Quarterly License</div>
-                      <div className="text-lg font-bold">${(currentOverride.customLicenseCost / 4).toFixed(2)}/quarter</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Billed quarterly per student
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">Margin per Minute</div>
-                      <div className="text-lg font-bold">
-                        ${Number((currentOverride.customVapiCost * (currentOverride.customMarkupPercentage / 100)).toFixed(2))}/minute
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {currentOverride.customMarkupPercentage.toFixed(1)}% of session price
-                      </div>
-                    </div>
-                  </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
@@ -951,15 +1002,6 @@ const FinancialManagement = () => {
                 </div>
               </div>
             )}
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveOverride}>
-                Save Pricing Override
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
       </Tabs>

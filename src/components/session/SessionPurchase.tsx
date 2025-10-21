@@ -64,10 +64,32 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
         } else if (safeMethods.length > 0) {
           setSelectedPaymentMethod(safeMethods[0].id);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch payment methods:', error);
         // Set empty array on error to prevent null reference
         setPaymentMethods([]);
+        
+        // Provide user-friendly error message for token issues
+        if (error.status === 403 && error.message === 'Invalid or expired token') {
+          toast({
+            title: "Session expired",
+            description: "Please log in again to view your payment methods.",
+            variant: "destructive"
+          });
+        } else if (error.status === 401) {
+          toast({
+            title: "Authentication required",
+            description: "Please log in to view your payment methods.",
+            variant: "destructive"
+          });
+        } else if (error.status >= 500) {
+          toast({
+            title: "Server error",
+            description: "Unable to load payment methods. Please try again later.",
+            variant: "destructive"
+          });
+        }
+        // For other errors, we don't show a toast to avoid spamming the user
       } finally {
         setLoadingPaymentMethods(false);
       }
@@ -87,43 +109,49 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
       return;
     }
     
-    try {
-      const response = await fetch('/api/sessions/purchases', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          sessionCount: sessionsToAdd,
-          pricePerSession: parseFloat(sessionCost),
-          paymentMethodId: selectedPaymentMethod
-        })
+    // Call the shared handler with the parsed value
+    await handleAddSessionsInternal(sessionsToAdd);
+  };
+  
+  // New function to handle sessions with a specific count (for quick purchase buttons)
+  const handleAddSessionsWithCount = async (sessionCount: number) => {
+    if (sessionCount <= 0) {
+      toast({
+        title: "Invalid session count",
+        description: "Please enter a valid number of sessions to add",
+        variant: "destructive"
       });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        // Handle different error statuses appropriately
-        if (response.status >= 500) {
-          // Server error - show toast
-          toast({
-            title: "Server error",
-            description: result.message || "Failed to process session purchase",
-            variant: "destructive"
-          });
-        } else if (response.status >= 400) {
-          // Client error - show toast with specific message
-          toast({
-            title: "Purchase failed",
-            description: result.message || "Invalid purchase request",
-            variant: "destructive"
-          });
-        }
-        return;
+      return;
+    }
+    
+    // Call the shared handler with the provided count
+    await handleAddSessionsInternal(sessionCount);
+  };
+  
+  // Shared handler for both manual entry and quick purchase
+  const handleAddSessionsInternal = async (sessionsToAdd: number) => {
+    try {
+      // Check if user has a payment method selected or needs to enter card details
+      if ((!selectedPaymentMethod || selectedPaymentMethod === '') && 
+          (!paymentMethods || paymentMethods.length === 0)) {
+        toast({
+          title: "Payment method required",
+          description: "Please enter your card details when prompted to complete this purchase.",
+        });
+        // We'll still proceed with the purchase, as Stripe will handle the card entry
       }
       
-      if (result.data?.clientSecret && stripePromise) {
+      // Use SessionService instead of direct fetch for consistency
+      const purchaseData = {
+        sessionCount: sessionsToAdd,
+        pricePerSession: sessionLength * parseFloat(sessionCost), // Price per session, not per minute
+        paymentMethodId: selectedPaymentMethod || undefined // Only include if we have a selected method
+      };
+
+      const result = await SessionService.createSessionPurchase(purchaseData);
+      
+      // Handle the response
+      if (result?.data?.clientSecret && stripePromise) {
         const stripe = await stripePromise;
         if (stripe) {
           const { error } = await stripe.confirmCardPayment(result.data.clientSecret);
@@ -137,7 +165,9 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
             return;
           }
           
-          const totalCost = parseFloat((sessionsToAdd * parseFloat(sessionCost)).toFixed(2));
+          // Calculate the correct total cost (sessions × duration × price per minute)
+          const costPerSession = sessionLength * parseFloat(sessionCost);
+          const totalCost = parseFloat((sessionsToAdd * costPerSession).toFixed(2));
           
           toast({
             title: "Sessions purchased",
@@ -151,7 +181,9 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
           setAdditionalSessions('');
         }
       } else {
-        const totalCost = parseFloat((sessionsToAdd * parseFloat(sessionCost)).toFixed(2));
+        // Calculate the correct total cost (sessions × duration × price per minute)
+        const costPerSession = sessionLength * parseFloat(sessionCost);
+        const totalCost = parseFloat((sessionsToAdd * costPerSession).toFixed(2));
         
         toast({
           title: "Sessions purchased",
@@ -165,33 +197,55 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
         setAdditionalSessions('');
       }
     } catch (error: any) {
-      // Handle network errors and other unexpected errors
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        // Network error
-        toast({
-          title: "Network error",
-          description: "Unable to connect to the server. Please check your connection.",
-          variant: "destructive"
-        });
-      } else {
-        // Unexpected error
-        toast({
-          title: "Purchase failed",
-          description: error instanceof Error ? error.message : "An unexpected error occurred",
-          variant: "destructive"
-        });
+      // Provide more specific error messages based on the error type
+      let errorMessage = "Purchase failed";
+      let errorDescription = error.message || "An unexpected error occurred";
+      
+      if (error.status === 401) {
+        errorMessage = "Authentication required";
+        errorDescription = "Please log in again to complete this purchase";
+      } else if (error.status === 403) {
+        if (error.message === 'Invalid or expired token') {
+          errorMessage = "Session expired";
+          errorDescription = "Please log in again to complete this purchase";
+        } else {
+          errorMessage = "Permission denied";
+          errorDescription = "You don't have permission to purchase sessions";
+        }
+      } else if (error.status === 404) {
+        errorMessage = "Purchase endpoint not found";
+        errorDescription = "The session purchase service is currently unavailable";
+      } else if (error.status >= 500) {
+        errorMessage = "Server error";
+        errorDescription = "There was a problem processing your purchase. Please try again later.";
+      } else if (error.status === 400) {
+        errorMessage = "Invalid request";
+        errorDescription = error.message || "Please check your purchase details and try again";
       }
+      
+      toast({
+        title: errorMessage,
+        description: errorDescription,
+        variant: "destructive"
+      });
+      
       console.error('Purchase error:', error);
     }
   };
   
   const calculateBundleCost = (sessions: number) => {
-    return (sessions * parseFloat(sessionCost)).toFixed(2);
+    // Calculate the cost per session (duration × price per minute)
+    const costPerSession = sessionLength * parseFloat(sessionCost);
+    // Calculate total cost for the bundle
+    return (sessions * costPerSession).toFixed(2);
   };
 
   const calculateTotalCost = () => {
     const sessions = parseInt(additionalSessions) || 0;
-    return (sessions * parseFloat(sessionCost)).toFixed(2);
+    // Calculate the cost per session (duration × price per minute)
+    const costPerSession = sessionLength * parseFloat(sessionCost);
+    // Calculate total cost
+    return (sessions * costPerSession).toFixed(2);
   };
   
   return (
@@ -246,7 +300,12 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     </SelectContent>
                   </Select>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No saved payment methods. You'll need to enter card details.</p>
+                  <div className="rounded-md border border-dashed border-muted-foreground/50 p-4 text-center">
+                    <CreditCard className="mx-auto h-6 w-6 text-muted-foreground" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      No saved payment methods found. You'll be prompted to enter your card details when you complete your purchase.
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -262,7 +321,7 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     items: [
                       { label: 'Number of Sessions', value: '100' },
                       { label: 'Session Duration', value: `${sessionLength} minutes` },
-                      { label: 'Cost per Session', value: `$${sessionCost}` },
+                      { label: 'Cost per Session', value: `$${(sessionLength * parseFloat(sessionCost)).toFixed(2)}` },
                       { label: 'Total Cost', value: `$${calculateBundleCost(100)}` },
                     ],
                     confirmText: "Complete Purchase",
@@ -274,8 +333,8 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     </Button>
                   }
                   onConfirm={() => {
-                    setAdditionalSessions('100');
-                    handleAddSessions();
+                    // Pass the session count directly to avoid state update delays
+                    handleAddSessionsWithCount(100);
                   }}
                 />
                 <ConfirmationDialog
@@ -285,7 +344,7 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     items: [
                       { label: 'Number of Sessions', value: '500' },
                       { label: 'Session Duration', value: `${sessionLength} minutes` },
-                      { label: 'Cost per Session', value: `$${sessionCost}` },
+                      { label: 'Cost per Session', value: `$${(sessionLength * parseFloat(sessionCost)).toFixed(2)}` },
                       { label: 'Total Cost', value: `$${calculateBundleCost(500)}` },
                     ],
                     confirmText: "Complete Purchase",
@@ -297,8 +356,8 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     </Button>
                   }
                   onConfirm={() => {
-                    setAdditionalSessions('500');
-                    handleAddSessions();
+                    // Pass the session count directly to avoid state update delays
+                    handleAddSessionsWithCount(500);
                   }}
                 />
                 <ConfirmationDialog
@@ -308,7 +367,7 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     items: [
                       { label: 'Number of Sessions', value: '1000' },
                       { label: 'Session Duration', value: `${sessionLength} minutes` },
-                      { label: 'Cost per Session', value: `$${sessionCost}` },
+                      { label: 'Cost per Session', value: `$${(sessionLength * parseFloat(sessionCost)).toFixed(2)}` },
                       { label: 'Total Cost', value: `$${calculateBundleCost(1000)}` },
                     ],
                     confirmText: "Complete Purchase",
@@ -320,8 +379,8 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                     </Button>
                   }
                   onConfirm={() => {
-                    setAdditionalSessions('1000');
-                    handleAddSessions();
+                    // Pass the session count directly to avoid state update delays
+                    handleAddSessionsWithCount(1000);
                   }}
                 />
               </div>
@@ -342,7 +401,7 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
               </div>
               <div className="flex justify-between py-1">
                 <span>Price per session:</span>
-                <span>${sessionCost}</span>
+                <span>${(sessionLength * parseFloat(sessionCost)).toFixed(2)}</span>
               </div>
               <div className="h-px bg-border my-2"></div>
               <div className="flex justify-between font-medium text-lg">
@@ -357,7 +416,7 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
                   items: [
                     { label: 'Number of Sessions', value: additionalSessions || '0' },
                     { label: 'Session Duration', value: `${sessionLength} minutes` },
-                    { label: 'Cost per Session', value: `$${sessionCost}` },
+                    { label: 'Cost per Session', value: `$${(sessionLength * parseFloat(sessionCost)).toFixed(2)}` },
                     { label: 'Total Cost', value: `$${calculateTotalCost()}` },
                   ],
                   confirmText: "Complete Purchase",

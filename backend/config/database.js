@@ -5,10 +5,10 @@ dotenv.config();
 
 // PostgreSQL connection pool
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
+  user: process.env.DB_USER || process.env.USER || 'postgres',
   host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'octavia_interview',
-  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'octavia_interview_buddy',
+  password: process.env.DB_PASSWORD || '',
   port: process.env.DB_PORT || 5432,
   connectionString: process.env.DATABASE_URL, // Use connection string if available
 });

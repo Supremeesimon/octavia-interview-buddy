@@ -1,5 +1,6 @@
 import { apiClient, ApiResponse } from '../lib/api-client';
 import { toast } from 'sonner';
+import { authService } from './auth.service';
 
 export interface SessionPurchase {
   id: string;
@@ -11,6 +12,13 @@ export interface SessionPurchase {
   totalPrice: number;
   status: 'pending' | 'completed' | 'cancelled';
   clientSecret?: string;
+}
+
+// Add a new interface for creating session purchases
+export interface CreateSessionPurchaseData {
+  sessionCount: number;
+  pricePerSession: number;
+  paymentMethodId?: string;
 }
 
 export interface SessionAllocation {
@@ -35,8 +43,8 @@ export interface SessionPool {
 }
 
 export class SessionService {
-  private static baseUrl = '/api/sessions';
-  private static stripeBaseUrl = '/api/stripe';
+  private static baseUrl = '/sessions';
+  private static stripeBaseUrl = '/stripe';
 
   // Session Purchase Methods
   static async getSessionPurchases(institutionId: string): Promise<SessionPurchase[]> {
@@ -80,23 +88,38 @@ export class SessionService {
     }
   }
 
-  static async createSessionPurchase(purchaseData: Omit<SessionPurchase, 'id' | 'purchaseDate' | 'status'>): Promise<SessionPurchase> {
+  static async createSessionPurchase(purchaseData: CreateSessionPurchaseData): Promise<any> {
     try {
-      const response: ApiResponse<SessionPurchase> = await apiClient.post(`${this.baseUrl}/purchases`, {
-        ...purchaseData,
-        purchaseDate: new Date().toISOString(),
-        status: 'pending',
-      });
-      toast.success('Session purchase initiated');
-      return {
-        ...response.data,
-        purchaseDate: new Date(response.data.purchaseDate),
-      };
+      // Make direct API call to match backend expectations
+      const response = await apiClient.post('/sessions/purchases', purchaseData);
+      return response.data;
     } catch (error: any) {
+      // Handle 401 errors (Access token required) - this usually means the user needs to re-authenticate
+      if (error.status === 401) {
+        // Check if user is actually authenticated before forcing re-authentication
+        if (authService.isAuthenticated()) {
+          // If we get here, it means token refresh failed
+          toast.error('Authentication expired. Please log in again.');
+          await authService.logout();
+          throw new Error('Authentication required: Please log in again.');
+        } else {
+          // User is not authenticated
+          toast.error('Authentication required: Please log in to complete this purchase.');
+          await authService.logout();
+          throw new Error('Authentication required: Please log in again.');
+        }
+      }
+      
       // Show error toast for actual errors
       if (error.status === undefined) {
         // Network error
         toast.error('Network error: Failed to create session purchase');
+      } else if (error.status === 403) {
+        // Permission error
+        toast.error('Permission denied: You do not have permission to purchase sessions');
+      } else if (error.status === 404) {
+        // Not found error
+        toast.error('Purchase service not found: The session purchase service is currently unavailable');
       } else if (error.status >= 500) {
         // Server error
         toast.error('Server error: Failed to create session purchase');
@@ -157,7 +180,6 @@ export class SessionService {
     }
   }
 
-  // Session Allocation Methods
   static async getSessionAllocations(): Promise<SessionAllocation[]> {
     try {
       const response: ApiResponse<SessionAllocation[]> = await apiClient.get(`${this.baseUrl}/allocations`);
@@ -171,7 +193,7 @@ export class SessionService {
       }));
     } catch (error: any) {
       // Handle different types of errors appropriately
-      // Don't show error toast for 404 errors as it's normal not to have allocations yet
+      // Don't show error toast for 404 errors as it may be normal not to have allocations yet
       // According to project specification: "A 404 response when fetching session allocations 
       // should not trigger an error message display, as it may be a normal state indicating 
       // no allocations exist yet. Only network errors or unexpected status codes should show error messages."
@@ -182,7 +204,6 @@ export class SessionService {
       }
       
       // For 400 responses (bad request), don't show toast but still throw the error
-      // This might happen if institutionId is missing
       if (error.status === 400) {
         console.warn('Session allocations request failed with 400 (Bad Request):', error.message);
         return [];
@@ -205,21 +226,26 @@ export class SessionService {
     }
   }
 
-  static async createSessionAllocation(allocationData: Omit<SessionAllocation, 'id' | 'startDate' | 'usedSessions' | 'isActive'>): Promise<SessionAllocation> {
+  static async createSessionAllocation(allocationData: Partial<SessionAllocation>): Promise<SessionAllocation> {
     try {
-      const response: ApiResponse<SessionAllocation> = await apiClient.post(`${this.baseUrl}/allocations`, {
-        ...allocationData,
-        startDate: new Date().toISOString(),
-        usedSessions: 0,
-        isActive: true,
-      });
-      toast.success('Session allocation created');
+      const response: ApiResponse<SessionAllocation> = await apiClient.post(`${this.baseUrl}/allocations`, allocationData);
       return {
         ...response.data,
         startDate: new Date(response.data.startDate),
       };
-    } catch (error) {
-      toast.error('Failed to create session allocation');
+    } catch (error: any) {
+      // Show error toast for actual errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to create session allocation');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to create session allocation');
+      } else if (error.status >= 400) {
+        // Client error
+        toast.error(error.message || 'Failed to create session allocation');
+      }
+      
       throw error;
     }
   }
@@ -227,13 +253,23 @@ export class SessionService {
   static async updateSessionAllocation(id: string, allocationData: Partial<SessionAllocation>): Promise<SessionAllocation> {
     try {
       const response: ApiResponse<SessionAllocation> = await apiClient.put(`${this.baseUrl}/allocations/${id}`, allocationData);
-      toast.success('Session allocation updated');
       return {
         ...response.data,
         startDate: new Date(response.data.startDate),
       };
-    } catch (error) {
-      toast.error('Failed to update session allocation');
+    } catch (error: any) {
+      // Show error toast for actual errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to update session allocation');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to update session allocation');
+      } else if (error.status >= 400) {
+        // Client error
+        toast.error(error.message || 'Failed to update session allocation');
+      }
+      
       throw error;
     }
   }
@@ -242,7 +278,7 @@ export class SessionService {
     try {
       await apiClient.delete(`${this.baseUrl}/allocations/${id}`);
       toast.success('Session allocation deleted');
-    } catch (error) {
+    } catch (error: any) {
       toast.error('Failed to delete session allocation');
       throw error;
     }

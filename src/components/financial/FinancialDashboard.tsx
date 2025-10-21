@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Building, BarChart3, LineChart, PieChart, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Building, BarChart3, LineChart, PieChart, TrendingUp, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 
 interface FinancialInstitution {
   id: string;
@@ -26,6 +26,7 @@ interface FinancialDashboardProps {
   totalRevenue: number;
   estimatedProfit: number;
   estimatedMargin: string;
+  isSynced?: boolean; // Add sync status prop
 }
 
 const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
@@ -40,7 +41,8 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   totalSessionRevenue,
   totalRevenue,
   estimatedProfit,
-  estimatedMargin
+  estimatedMargin,
+  isSynced = true // Default to true (synced)
 }) => {
   // Get pricing for an institution (either override or global)
   const getInstitutionPricing = (institution: FinancialInstitution) => {
@@ -62,6 +64,32 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
   return (
     <>
+      {/* Sync Status Indicator */}
+      <div className="mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {isSynced ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="font-medium text-green-700">Pricing is synchronized with database</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-5 w-5 text-red-500" />
+                    <span className="font-medium text-red-700">Pricing is NOT synchronized with database</span>
+                  </>
+                )}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {isSynced ? 'All changes saved' : 'Unsaved changes detected'}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">

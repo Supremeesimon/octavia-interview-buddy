@@ -1,5 +1,7 @@
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { canAccessPricingDetails } from '@/utils/role-utils';
 
 export interface PlatformPricingSettings {
   vapiCostPerMinute: number;
@@ -30,7 +32,6 @@ export class PlatformSettingsService {
     try {
       // Check if db is initialized
       if (!db) {
-        console.warn('Firebase not initialized, returning null');
         return null;
       }
       
@@ -40,33 +41,21 @@ export class PlatformSettingsService {
       if (docSnap.exists()) {
         const data = docSnap.data();
         return {
-          vapiCostPerMinute: data.vapiCostPerMinute || 0.11,
-          markupPercentage: data.markupPercentage || 36.36,
-          annualLicenseCost: data.annualLicenseCost || 19.96,
+          vapiCostPerMinute: data.vapiCostPerMinute,
+          markupPercentage: data.markupPercentage,
+          annualLicenseCost: data.annualLicenseCost,
           updatedAt: data.updatedAt?.toDate() || new Date()
         };
       }
       
-      // Return default values if document doesn't exist
-      return {
-        vapiCostPerMinute: 0.11,
-        markupPercentage: 36.36,
-        annualLicenseCost: 19.96,
-        updatedAt: new Date()
-      };
+      // Return null if document doesn't exist
+      return null;
     } catch (error: any) {
       // Check if it's a permission error
       if (error.code === 'permission-denied') {
-        console.warn('Permission denied when fetching platform pricing settings. User may not have access.');
-        // Return default values instead of throwing error
-        return {
-          vapiCostPerMinute: 0.11,
-          markupPercentage: 36.36,
-          annualLicenseCost: 19.96,
-          updatedAt: new Date()
-        };
+        // Return null to indicate "Not Available" rather than using defaults
+        return null;
       }
-      console.error('Error fetching platform pricing settings:', error);
       return null;
     }
   }
@@ -84,7 +73,6 @@ export class PlatformSettingsService {
         updatedAt: Timestamp.now()
       }, { merge: true });
     } catch (error) {
-      console.error('Error updating platform pricing settings:', error);
       throw new Error(`Failed to update platform pricing settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -94,7 +82,6 @@ export class PlatformSettingsService {
     try {
       // Check if db is initialized
       if (!db) {
-        console.warn('Firebase not initialized, returning null');
         return null;
       }
       
@@ -104,42 +91,24 @@ export class PlatformSettingsService {
       if (docSnap.exists()) {
         const data = docSnap.data();
         return {
-          lowMarginThreshold: data.lowMarginThreshold !== undefined ? data.lowMarginThreshold : 25,
-          highVapiCostThreshold: data.highVapiCostThreshold !== undefined ? data.highVapiCostThreshold : 0.15,
-          autoPriceAdjustment: data.autoPriceAdjustment !== undefined ? data.autoPriceAdjustment : false,
-          emailNotifications: data.emailNotifications !== undefined ? data.emailNotifications : true,
-          lowMarginAlertEnabled: data.lowMarginAlertEnabled !== undefined ? data.lowMarginAlertEnabled : true,
-          highVapiCostAlertEnabled: data.highVapiCostAlertEnabled !== undefined ? data.highVapiCostAlertEnabled : true,
+          lowMarginThreshold: data.lowMarginThreshold,
+          highVapiCostThreshold: data.highVapiCostThreshold,
+          autoPriceAdjustment: data.autoPriceAdjustment,
+          emailNotifications: data.emailNotifications,
+          lowMarginAlertEnabled: data.lowMarginAlertEnabled,
+          highVapiCostAlertEnabled: data.highVapiCostAlertEnabled,
           updatedAt: data.updatedAt?.toDate() || new Date()
         };
       }
       
-      // Return default values if document doesn't exist
-      return {
-        lowMarginThreshold: 25,
-        highVapiCostThreshold: 0.15,
-        autoPriceAdjustment: false,
-        emailNotifications: true,
-        lowMarginAlertEnabled: true,
-        highVapiCostAlertEnabled: true,
-        updatedAt: new Date()
-      };
+      // Return null if document doesn't exist
+      return null;
     } catch (error: any) {
       // Check if it's a permission error
       if (error.code === 'permission-denied') {
-        console.warn('Permission denied when fetching platform margin alert settings. User may not have access.');
-        // Return default values instead of throwing error
-        return {
-          lowMarginThreshold: 25,
-          highVapiCostThreshold: 0.15,
-          autoPriceAdjustment: false,
-          emailNotifications: true,
-          lowMarginAlertEnabled: true,
-          highVapiCostAlertEnabled: true,
-          updatedAt: new Date()
-        };
+        // Return null to indicate "Not Available" rather than using defaults
+        return null;
       }
-      console.error('Error fetching platform margin alert settings:', error);
       return null;
     }
   }
@@ -157,7 +126,6 @@ export class PlatformSettingsService {
         updatedAt: Timestamp.now()
       }, { merge: true });
     } catch (error) {
-      console.error('Error updating platform margin alert settings:', error);
       throw new Error(`Failed to update platform margin alert settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -167,7 +135,6 @@ export class PlatformSettingsService {
     try {
       // Check if db is initialized
       if (!db) {
-        console.warn('Firebase not initialized, returning null');
         return null;
       }
       
@@ -177,51 +144,28 @@ export class PlatformSettingsService {
       if (docSnap.exists()) {
         const data = docSnap.data();
         return {
-          vapiCostPerMinute: data.vapiCostPerMinute || 0.11,
-          markupPercentage: data.markupPercentage || 36.36,
-          annualLicenseCost: data.annualLicenseCost || 19.96,
-          lowMarginThreshold: data.lowMarginThreshold !== undefined ? data.lowMarginThreshold : 25,
-          highVapiCostThreshold: data.highVapiCostThreshold !== undefined ? data.highVapiCostThreshold : 0.15,
-          autoPriceAdjustment: data.autoPriceAdjustment !== undefined ? data.autoPriceAdjustment : false,
-          emailNotifications: data.emailNotifications !== undefined ? data.emailNotifications : true,
-          lowMarginAlertEnabled: data.lowMarginAlertEnabled !== undefined ? data.lowMarginAlertEnabled : true,
-          highVapiCostAlertEnabled: data.highVapiCostAlertEnabled !== undefined ? data.highVapiCostAlertEnabled : true,
+          vapiCostPerMinute: data.vapiCostPerMinute,
+          markupPercentage: data.markupPercentage,
+          annualLicenseCost: data.annualLicenseCost,
+          lowMarginThreshold: data.lowMarginThreshold,
+          highVapiCostThreshold: data.highVapiCostThreshold,
+          autoPriceAdjustment: data.autoPriceAdjustment,
+          emailNotifications: data.emailNotifications,
+          lowMarginAlertEnabled: data.lowMarginAlertEnabled,
+          highVapiCostAlertEnabled: data.highVapiCostAlertEnabled,
           updatedAt: data.updatedAt?.toDate() || new Date()
         };
       }
       
-      // Return default values if document doesn't exist
-      return {
-        vapiCostPerMinute: 0.11,
-        markupPercentage: 36.36,
-        annualLicenseCost: 19.96,
-        lowMarginThreshold: 25,
-        highVapiCostThreshold: 0.15,
-        autoPriceAdjustment: false,
-        emailNotifications: true,
-        lowMarginAlertEnabled: true,
-        highVapiCostAlertEnabled: true,
-        updatedAt: new Date()
-      };
+      // Return null if document doesn't exist
+      return null;
     } catch (error: any) {
       // Check if it's a permission error
       if (error.code === 'permission-denied') {
-        console.warn('Permission denied when fetching all platform settings. User may not have access.');
-        // Return default values instead of throwing error
-        return {
-          vapiCostPerMinute: 0.11,
-          markupPercentage: 36.36,
-          annualLicenseCost: 19.96,
-          lowMarginThreshold: 25,
-          highVapiCostThreshold: 0.15,
-          autoPriceAdjustment: false,
-          emailNotifications: true,
-          lowMarginAlertEnabled: true,
-          highVapiCostAlertEnabled: true,
-          updatedAt: new Date()
-        };
+        // Return null to indicate "Not Available" rather than using defaults
+        return null;
       }
-      console.error('Error fetching all platform settings:', error);
+      // Return null for any other error to indicate "Not Available"
       return null;
     }
   }

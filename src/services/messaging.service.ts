@@ -19,8 +19,8 @@ export class MessagingService {
   private static readonly MESSAGES_COLLECTION = 'messages';
   private static readonly TEMPLATES_COLLECTION = 'message_templates';
   private static readonly BROADCAST_HISTORY_COLLECTION = 'broadcast_history';
-  private static readonly MAILERSEND_API_BASE_URL = '/api/email';
-  private static readonly BREVO_API_BASE_URL = '/api/brevo';
+  private static readonly MAILERSEND_API_BASE_URL = '/email';
+  private static readonly BREVO_API_BASE_URL = '/brevo';
 
   // Message CRUD Operations
   static async getAllMessages(): Promise<Message[]> {

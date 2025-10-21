@@ -27,7 +27,6 @@ export class InstitutionService {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error creating institution:', error);
       throw new Error(`Failed to create institution: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -36,7 +35,6 @@ export class InstitutionService {
     try {
       // Check if db is initialized
       if (!db) {
-        console.warn('Firebase not initialized, returning empty array');
         return [];
       }
       
@@ -57,7 +55,6 @@ export class InstitutionService {
         } as Institution;
       });
     } catch (error) {
-      console.error('Error fetching institutions:', error);
       // Return empty array instead of throwing to prevent UI crashes
       return [];
     }
@@ -67,7 +64,6 @@ export class InstitutionService {
     try {
       // Check if db is initialized
       if (!db) {
-        console.warn('Firebase not initialized, returning null');
         return null;
       }
       
@@ -87,7 +83,6 @@ export class InstitutionService {
       
       return null;
     } catch (error) {
-      console.error('Error fetching institution:', error);
       return null;
     }
   }
@@ -101,7 +96,6 @@ export class InstitutionService {
       
       await deleteDoc(doc(db, this.COLLECTION_NAME, id));
     } catch (error) {
-      console.error('Error deleting institution:', error);
       throw new Error(`Failed to delete institution: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -119,7 +113,6 @@ export class InstitutionService {
         updatedAt: Timestamp.now()
       });
     } catch (error) {
-      console.error('Error updating institution:', error);
       throw new Error(`Failed to update institution: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -138,7 +131,6 @@ export class InstitutionService {
         updatedAt: Timestamp.now()
       });
     } catch (error) {
-      console.error('Error updating institution pricing override:', error);
       throw new Error(`Failed to update institution pricing override: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -157,7 +149,6 @@ export class InstitutionService {
         updatedAt: Timestamp.now()
       });
     } catch (error) {
-      console.error('Error removing institution pricing override:', error);
       throw new Error(`Failed to remove institution pricing override: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -175,14 +166,10 @@ export class InstitutionService {
             await this.updateInstitution(institution.id, {
               pricingOverride: null
             });
-            console.log(`Added pricingOverride field to institution: ${institution.name}`);
           }
         }
       }
-      
-      console.log('Pricing override field ensured for all institutions');
     } catch (error) {
-      console.error('Error ensuring pricing override field:', error);
       // Don't throw error to prevent UI crashes
     }
   }
@@ -202,7 +189,6 @@ export class InstitutionService {
         updatedAt: Timestamp.now()
       });
     } catch (error) {
-      console.error('Error approving institution:', error);
       throw new Error(`Failed to approve institution: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -231,11 +217,8 @@ export class InstitutionService {
         updatedAt: Timestamp.now()
       });
       
-      console.log(`Regenerated signup token for institution: ${institutionId}`);
-      
       return { token: newToken, link: newLink };
     } catch (error) {
-      console.error('Error regenerating signup token:', error);
       throw new Error(`Failed to regenerate signup token: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -258,15 +241,12 @@ export class InstitutionService {
           await this.regenerateSignupToken(institution.id);
           updatedCount++;
         } catch (error) {
-          console.error(`Error regenerating token for institution ${institution.id}:`, error);
           // Continue with other institutions even if one fails
         }
       }
       
-      console.log(`Successfully regenerated tokens for ${updatedCount} institutions`);
       return updatedCount;
     } catch (error) {
-      console.error('Error regenerating all signup tokens:', error);
       throw new Error(`Failed to regenerate all signup tokens: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

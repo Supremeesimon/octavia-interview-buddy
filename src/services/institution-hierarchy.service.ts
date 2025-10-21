@@ -402,7 +402,6 @@ export class InstitutionHierarchyService {
         }
       } catch (error) {
         // If we don't have permission to read platform admins, continue to next collection
-        console.debug('No permission to read platform admins collection, continuing...');
       }
 
       // Check external users

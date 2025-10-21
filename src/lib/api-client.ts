@@ -4,6 +4,7 @@
  */
 
 import config from './config';
+import { refreshToken } from '@/utils/token-utils';
 
 export interface ApiResponse<T = any> {
   data: T;
@@ -23,6 +24,11 @@ class ApiClient {
   private baseUrl: string;
   private timeout: number;
   private defaultHeaders: Record<string, string>;
+  private isRefreshing: boolean = false;
+  private failedQueue: Array<{
+    resolve: (value: any) => void;
+    reject: (reason?: any) => void;
+  }> = [];
 
   constructor() {
     this.baseUrl = config.api.baseUrl;
@@ -46,6 +52,18 @@ class ApiClient {
     }
     
     return headers;
+  }
+
+  private processQueue(error: any, token: string | null = null) {
+    this.failedQueue.forEach(({ resolve, reject }) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(token);
+      }
+    });
+    
+    this.failedQueue = [];
   }
 
   private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
@@ -90,6 +108,17 @@ class ApiClient {
       });
 
       clearTimeout(timeoutId);
+      
+      // If we get a 403 error for token expiration, try to refresh the token
+      if (response.status === 403) {
+        const responseText = await response.clone().text();
+        console.log('Checking for token expiration, response text:', responseText);
+        if (responseText.includes('Invalid or expired token')) {
+          console.log('Token expired, attempting to refresh');
+          return this.handleTokenRefresh<T>(url, options);
+        }
+      }
+      
       return this.handleResponse<T>(response);
     } catch (error: any) {
       clearTimeout(timeoutId);
@@ -111,6 +140,67 @@ class ApiClient {
         status: 0,
         code: 'NETWORK_ERROR',
       } as ApiError;
+    }
+  }
+
+  private async handleTokenRefresh<T>(
+    url: string,
+    options: RequestInit
+  ): Promise<ApiResponse<T>> {
+    console.log('Handling token refresh for URL:', url);
+    
+    // If we're already refreshing, add the request to the queue
+    if (this.isRefreshing) {
+      console.log('Already refreshing, queuing request');
+      return new Promise((resolve, reject) => {
+        this.failedQueue.push({ resolve, reject });
+      });
+    }
+
+    this.isRefreshing = true;
+    console.log('Setting isRefreshing to true');
+
+    try {
+      // Attempt to refresh the token
+      const refreshed = await refreshToken();
+      console.log('Token refresh result:', refreshed);
+      
+      if (refreshed) {
+        console.log('Token refresh successful, processing queue');
+        // Process the queue with the new token
+        this.processQueue(null, this.getAuthToken());
+        
+        // Retry the original request
+        console.log('Retrying original request:', url);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        
+        const response = await fetch(`${this.baseUrl}${url}`, {
+          ...options,
+          headers: this.getHeaders(options.headers as Record<string, string>),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        console.log('Retry response status:', response.status);
+        return this.handleResponse<T>(response);
+      } else {
+        console.log('Token refresh failed, processing queue with error');
+        // If refresh fails, process the queue with an error
+        this.processQueue(new Error('Token refresh failed'));
+        throw {
+          message: 'Session expired. Please log in again.',
+          status: 401,
+        } as ApiError;
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      // If refresh fails, process the queue with an error
+      this.processQueue(error);
+      throw error;
+    } finally {
+      this.isRefreshing = false;
+      console.log('Setting isRefreshing to false');
     }
   }
 
@@ -184,6 +274,21 @@ class ApiClient {
             status: xhr.status,
             statusText: xhr.statusText,
           });
+          
+          // If we get a 403 error for token expiration, try to refresh the token
+          if (xhr.status === 403) {
+            const responseText = xhr.responseText;
+            if (responseText.includes('Invalid or expired token')) {
+              // For simplicity, we'll reject here and let the caller handle retry
+              // A more complete implementation would retry the upload
+              reject({
+                message: 'Session expired. Please log in again.',
+                status: 401,
+              } as ApiError);
+              return;
+            }
+          }
+          
           const result = await this.handleResponse<T>(response);
           resolve(result);
         } catch (error) {

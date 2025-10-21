@@ -8,6 +8,28 @@ import type { VapiCall, VapiConfig, InterviewFeedback } from '@/types';
 import Vapi from '@vapi-ai/web';
 import { interviewService } from './interview.service';
 
+// VAPI logging control - set to false to disable all VAPI logs
+const ENABLE_VAPI_LOGS = false;
+
+// Custom logging functions that respect the ENABLE_VAPI_LOGS flag
+const vapiLog = {
+  debug: (...args: any[]) => {
+    if (ENABLE_VAPI_LOGS) console.debug('[VAPI]', ...args);
+  },
+  log: (...args: any[]) => {
+    if (ENABLE_VAPI_LOGS) console.log('[VAPI]', ...args);
+  },
+  info: (...args: any[]) => {
+    if (ENABLE_VAPI_LOGS) console.info('[VAPI]', ...args);
+  },
+  warn: (...args: any[]) => {
+    if (ENABLE_VAPI_LOGS) console.warn('[VAPI]', ...args);
+  },
+  error: (...args: any[]) => {
+    if (ENABLE_VAPI_LOGS) console.error('[VAPI]', ...args);
+  }
+};
+
 export interface VapiCallbacks {
   onCallStart?: () => void;
   onCallEnd?: (call: VapiCall) => void;
@@ -56,7 +78,7 @@ export class VapiService {
         throw new Error('Invalid VAPI public key in production. Please set a valid VAPI public key in your environment variables. Check your .env.production file and replace the placeholder values with actual configuration.');
       }
       
-      console.log('Initializing VAPI with public key:', config.vapi.publicKey.substring(0, 8) + '...');
+      vapiLog.debug('Initializing VAPI with public key:', config.vapi.publicKey.substring(0, 8) + '...');
       
       // Initialize VAPI SDK with public key
       this.vapi = new Vapi(config.vapi.publicKey);
@@ -69,14 +91,13 @@ export class VapiService {
       // Additional check to see if this is a valid VAPI instance
       // by checking for expected methods
       if (typeof this.vapi.start !== 'function') {
-        console.warn('VAPI instance missing start method, may be invalid');
+        vapiLog.warn('VAPI instance missing start method, may be invalid');
       }
       
       this.setupEventListeners();
-      console.log('VAPI initialized successfully');
+      vapiLog.info('VAPI initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize VAPI:', error);
-      console.error('Stack trace:', error.stack);
+      vapiLog.error('Failed to initialize VAPI:', error);
       
       // In production, we should not fall back to mock implementation
       if (config.app.environment === 'production') {
@@ -84,7 +105,7 @@ export class VapiService {
       }
       
       // Fallback to mock implementation if VAPI fails (only in development)
-      console.log('Falling back to mock VAPI implementation');
+      vapiLog.info('Falling back to mock VAPI implementation');
       this.initializeMockVapi();
     }
   }
@@ -94,7 +115,7 @@ export class VapiService {
     this.vapi = {
       start: async (assistantId: string, overrides?: { metadata?: any }) => {
         const metadata = overrides?.metadata || {};
-        console.log('[MOCK VAPI] Starting call with assistant:', assistantId, 'metadata:', metadata);
+        vapiLog.debug('[MOCK VAPI] Starting call with assistant:', assistantId, 'metadata:', metadata);
         this.currentCall = {
           id: `mock_call_${Date.now()}`,
           status: 'connecting',
@@ -119,7 +140,7 @@ export class VapiService {
       },
       
       stop: async () => {
-        console.log('[MOCK VAPI] Stopping call');
+        vapiLog.debug('[MOCK VAPI] Stopping call');
         if (this.currentCall) {
           this.currentCall.status = 'ended';
           this.currentCall.duration = Math.floor(Math.random() * 300) + 60; // 1-5 minutes
@@ -129,13 +150,13 @@ export class VapiService {
       },
       
       setMuted: (muted: boolean) => {
-        console.log('[MOCK VAPI] Muted:', muted);
+        vapiLog.debug('[MOCK VAPI] Muted:', muted);
       },
       
       isMuted: () => false,
       
       send: (message: string) => {
-        console.log('[MOCK VAPI] Sending message:', message);
+        vapiLog.debug('[MOCK VAPI] Sending message:', message);
         // Simulate response
         setTimeout(() => {
           this.callbacks.onMessage?.({
@@ -148,34 +169,34 @@ export class VapiService {
       
       // Mock event listener setup
       on: (event: string, callback: Function) => {
-        console.log(`[MOCK VAPI] Event listener registered for: ${event}`);
+        vapiLog.debug(`[MOCK VAPI] Event listener registered for: ${event}`);
         // In a real implementation, we would store these callbacks
         // For now, we'll just log that they were registered
       }
     };
     
-    console.log('Mock VAPI initialized');
+    vapiLog.info('Mock VAPI initialized');
   }
 
   private setupEventListeners(): void {
     if (!this.vapi) return;
 
-    console.log('Setting up VAPI event listeners');
+    vapiLog.info('Setting up VAPI event listeners');
 
     // Check if we're using the mock implementation
     if (this.vapi.start && this.vapi.start.toString().includes('[MOCK VAPI]')) {
-      console.log('Using mock VAPI implementation, event listeners not applicable');
+      vapiLog.info('Using mock VAPI implementation, event listeners not applicable');
       return;
     }
 
     // Set up VAPI event listeners (only for real VAPI implementation)
     this.vapi.on('call-start', () => {
-      console.log('VAPI call started');
+      vapiLog.info('VAPI call started');
       this.callbacks.onCallStart?.();
     });
 
     this.vapi.on('call-end', async (call: any) => {
-      console.log('VAPI call ended:', call);
+      vapiLog.info('VAPI call ended:', call);
       this.currentCall = {
         id: call.id,
         status: 'ended',
@@ -188,18 +209,18 @@ export class VapiService {
       if (call.analysis) {
         // Check if this is a complete analysis (has summary)
         if (call.analysis.summary) {
-          console.log('Call-end event has complete analysis, but it may have already been saved through analysis event');
+          vapiLog.info('Call-end event has complete analysis, but it may have already been saved through analysis event');
           // We'll still call handleEndOfCallAnalysis, but the Firebase operation should be idempotent
         }
         await this.handleEndOfCallAnalysis(call);
       }
       
       // Call the callback to notify the UI
-      console.log('Calling onCallEnd callback');
+      vapiLog.info('Calling onCallEnd callback');
       this.callbacks.onCallEnd?.(this.currentCall);
       
       // Also call onInterviewEnd to ensure consistent behavior
-      console.log('Calling onInterviewEnd callback');
+      vapiLog.info('Calling onInterviewEnd callback');
       this.callbacks.onInterviewEnd?.();
       
       // Clear stored metadata after call ends
@@ -207,24 +228,24 @@ export class VapiService {
     });
 
     this.vapi.on('speech-start', () => {
-      console.log('User started speaking');
+      vapiLog.info('User started speaking');
       this.callbacks.onSpeechStart?.();
     });
 
     this.vapi.on('speech-end', () => {
-      console.log('User stopped speaking');
+      vapiLog.info('User stopped speaking');
       this.callbacks.onSpeechEnd?.();
     });
 
     this.vapi.on('message', (message: any) => {
-      console.log('VAPI message received:', message);
+      vapiLog.info('VAPI message received:', message);
       this.callbacks.onMessage?.(message);
     });
 
     this.vapi.on('transcript', (transcript: any) => {
-      console.log('Transcript update received:', transcript);
-      console.log('Transcript type:', typeof transcript);
-      console.log('Transcript keys:', transcript ? Object.keys(transcript) : 'null/undefined');
+      vapiLog.info('Transcript update received:', transcript);
+      vapiLog.info('Transcript type:', typeof transcript);
+      vapiLog.info('Transcript keys:', transcript ? Object.keys(transcript) : 'null/undefined');
       
       // Handle different transcript formats
       let transcriptText = '';
@@ -244,7 +265,7 @@ export class VapiService {
         }
       }
       
-      console.log('Processed transcript text:', transcriptText);
+      vapiLog.info('Processed transcript text:', transcriptText);
       this.callbacks.onTranscript?.(transcriptText);
     });
 
@@ -255,7 +276,7 @@ export class VapiService {
     });
 
     this.vapi.on('error', (error: any) => {
-      console.error('VAPI error:', error);
+      vapiLog.error('VAPI error:', error);
       
       // Check if this is a normal disconnection error
       const isNormalDisconnection = error.message && (
@@ -276,22 +297,22 @@ export class VapiService {
       
       // If it's a normal disconnection, don't call the error callback
       if (!isNormalDisconnection) {
-        console.log('Calling onError callback with error:', error);
+        vapiLog.info('Calling onError callback with error:', error);
         this.callbacks.onError?.(error);
       } else {
-        console.log('Suppressing normal disconnection error:', error.message);
+        vapiLog.info('Suppressing normal disconnection error:', error.message);
       }
     });
 
     // Add listener for analysis updates
     this.vapi.on('analysis', async (analysis: any) => {
-      console.log('📊 VAPI Service: analysis event received:', JSON.stringify(analysis, null, 2));
+      vapiLog.info('📊 VAPI Service: analysis event received:', JSON.stringify(analysis, null, 2));
       this.callbacks.onAnalysis?.(analysis);
       
       // If this is an end-of-call analysis, save it to Firebase and call onInterviewEnd
       if (analysis && analysis.summary) {
-        console.log('🎯 VAPI Service: Analysis has summary, this is an end-of-call analysis');
-        console.log('💾 VAPI Service: Saving to Firebase and calling onInterviewEnd callback');
+        vapiLog.info('🎯 VAPI Service: Analysis has summary, this is an end-of-call analysis');
+        vapiLog.info('💾 VAPI Service: Saving to Firebase and calling onInterviewEnd callback');
         
         // Create a mock call object to pass to handleEndOfCallAnalysis
         // This is needed because the analysis event doesn't include call metadata
@@ -306,38 +327,38 @@ export class VapiService {
         
         // If we have a current call, use its ID and other properties
         if (this.currentCall) {
-          console.log('🔗 VAPI Service: Using current call data:', {
+          vapiLog.info('🔗 VAPI Service: Using current call data:', {
             currentCallId: this.currentCall.id,
             hasMetadata: !!(this.currentCall.metadata || this.callMetadata)
           });
           mockCall.id = this.currentCall.id;
           mockCall.metadata = this.currentCall.metadata || this.callMetadata || mockCall.metadata;
         } else {
-          console.log('⚠️ VAPI Service: No current call data available, using stored metadata');
+          vapiLog.info('⚠️ VAPI Service: No current call data available, using stored metadata');
           // Use stored metadata if available
           if (Object.keys(this.callMetadata).length > 0) {
             mockCall.metadata = this.callMetadata;
-            console.log('🔗 VAPI Service: Using stored metadata');
+            vapiLog.info('🔗 VAPI Service: Using stored metadata');
           }
         }
         
-        console.log('📥 VAPI Service: Calling handleEndOfCallAnalysis with mock call data');
+        vapiLog.info('📥 VAPI Service: Calling handleEndOfCallAnalysis with mock call data');
         // Save the analysis data to Firebase
         try {
           await this.handleEndOfCallAnalysis(mockCall);
-          console.log('✅ VAPI Service: End-of-call analysis saved to Firebase successfully');
+          vapiLog.info('✅ VAPI Service: End-of-call analysis saved to Firebase successfully');
         } catch (error) {
-          console.error('❌ VAPI Service: Failed to save end-of-call analysis to Firebase:', error);
+          vapiLog.error('❌ VAPI Service: Failed to save end-of-call analysis to Firebase:', error);
         }
         
-        console.log('🔔 VAPI Service: Calling onInterviewEnd callback');
+        vapiLog.info('🔔 VAPI Service: Calling onInterviewEnd callback');
         this.callbacks.onInterviewEnd?.();
       } else {
-        console.log('ℹ️ VAPI Service: Analysis event received but no summary, not an end-of-call analysis');
+        vapiLog.info('ℹ️ VAPI Service: Analysis event received but no summary, not an end-of-call analysis');
       }
     });
 
-    console.log('VAPI event listeners set up successfully');
+    vapiLog.info('VAPI event listeners set up successfully');
   }
 
   private simulateTranscript(): void {
@@ -431,24 +452,24 @@ export class VapiService {
   async testAssistant(): Promise<boolean> {
     try {
       const assistantId = this.getAssistantIdForType('general');
-      console.log('Testing assistant with ID:', assistantId);
+      vapiLog.info('Testing assistant with ID:', assistantId);
       
       // If we're using the mock implementation, return true
       if (this.vapi && this.vapi.start && this.vapi.start.toString().includes('[MOCK VAPI]')) {
-        console.log('Using mock implementation, assistant test skipped');
+        vapiLog.info('Using mock implementation, assistant test skipped');
         return true;
       }
       
       // Validate that we have a proper assistant ID
       if (!assistantId || assistantId.length === 0) {
-        console.log('Assistant ID is empty or invalid');
+        vapiLog.info('Assistant ID is empty or invalid');
         return false;
       }
       
-      console.log('Assistant ID appears valid:', assistantId);
+      vapiLog.info('Assistant ID appears valid:', assistantId);
       return true;
     } catch (error) {
-      console.error('Assistant test failed:', error);
+      vapiLog.error('Assistant test failed:', error);
       return false;
     }
   }
@@ -465,11 +486,11 @@ export class VapiService {
   ): Promise<any> {
     try {
       const assistantId = this.getAssistantIdForType(interviewType);
-      console.log('Testing interview call with assistant ID:', assistantId);
+      vapiLog.info('Testing interview call with assistant ID:', assistantId);
       
       // If we're using the mock implementation, return a mock response
       if (this.vapi && this.vapi.start && this.vapi.start.toString().includes('[MOCK VAPI]')) {
-        console.log('Using mock implementation for test call');
+        vapiLog.info('Using mock implementation for test call');
         return {
           id: `mock_call_${Date.now()}`,
           status: 'queued',
@@ -487,15 +508,15 @@ export class VapiService {
         institutionId
       };
       
-      console.log('Testing with metadata:', metadata);
+      vapiLog.info('Testing with metadata:', metadata);
       
       // Start the test call
       const result = await this.vapi.start(assistantId, { metadata });
-      console.log('Test call result:', result);
+      vapiLog.info('Test call result:', result);
       
       return result;
     } catch (error) {
-      console.error('Test interview call failed:', error);
+      vapiLog.error('Test interview call failed:', error);
       throw error;
     }
   }
@@ -527,21 +548,21 @@ export class VapiService {
 
     try {
       const assistantId = this.getAssistantIdForType(interviewType);
-      console.log('Starting VAPI call with assistant ID:', assistantId);
-      console.log('VAPI instance available:', !!this.vapi);
-      console.log('VAPI start method available:', !!this.vapi?.start);
-      console.log('Assistant overrides being sent:', assistantOverrides);
+      vapiLog.info('Starting VAPI call with assistant ID:', assistantId);
+      vapiLog.info('VAPI instance available:', !!this.vapi);
+      vapiLog.info('VAPI start method available:', !!this.vapi?.start);
+      vapiLog.info('Assistant overrides being sent:', assistantOverrides);
       
       // Test assistant before starting call
       const isAssistantValid = await this.testAssistant();
-      console.log('Assistant validation result:', isAssistantValid);
+      vapiLog.info('Assistant validation result:', isAssistantValid);
       
       if (!isAssistantValid) {
         throw new Error('Assistant configuration is invalid. Please check your assistant ID in the VAPI dashboard.');
       }
       
       // Add additional debugging
-      console.log('Calling vapi.start with:', {
+      vapiLog.info('Calling vapi.start with:', {
         assistantId,
         assistantOverrides
       });
@@ -552,12 +573,12 @@ export class VapiService {
       }
       
       // Start the call with the assistant ID and assistant overrides
-      console.log('Executing vapi.start...');
+      vapiLog.info('Executing vapi.start...');
       const call = await this.vapi.start(assistantId, assistantOverrides);
       
-      console.log('VAPI start response received:', call);
-      console.log('Response type:', typeof call);
-      console.log('Response keys:', call ? Object.keys(call) : 'null/undefined');
+      vapiLog.info('VAPI start response received:', call);
+      vapiLog.info('Response type:', typeof call);
+      vapiLog.info('Response keys:', call ? Object.keys(call) : 'null/undefined');
       
       // Check if call is null or undefined
       if (call === null) {
@@ -601,15 +622,15 @@ export class VapiService {
         interviewType: interviewType || 'general'
       };
       
-      console.log('Interview call started successfully:', this.currentCall);
+      vapiLog.info('Interview call started successfully:', this.currentCall);
       return this.currentCall;
     } catch (error: any) {
-      console.error('Failed to start VAPI call:', error);
-      console.error('Stack trace:', error.stack);
+      vapiLog.error('Failed to start VAPI call:', error);
+      vapiLog.error('Stack trace:', error.stack);
       // Log additional debugging information
-      console.error('Assistant ID used:', this.getAssistantIdForType(interviewType));
-      console.error('VAPI instance available:', !!this.vapi);
-      console.error('VAPI start method available:', !!this.vapi?.start);
+      vapiLog.error('Assistant ID used:', this.getAssistantIdForType(interviewType));
+      vapiLog.error('VAPI instance available:', !!this.vapi);
+      vapiLog.error('VAPI start method available:', !!this.vapi?.start);
       
       // Provide more specific error messages based on the error type
       let errorMessage = 'Unknown error occurred';
@@ -649,7 +670,7 @@ export class VapiService {
       );
       
       if (isNormalDisconnection) {
-        console.log('Suppressing normal disconnection error:', errorMessage);
+        vapiLog.info('Suppressing normal disconnection error:', errorMessage);
         // For normal disconnections, we should not throw an error
         // Instead, we return a mock call object or handle it gracefully
         if (this.currentCall) {
@@ -659,7 +680,7 @@ export class VapiService {
           const mockEndedCall: VapiCall = {
             id: `mock_call_${Date.now()}`,
             status: 'ended',
-            metadata: metadata
+            metadata: {} // Use empty object instead of undefined metadata variable
           };
           this.currentCall = mockEndedCall;
           return mockEndedCall;
@@ -675,7 +696,7 @@ export class VapiService {
    */
   async endInterview(): Promise<VapiCall | null> {
     if (!this.currentCall) {
-      console.warn('No active call to end');
+      vapiLog.warn('No active call to end');
       return null;
     }
 
@@ -683,7 +704,7 @@ export class VapiService {
       await this.vapi.stop();
       return this.currentCall;
     } catch (error: any) {
-      console.error('Failed to end VAPI call:', error);
+      vapiLog.error('Failed to end VAPI call:', error);
       // Check if this is a normal disconnection error
       const isNormalDisconnection = error.message && (
         error.message.includes('not connected') || 
@@ -694,7 +715,7 @@ export class VapiService {
       
       // If it's a normal disconnection, don't throw an error
       if (isNormalDisconnection) {
-        console.log('Call ended normally');
+        vapiLog.info('Call ended normally');
         return this.currentCall;
       }
       
@@ -715,7 +736,7 @@ export class VapiService {
         this.vapi.setMuted(false);
       }
     } catch (error) {
-      console.error('Failed to toggle mute:', error);
+      vapiLog.error('Failed to toggle mute:', error);
     }
   }
 
@@ -750,7 +771,7 @@ export class VapiService {
       throw new Error('Invalid assistant ID configured. Please check your VAPI configuration.');
     }
     
-    console.log('Using assistant ID:', assistantId);
+    vapiLog.info('Using assistant ID:', assistantId);
     return assistantId;
   }
 
@@ -779,7 +800,7 @@ export class VapiService {
     try {
       await this.vapi.send(message);
     } catch (error: any) {
-      console.error('Failed to send message:', error);
+      vapiLog.error('Failed to send message:', error);
       throw new Error(`Failed to send message: ${error.message}`);
     }
   }
@@ -789,13 +810,13 @@ export class VapiService {
    */
   private async handleEndOfCallAnalysis(call: any): Promise<void> {
     try {
-      console.log('🔍 VAPI Service: handleEndOfCallAnalysis called with call data:', JSON.stringify(call, null, 2));
+      vapiLog.info('🔍 VAPI Service: handleEndOfCallAnalysis called with call data:', JSON.stringify(call, null, 2));
       
       const analysis = call.analysis;
       const callId = call.id;
       const metadata = call.metadata || {};
       
-      console.log('📋 VAPI Service: Processing end-of-call analysis', {
+      vapiLog.info('📋 VAPI Service: Processing end-of-call analysis', {
         callId,
         hasAnalysis: !!analysis,
         hasMetadata: !!metadata,
@@ -807,12 +828,12 @@ export class VapiService {
       
       // Validate that we have the required analysis data
       if (!analysis) {
-        console.warn('⚠️ VAPI Service: No analysis data found in call object');
+        vapiLog.warn('⚠️ VAPI Service: No analysis data found in call object');
         return;
       }
       
       if (!analysis.summary) {
-        console.warn('⚠️ VAPI Service: Analysis data missing summary');
+        vapiLog.warn('⚠️ VAPI Service: Analysis data missing summary');
         return;
       }
       
@@ -837,7 +858,7 @@ export class VapiService {
         recommendations: analysis.structuredData?.recommendations || []
       };
 
-      console.log('💾 VAPI Service: Saving analysis data to Firebase', {
+      vapiLog.info('💾 VAPI Service: Saving analysis data to Firebase', {
         callId: analysisData.callId,
         studentId: analysisData.studentId ? 'Present' : 'Empty (anonymous)',
         interviewType: analysisData.interviewType,
@@ -848,12 +869,12 @@ export class VapiService {
       });
 
       // Store analysis data in Firebase for institutional dashboards
-      console.log('☁️ VAPI Service: Calling interviewService.saveEndOfCallAnalysis...');
+      vapiLog.info('☁️ VAPI Service: Calling interviewService.saveEndOfCallAnalysis...');
       await interviewService.saveEndOfCallAnalysis(analysisData);
       
       // Also save the interview data to the interviews collection so it appears in the dashboard
       if (analysisData.studentId) {
-        console.log('📋 VAPI Service: Saving interview data to interviews collection for student:', analysisData.studentId);
+        vapiLog.info('📋 VAPI Service: Saving interview data to interviews collection for student:', analysisData.studentId);
         try {
           // Create an interview record
           const interviewData = {
@@ -877,7 +898,7 @@ export class VapiService {
           
           // Save the interview
           const savedInterview = await interviewService.createInterview(interviewData);
-          console.log('✅ VAPI Service: Interview data saved successfully with ID:', savedInterview.id);
+          vapiLog.info('✅ VAPI Service: Interview data saved successfully with ID:', savedInterview.id);
           
           // Save feedback data
           if (analysisData.overallScore > 0) {
@@ -896,30 +917,30 @@ export class VapiService {
             };
             
             await interviewService.saveFeedback(feedbackData);
-            console.log('✅ VAPI Service: Feedback data saved successfully');
+            vapiLog.info('✅ VAPI Service: Feedback data saved successfully');
           }
         } catch (interviewError) {
-          console.error('❌ VAPI Service: Error saving interview data:', interviewError);
+          vapiLog.error('❌ VAPI Service: Error saving interview data:', interviewError);
         }
       } else {
-        console.log('ℹ️ VAPI Service: No studentId provided, skipping interview data save (anonymous user)');
+        vapiLog.info('ℹ️ VAPI Service: No studentId provided, skipping interview data save (anonymous user)');
       }
       
-      console.log('✅ VAPI Service: End-of-call analysis saved successfully to Firebase');
+      vapiLog.info('✅ VAPI Service: End-of-call analysis saved successfully to Firebase');
       
       // Also send a copy to our webhook endpoint as a backup
       // This ensures data is captured even if the webhook fails
       try {
         await this.sendToWebhookBackup(analysisData);
       } catch (webhookError) {
-        console.warn('⚠️ VAPI Service: Failed to send to webhook backup:', webhookError);
+        vapiLog.warn('⚠️ VAPI Service: Failed to send to webhook backup:', webhookError);
         // Continue even if webhook backup fails
       }
     } catch (error) {
-      console.error('❌ VAPI Service: Error handling end-of-call analysis:', error);
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
+      vapiLog.error('❌ VAPI Service: Error handling end-of-call analysis:', error);
+      vapiLog.error('Error name:', error.name);
+      vapiLog.error('Error message:', error.message);
+      vapiLog.error('Error stack:', error.stack);
       
       // Try to send to webhook as a last resort
       try {
@@ -949,7 +970,7 @@ export class VapiService {
         
         await this.sendToWebhookBackup(analysisData);
       } catch (backupError) {
-        console.error('❌ VAPI Service: Failed to send to webhook backup as last resort:', backupError);
+        vapiLog.error('❌ VAPI Service: Failed to send to webhook backup as last resort:', backupError);
       }
     }
   }
@@ -961,7 +982,7 @@ export class VapiService {
   private async sendToWebhookBackup(analysisData: any): Promise<void> {
     // In a production environment, you might want to send this to your own webhook
     // For now, we'll just log it as a backup mechanism
-    console.log('🔄 VAPI Service: Backup webhook data prepared:', JSON.stringify(analysisData, null, 2));
+    vapiLog.info('🔄 VAPI Service: Backup webhook data prepared:', JSON.stringify(analysisData, null, 2));
     
     // If you have a custom webhook endpoint, you could send the data here
     // Example:
@@ -984,9 +1005,9 @@ export class VapiService {
         throw new Error(`Webhook backup failed with status ${response.status}`);
       }
       
-      console.log('✅ VAPI Service: Backup webhook sent successfully');
+      vapiLog.info('✅ VAPI Service: Backup webhook sent successfully');
     } catch (error) {
-      console.error('❌ VAPI Service: Failed to send backup webhook:', error);
+      vapiLog.error('❌ VAPI Service: Failed to send backup webhook:', error);
       throw error;
     }
     */

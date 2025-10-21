@@ -185,18 +185,21 @@ export class AuthService {
    */
   async refreshToken(): Promise<void> {
     try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        throw new Error('No refresh token available');
+      // Import the refreshToken function from token-utils
+      const { refreshToken } = await import('@/utils/token-utils');
+      
+      // Attempt to refresh the token
+      const refreshed = await refreshToken();
+      
+      if (!refreshed) {
+        throw new Error('Token refresh failed');
       }
-
-      const response: ApiResponse<LoginResponse> = await apiClient.post('/auth/refresh', {
-        refreshToken
-      });
-
-      const { user, token } = response.data;
-      this.currentUser = user;
-      this.saveUserToStorage(user, token);
+      
+      // Update current user with new token
+      const currentUser = this.getCurrentUser();
+      if (currentUser) {
+        this.saveUserToStorage(currentUser, localStorage.getItem('authToken')!);
+      }
     } catch (error: any) {
       console.error('Token refresh failed:', error);
       this.clearSession();

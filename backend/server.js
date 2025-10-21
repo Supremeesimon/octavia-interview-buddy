@@ -3,8 +3,9 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from both backend directory and parent directory
+dotenv.config(); // Load from backend directory first
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') }); // Then load from parent directory
 
 // Initialize Express app
 const app = express();
@@ -23,6 +24,17 @@ if (!process.env.FUNCTIONS_EMULATOR && !process.env.K_SERVICE) {
 // Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Backend server is running' });
+});
+
+// Debug route to check environment variables
+app.get('/api/debug/env', (req, res) => {
+  res.json({ 
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ? 'SET' : 'NOT SET',
+    STRIPE_SECRET_KEY_LENGTH: process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.length : 0,
+    VITE_STRIPE_PUBLISHABLE_KEY: process.env.VITE_STRIPE_PUBLISHABLE_KEY ? 'SET' : 'NOT SET',
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ? 'SET' : 'NOT SET',
+    NODE_ENV: process.env.NODE_ENV
+  });
 });
 
 // API routes

@@ -7,7 +7,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { PlatformSettingsService } from '@/services/platform-settings.service';
 import { InstitutionService } from '@/services/institution.service';
 import { SessionService } from '@/services/session.service';
+import { PricingSyncService } from '@/services/pricing-sync.service';
 import { useToast } from '@/hooks/use-toast';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { canAccessFinancialData } from '@/utils/role-utils';
 
 interface SessionManagementProps {
   onSessionPurchase?: (sessions: number, cost: number) => void;
@@ -26,9 +29,10 @@ const SessionManagement = ({
   const [totalSessions, setTotalSessions] = useState(propTotalSessions || 0);
   const [usedSessions, setUsedSessions] = useState(propUsedSessions || 0);
   const [loading, setLoading] = useState(false);
-  const [pricePerMinute, setPricePerMinute] = useState(0.17); // Default $0.17 per minute (based on current platform settings)
+  const [pricePerMinute, setPricePerMinute] = useState<number | null>(null); // Use null to indicate "Not Available"
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { user } = useFirebaseAuth();
   
   // Fetch platform pricing settings and institution-specific overrides
   useEffect(() => {
@@ -36,11 +40,36 @@ const SessionManagement = ({
       try {
         // First get platform default settings
         const platformSettings = await PlatformSettingsService.getAllSettings();
-        let calculatedPrice = 0.17; // Default fallback based on current platform settings
+        let calculatedPrice: number | null = null; // Use null to indicate "Not Available"
         
         if (platformSettings) {
-          // Calculate price per minute based on VAPI cost and markup
-          calculatedPrice = platformSettings.vapiCostPerMinute * (1 + platformSettings.markupPercentage / 100);
+          // Only validate and calculate pricing for users with appropriate access
+          if (canAccessFinancialData(user)) {
+            // CRITICAL: Validate platform pricing before using
+            const pricingToValidate = {
+              vapiCost: platformSettings.vapiCostPerMinute,
+              markupPercentage: platformSettings.markupPercentage,
+              licenseCost: platformSettings.annualLicenseCost
+            };
+            
+            if (PricingSyncService.validatePricing(pricingToValidate)) {
+              // Calculate price per minute based on VAPI cost and markup
+              calculatedPrice = platformSettings.vapiCostPerMinute * (1 + platformSettings.markupPercentage / 100);
+            } else {
+              // Even with validation issues, use the actual values from Firebase if they exist
+              if (platformSettings.vapiCostPerMinute && platformSettings.markupPercentage) {
+                calculatedPrice = platformSettings.vapiCostPerMinute * (1 + platformSettings.markupPercentage / 100);
+              } else {
+                calculatedPrice = null; // Not available
+              }
+            }
+          } else {
+            // For non-financial users, use a simplified approach without exposing details
+            calculatedPrice = platformSettings.vapiCostPerMinute * (1 + platformSettings.markupPercentage / 100);
+          }
+        } else {
+          // Data not available
+          calculatedPrice = null; // Not available
         }
         
         // If we have an institution ID, check for institution-specific pricing override
@@ -48,24 +77,46 @@ const SessionManagement = ({
           try {
             const institution = await InstitutionService.getInstitutionById(institutionId);
             if (institution?.pricingOverride?.isEnabled) {
-              // Use institution-specific pricing
-              calculatedPrice = institution.pricingOverride.customVapiCost * 
-                               (1 + institution.pricingOverride.customMarkupPercentage / 100);
+              // Only validate for users with appropriate access
+              if (canAccessFinancialData(user)) {
+                // CRITICAL: Validate institution pricing override before using
+                if (PricingSyncService.validateInstitutionPricing(institution)) {
+                  // Use institution-specific pricing
+                  calculatedPrice = institution.pricingOverride.customVapiCost * 
+                                   (1 + institution.pricingOverride.customMarkupPercentage / 100);
+                } else {
+                  // Even with validation issues, use the actual values if they exist
+                  if (institution.pricingOverride.customVapiCost && institution.pricingOverride.customMarkupPercentage) {
+                    calculatedPrice = institution.pricingOverride.customVapiCost * 
+                                     (1 + institution.pricingOverride.customMarkupPercentage / 100);
+                  }
+                  // If institution pricing is invalid, fall back to null (Not Available)
+                }
+              } else {
+                // For non-financial users, use the values without validation details
+                calculatedPrice = institution.pricingOverride.customVapiCost * 
+                                 (1 + institution.pricingOverride.customMarkupPercentage / 100);
+              }
+            }
+            
+            // Also fetch the institution's session length setting
+            if (institution?.settings?.sessionLength) {
+              setSessionLength(institution.settings.sessionLength);
             }
           } catch (error) {
-            console.warn('Could not fetch institution-specific pricing, using platform defaults:', error);
+            // Silently handle errors for institution-specific pricing
           }
         }
         
         setPricePerMinute(calculatedPrice);
       } catch (error) {
-        console.error('Error fetching pricing settings:', error);
-        // Keep default value of 0.17 if there's an error
+        // Data not available due to error
+        setPricePerMinute(null);
       }
     };
     
     fetchPricingSettings();
-  }, [institutionId]);
+  }, [institutionId, user]);
   
   // Fetch interview session data from the backend
   useEffect(() => {
@@ -88,7 +139,6 @@ const SessionManagement = ({
           setUsedSessions(0);
         }
       } catch (error: any) {
-        console.error('Error fetching interview session data:', error);
         // Handle different types of errors appropriately
         // Only show error toast for actual network errors or server errors
         if (error.status === undefined) {
@@ -140,7 +190,7 @@ const SessionManagement = ({
     }
   }, [propTotalSessions, propUsedSessions]);
   
-  const sessionCost = (sessionLength * pricePerMinute).toFixed(2);
+  const sessionCost = pricePerMinute !== null ? pricePerMinute.toFixed(2) : '0.00';
   
   const handleSessionPurchase = async (sessions: number, cost: number) => {
     // Update local state first for immediate UI feedback
@@ -155,18 +205,14 @@ const SessionManagement = ({
     if (institutionId) {
       try {
         await SessionService.createSessionPurchase({
-          institutionId,
-          sessionId: '',
-          quantity: sessions,
-          pricePerSession: parseFloat(sessionCost),
-          totalPrice: cost
+          sessionCount: sessions,
+          pricePerSession: pricePerMinute !== null ? parseFloat(pricePerMinute.toFixed(2)) : 0
         });
         toast({
           title: "Purchase successful",
           description: `${sessions} interview sessions have been added to your pool.`,
         });
       } catch (error) {
-        console.error('Error saving interview session purchase:', error);
         toast({
           title: "Error",
           description: "Interview session purchase was successful but failed to save to backend.",

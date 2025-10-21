@@ -8,7 +8,7 @@ import { Clock } from 'lucide-react';
 interface SessionDurationProps {
   sessionLength: number;
   setSessionLength: (length: number) => void;
-  pricePerMinute: number;
+  pricePerMinute: number | null; // Allow null for "Not Available"
 }
 
 const SessionDuration = ({ sessionLength, setSessionLength, pricePerMinute }: SessionDurationProps) => {
@@ -16,7 +16,7 @@ const SessionDuration = ({ sessionLength, setSessionLength, pricePerMinute }: Se
     setSessionLength(value[0]);
   };
   
-  const sessionCost = (sessionLength * pricePerMinute).toFixed(2);
+  const sessionCost = pricePerMinute !== null ? (sessionLength * pricePerMinute).toFixed(2) : '0.00';
   
   return (
     <Card tooltip="Configure the length of each interview session">
@@ -58,12 +58,16 @@ const SessionDuration = ({ sessionLength, setSessionLength, pricePerMinute }: Se
             </div>
             <div className="flex justify-between mb-1">
               <span>Price per minute:</span>
-              <span>${pricePerMinute.toFixed(2)}</span>
+              <span>
+                {pricePerMinute !== null ? `$${pricePerMinute.toFixed(2)}` : 'Not Available'}
+              </span>
             </div>
             <div className="h-px bg-border my-2"></div>
             <div className="flex justify-between font-medium">
               <span>Cost per session:</span>
-              <span>${sessionCost}</span>
+              <span>
+                {pricePerMinute !== null ? `$${(sessionLength * pricePerMinute).toFixed(2)}` : 'Not Available'}
+              </span>
             </div>
           </div>
         </div>
