@@ -193,23 +193,58 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         
         // Fetch billing history
         try {
-          console.log('Fetching session purchases for institution ID:', user.institutionId);
           const purchases = await SessionService.getSessionPurchases(user.institutionId);
-          console.log('Raw purchases data from backend:', purchases);
+          
           // Handle case where purchases might be null or undefined
           const safePurchases = Array.isArray(purchases) ? purchases : [];
-          console.log('Safe purchases array:', safePurchases);
-          const historyItems: BillingHistoryItem[] = safePurchases.map(purchase => ({
-            id: purchase.id,
-            date: purchase.purchaseDate instanceof Date ? purchase.purchaseDate : new Date(purchase.purchaseDate),
-            description: `Session purchase (${purchase.quantity} sessions)`,
-            amount: purchase.totalPrice,
-            status: purchase.status === 'completed' ? 'paid' : 
-                   purchase.status === 'pending' ? 'pending' :
-                   purchase.status === 'cancelled' ? 'cancelled' : 'failed'
-          }));
-          console.log('Mapped billing history items:', historyItems);
+          
+          const mappedItems = safePurchases.map(purchase => {
+            // Validate and sanitize the purchase data
+            const quantity = (typeof purchase.quantity === 'number' && !isNaN(purchase.quantity) && purchase.quantity > 0) ? purchase.quantity : 0;
+            
+            // Calculate total price with multiple fallbacks
+            let totalPrice = 0;
+            if (typeof purchase.totalPrice === 'number' && !isNaN(purchase.totalPrice) && purchase.totalPrice > 0) {
+              // Use the provided totalPrice if available and valid
+              totalPrice = purchase.totalPrice;
+            } else if (typeof purchase.quantity === 'number' && typeof purchase.pricePerSession === 'number' && 
+                      !isNaN(purchase.quantity) && !isNaN(purchase.pricePerSession) && 
+                      purchase.quantity > 0 && purchase.pricePerSession > 0) {
+              // Calculate from quantity and price per session
+              totalPrice = purchase.quantity * purchase.pricePerSession;
+            } else {
+              // If all else fails, try to parse any string values
+              const quantityValue = typeof purchase.quantity === 'string' ? parseFloat(purchase.quantity) : purchase.quantity;
+              const priceValue = typeof purchase.pricePerSession === 'string' ? parseFloat(purchase.pricePerSession) : purchase.pricePerSession;
+              
+              if (typeof quantityValue === 'number' && typeof priceValue === 'number' && 
+                  !isNaN(quantityValue) && !isNaN(priceValue) && 
+                  quantityValue > 0 && priceValue > 0) {
+                totalPrice = quantityValue * priceValue;
+              }
+            }
+            
+            const status = purchase.status && typeof purchase.status === 'string' ? purchase.status : 'pending';
+            
+            // Map status to BillingHistoryItem status type
+            const billingStatus: 'paid' | 'pending' | 'failed' | 'cancelled' = 
+              status === 'completed' ? 'paid' : 
+              status === 'pending' ? 'pending' :
+              status === 'cancelled' ? 'cancelled' : 'failed';
+            
+            return {
+              id: typeof purchase.id === 'string' ? purchase.id : '',
+              date: purchase.purchaseDate instanceof Date ? purchase.purchaseDate : new Date(purchase.purchaseDate || Date.now()),
+              description: `Session purchase (${quantity} sessions)`,
+              amount: totalPrice,
+              status: billingStatus
+            };
+          }).filter(item => item.id); // Filter out items without valid IDs
+          
+          const historyItems: BillingHistoryItem[] = mappedItems;
+          
           setBillingHistory(historyItems);
+          console.log('Billing history loaded:', historyItems);
         } catch (error: any) {
           // Handle different types of errors appropriately
           // Don't show error toast for 404 errors as it may be normal not to have billing history yet
@@ -345,15 +380,50 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
       if (user) {
         const purchases = await SessionService.getSessionPurchases(user.institutionId);
         const safePurchases = Array.isArray(purchases) ? purchases : [];
-        const historyItems: BillingHistoryItem[] = safePurchases.map(purchase => ({
-          id: purchase.id,
-          date: purchase.purchaseDate instanceof Date ? purchase.purchaseDate : new Date(purchase.purchaseDate),
-          description: `Session purchase (${purchase.quantity} sessions)`,
-          amount: purchase.totalPrice,
-          status: purchase.status === 'completed' ? 'paid' : 
-                 purchase.status === 'pending' ? 'pending' :
-                 purchase.status === 'cancelled' ? 'cancelled' : 'failed'
-        }));
+        const mappedItems = safePurchases.map(purchase => {
+          // Validate and sanitize the purchase data
+          const quantity = (typeof purchase.quantity === 'number' && !isNaN(purchase.quantity) && purchase.quantity > 0) ? purchase.quantity : 0;
+          
+          // Calculate total price with multiple fallbacks
+          let totalPrice = 0;
+          if (typeof purchase.totalPrice === 'number' && !isNaN(purchase.totalPrice) && purchase.totalPrice > 0) {
+            // Use the provided totalPrice if available and valid
+            totalPrice = purchase.totalPrice;
+          } else if (typeof purchase.quantity === 'number' && typeof purchase.pricePerSession === 'number' && 
+                    !isNaN(purchase.quantity) && !isNaN(purchase.pricePerSession) && 
+                    purchase.quantity > 0 && purchase.pricePerSession > 0) {
+            // Calculate from quantity and price per session
+            totalPrice = purchase.quantity * purchase.pricePerSession;
+          } else {
+            // If all else fails, try to parse any string values
+            const quantityValue = typeof purchase.quantity === 'string' ? parseFloat(purchase.quantity) : purchase.quantity;
+            const priceValue = typeof purchase.pricePerSession === 'string' ? parseFloat(purchase.pricePerSession) : purchase.pricePerSession;
+            
+            if (typeof quantityValue === 'number' && typeof priceValue === 'number' && 
+                !isNaN(quantityValue) && !isNaN(priceValue) && 
+                quantityValue > 0 && priceValue > 0) {
+              totalPrice = quantityValue * priceValue;
+            }
+          }
+          
+          const status = purchase.status && typeof purchase.status === 'string' ? purchase.status : 'pending';
+          
+          // Map status to BillingHistoryItem status type
+          const billingStatus: 'paid' | 'pending' | 'failed' | 'cancelled' = 
+            status === 'completed' ? 'paid' : 
+            status === 'pending' ? 'pending' :
+            status === 'cancelled' ? 'cancelled' : 'failed';
+          
+          return {
+            id: typeof purchase.id === 'string' ? purchase.id : '',
+            date: purchase.purchaseDate instanceof Date ? purchase.purchaseDate : new Date(purchase.purchaseDate || Date.now()),
+            description: `Session purchase (${quantity} sessions)`,
+            amount: totalPrice,
+            status: billingStatus
+          };
+        }).filter(item => item.id); // Filter out items without valid IDs
+        
+        const historyItems: BillingHistoryItem[] = mappedItems;
         setBillingHistory(historyItems);
       }
       toast({
@@ -389,14 +459,14 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     // Create a new PDF document
     const doc = new jsPDF();
     
-    // Add company header
+    // Set the company name properly
     doc.setFontSize(20);
-    doc.text('Octavia Interview Buddy', 20, 20);
+    doc.text('Octavia Practice Interviewer', 20, 20);
     
     doc.setFontSize(12);
-    doc.text('123 Education Street', 20, 30);
-    doc.text('San Francisco, CA 94107', 20, 37);
-    doc.text('contact@octavia-interview.com', 20, 44);
+    doc.text('AI Interview Practice Platform', 20, 30);
+    doc.text('San Francisco, CA', 20, 37);
+    doc.text('support@octavia-interview.com', 20, 44);
     
     // Add invoice title
     doc.setFontSize(16);
@@ -422,22 +492,23 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
       }
     }
     
-    // Add line items
+    // Add line items header
     doc.setFontSize(14);
     doc.text('Description', 20, 90);
     doc.text('Amount', 170, 90);
     
     doc.line(20, 95, 190, 95);
     
+    // Add the actual line item
     doc.setFontSize(12);
     doc.text(selectedPurchase.description, 20, 105);
-    doc.text(`$${typeof selectedPurchase.amount === 'number' ? selectedPurchase.amount.toFixed(2) : selectedPurchase.amount}`, 170, 105);
+    doc.text(`$${typeof selectedPurchase.amount === 'number' ? selectedPurchase.amount.toFixed(2) : '0.00'}`, 170, 105);
     
     // Add total
     doc.line(150, 120, 190, 120);
     doc.setFontSize(14);
     doc.text('Total:', 150, 130);
-    doc.text(`$${typeof selectedPurchase.amount === 'number' ? selectedPurchase.amount.toFixed(2) : selectedPurchase.amount}`, 170, 130);
+    doc.text(`$${typeof selectedPurchase.amount === 'number' ? selectedPurchase.amount.toFixed(2) : '0.00'}`, 170, 130);
     
     // Add status
     doc.setFontSize(12);
@@ -448,8 +519,9 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     doc.text('Thank you for your business!', 20, 150);
     doc.text('For any questions regarding this invoice, please contact our support team.', 20, 157);
     
-    // Save the PDF
-    doc.save(`invoice-${format(selectedPurchase.date, 'yyyy-MM-dd')}.pdf`);
+    // Save the PDF with a proper filename
+    const fileName = `invoice-${format(selectedPurchase.date, 'yyyy-MM-dd')}-${selectedPurchase.id.substring(0, 8)}.pdf`;
+    doc.save(fileName);
     
     toast({
       title: "Invoice Downloaded",
@@ -457,19 +529,18 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
     });
   };
 
+  // Calculate total spent - include all purchases regardless of status
   const totalSessionCost = (billingHistory || []).reduce((total, item) => {
-    console.log('Calculating total - item:', item, 'item.amount:', item.amount, 'type:', typeof item.amount);
-    // Ensure amount is a number
-    const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
-    console.log('Adding amount:', amount, 'to total:', total);
+    // Ensure amount is a valid number
+    const amount = (typeof item.amount === 'number' && !isNaN(item.amount) && isFinite(item.amount)) ? item.amount : 0;
     return total + amount;
   }, 0);
-  console.log('Final totalSessionCost:', totalSessionCost, 'type:', typeof totalSessionCost);
+  
   const availableSessions = sessionCount - usedSessions;
   
   // Ensure totalSessionCost is a valid number
-  const validTotalSessionCost = typeof totalSessionCost === 'number' && !isNaN(totalSessionCost) ? totalSessionCost : 0;
-  console.log('Valid total session cost:', validTotalSessionCost);
+  const validTotalSessionCost = (typeof totalSessionCost === 'number' && !isNaN(totalSessionCost) && isFinite(totalSessionCost)) ? totalSessionCost : 0;
+  console.log('Total session cost calculation:', { totalSessionCost, validTotalSessionCost, billingHistory });
   
   if (loading) {
     return (

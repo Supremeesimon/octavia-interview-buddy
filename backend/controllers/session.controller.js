@@ -24,9 +24,17 @@ const sessionController = {
         [institutionId]
       );
 
+      // Ensure all numeric values are properly formatted
+      const formattedData = result.rows.map(row => ({
+        ...row,
+        session_count: row.session_count ? parseInt(row.session_count) : 0,
+        price_per_session: row.price_per_session ? parseFloat(row.price_per_session) : 0.0,
+        total_amount: row.total_amount ? parseFloat(row.total_amount) : 0.0
+      }));
+
       res.json({
         success: true,
-        data: result.rows
+        data: formattedData
       });
     } catch (error) {
       console.error('Get session purchases error:', error);

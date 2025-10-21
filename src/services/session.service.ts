@@ -50,21 +50,32 @@ export class SessionService {
   static async getSessionPurchases(institutionId: string): Promise<SessionPurchase[]> {
     try {
       const response: ApiResponse<any[]> = await apiClient.get(`${this.baseUrl}/purchases`);
+      console.log('Raw API response for session purchases:', response);
       // Handle case where response.data might be null or undefined
       if (!response.data) {
         return [];
       }
-      return response.data.map((purchase: any) => ({
-        id: purchase.id,
-        institutionId: purchase.institution_id,
-        sessionId: purchase.session_id,
-        purchaseDate: purchase.created_at ? new Date(purchase.created_at) : new Date(),
-        quantity: purchase.session_count,
-        pricePerSession: purchase.price_per_session,
-        totalPrice: purchase.total_amount,
-        status: purchase.status,
-        clientSecret: purchase.client_secret
-      }));
+      return response.data.map((purchase: any) => {
+        // Ensure all values are properly typed and validated
+        const sessionCount = purchase.session_count && typeof purchase.session_count === 'number' ? purchase.session_count : 0;
+        const pricePerSession = purchase.price_per_session && typeof purchase.price_per_session === 'number' ? purchase.price_per_session : 0;
+        const totalAmount = purchase.total_amount && typeof purchase.total_amount === 'number' ? purchase.total_amount : 0;
+        
+        // Calculate total price if not provided or is zero
+        const calculatedTotal = sessionCount > 0 && pricePerSession > 0 ? sessionCount * pricePerSession : totalAmount;
+        
+        return {
+          id: purchase.id || '',
+          institutionId: purchase.institution_id || '',
+          sessionId: purchase.session_id || '',
+          purchaseDate: purchase.created_at ? new Date(purchase.created_at) : new Date(),
+          quantity: sessionCount,
+          pricePerSession: pricePerSession,
+          totalPrice: calculatedTotal,
+          status: purchase.status || 'pending',
+          clientSecret: purchase.client_secret || ''
+        };
+      });
     } catch (error: any) {
       // Handle different types of errors appropriately
       // Don't show error toast for 404 errors as it may be normal not to have purchases yet
