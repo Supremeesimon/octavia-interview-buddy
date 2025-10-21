@@ -193,9 +193,6 @@ const SessionManagement = ({
   const sessionCost = pricePerMinute !== null ? pricePerMinute.toFixed(2) : '0.00';
   
   const handleSessionPurchase = async (sessions: number, cost: number) => {
-    // Update local state first for immediate UI feedback
-    setTotalSessions(prev => prev + sessions);
-    
     // Notify parent component about session purchase for billing update
     if (onSessionPurchase) {
       onSessionPurchase(sessions, cost);
@@ -208,18 +205,36 @@ const SessionManagement = ({
           sessionCount: sessions,
           pricePerSession: pricePerMinute !== null ? parseFloat(pricePerMinute.toFixed(2)) : 0
         });
-        toast({
-          title: "Purchase successful",
-          description: `${sessions} interview sessions have been added to your pool.`,
-        });
+        // Don't show any toasts here - let the SessionPurchase component handle all toasts
+        // This prevents overlapping notifications
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Interview session purchase was successful but failed to save to backend.",
-          variant: "destructive"
-        });
+        // Don't show any toasts here either - let SessionPurchase component handle all toasts
+        // This prevents overlapping notifications
+        console.warn('Session purchase initiation failed:', error);
       }
     }
+  };
+  
+  // Add a function to refresh session data
+  const refreshSessionData = async () => {
+    if (!institutionId) return;
+    
+    try {
+      const sessionPool = await SessionService.getSessionPool();
+      if (sessionPool) {
+        setTotalSessions(sessionPool.totalSessions || 0);
+        setUsedSessions(sessionPool.usedSessions || 0);
+      }
+    } catch (error) {
+      console.warn('Failed to refresh session data:', error);
+    }
+  };
+  
+  // Update the handleSessionPurchase callback to refresh data after purchase
+  const handleSessionPurchaseWithRefresh = async (sessions: number, cost: number) => {
+    await handleSessionPurchase(sessions, cost);
+    // Refresh session data after a short delay to allow for database updates
+    setTimeout(refreshSessionData, 1000);
   };
   
   if (loading) {
@@ -250,7 +265,7 @@ const SessionManagement = ({
         <SessionPurchase 
           sessionLength={sessionLength} 
           sessionCost={sessionCost} 
-          onSessionPurchase={handleSessionPurchase} 
+          onSessionPurchase={handleSessionPurchaseWithRefresh} 
         />
         
         {institutionId && (

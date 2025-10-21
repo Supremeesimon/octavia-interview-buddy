@@ -92,8 +92,10 @@ export class SessionService {
     try {
       // Make direct API call to match backend expectations
       const response = await apiClient.post('/sessions/purchases', purchaseData);
+      console.log('Session purchase response:', response);
       return response.data;
     } catch (error: any) {
+      console.error('Session purchase error:', error);
       // Show error toast for actual errors
       if (error.status === undefined) {
         // Network error

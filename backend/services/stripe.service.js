@@ -15,6 +15,9 @@ class StripeService {
       const paymentIntent = await stripe.paymentIntents.create({
         amount,
         currency,
+        automatic_payment_methods: {
+          enabled: true,
+        },
         metadata: {
           institutionId,
           ...metadata
@@ -82,12 +85,41 @@ class StripeService {
         case 'payment_intent.succeeded':
           const paymentIntent = event.data.object;
           // Update our database to mark the payment as completed
-          await db.query(
+          const result = await db.query(
             `UPDATE session_purchases 
              SET status = 'completed', updated_at = NOW()
-             WHERE payment_id = $1`,
+             WHERE payment_id = $1
+             RETURNING institution_id, session_count`,
             [paymentIntent.id]
           );
+          
+          // If we successfully updated a purchase, also update the session pool
+          if (result.rows.length > 0) {
+            const { institution_id, session_count } = result.rows[0];
+            
+            // Check if institution already has a session pool
+            const poolResult = await db.query(
+              `SELECT id FROM session_pools WHERE institution_id = $1`,
+              [institution_id]
+            );
+            
+            if (poolResult.rows.length > 0) {
+              // Update existing pool
+              await db.query(
+                `UPDATE session_pools 
+                 SET total_sessions = total_sessions + $1, updated_at = NOW()
+                 WHERE institution_id = $2`,
+                [session_count, institution_id]
+              );
+            } else {
+              // Create new pool
+              await db.query(
+                `INSERT INTO session_pools (institution_id, total_sessions)
+                 VALUES ($1, $2)`,
+                [institution_id, session_count]
+              );
+            }
+          }
           break;
         case 'payment_intent.payment_failed':
           const failedPaymentIntent = event.data.object;

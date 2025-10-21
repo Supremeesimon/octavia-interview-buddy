@@ -4,6 +4,8 @@ const db = require('../config/database');
 const firebaseAdmin = require('../config/firebase');
 const { v4: uuidv4 } = require('uuid');
 const dotenv = require('dotenv');
+// Import the new user lookup service
+const { lookupUserInFirestore } = require('../services/user-lookup.service');
 
 dotenv.config();
 
@@ -623,16 +625,8 @@ const authController = {
           // Create new user
           const name = decodedToken.name || firebaseEmail.split('@')[0] || 'Anonymous User';
           
-          // Determine role based on email patterns or other criteria
-          let role = 'student'; // Default role
-          
-          // Check if user should be institution admin
-          if (firebaseEmail === 'supremeesimon@gmail.com') {
-            role = 'institution_admin';
-          } else if (firebaseEmail === 'octaviaintelligence@gmail.com') {
-            role = 'institution_admin';
-          }
-          // Add more role assignment logic as needed
+          // Determine role (this is a simplified approach - you might want to implement a more sophisticated role assignment)
+          const role = 'student'; // Default role
           
           // For Firebase users, we don't have a password hash, so we'll use a placeholder
           const passwordHash = 'firebase_auth'; // Placeholder for Firebase authenticated users
@@ -657,6 +651,38 @@ const authController = {
         }
       } else {
         console.log('Found existing user with ID:', user.id);
+      }
+
+      // Synchronize institution data from Firestore if user doesn't have institution_id
+      if (user && !user.institution_id) {
+        console.log('User missing institution_id, looking up in Firestore');
+        try {
+          const firestoreUserData = await lookupUserInFirestore(firebaseUid);
+          if (firestoreUserData && firestoreUserData.institutionId) {
+            // Validate that the institution ID is a valid UUID before using it
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(firestoreUserData.institutionId)) {
+              console.log('Found valid institution data in Firestore, updating user record');
+              // Update PostgreSQL user with institution_id
+              await db.query(
+                'UPDATE users SET institution_id = $1 WHERE id = $2',
+                [firestoreUserData.institutionId, user.id]
+              );
+              // Update the user object for token generation
+              user.institution_id = firestoreUserData.institutionId;
+              console.log('Successfully synchronized institution data for user');
+            } else {
+              console.log('Invalid institution ID format from Firestore, skipping update');
+            }
+          } else {
+            console.log('No institution data found in Firestore for user');
+          }
+        } catch (lookupError) {
+          console.error('Error synchronizing institution data from Firestore:', lookupError);
+          // Continue without institution association
+        }
+      } else if (user && user.institution_id) {
+        console.log('User already has institution_id, skipping Firestore lookup');
       }
 
       // Generate backend JWT token

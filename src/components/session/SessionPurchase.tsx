@@ -166,15 +166,15 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
   
   // Shared handler for both manual entry and quick purchase
   const handleAddSessionsInternal = async (sessionsToAdd: number) => {
+    // Dismiss any existing toasts to prevent overlapping
+    // Note: We can't easily dismiss specific toasts without storing their IDs,
+    // so we'll just ensure we only show one toast per action
+    
     try {
       // Check if user has a payment method selected or needs to enter card details
       if ((!selectedPaymentMethod || selectedPaymentMethod === '') && 
           (!paymentMethods || paymentMethods.length === 0)) {
-        toast({
-          title: "Payment method required",
-          description: "Please enter your card details when prompted to complete this purchase.",
-        });
-        // We'll still proceed with the purchase, as Stripe will handle the card entry
+        // Don't show toast for this - it's handled by the UI
       }
       
       // Use SessionService instead of direct fetch for consistency
@@ -185,17 +185,36 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
       };
 
       const result = await SessionService.createSessionPurchase(purchaseData);
+      console.log('Purchase result:', result);
       
       // Handle the response
-      if (result?.data?.clientSecret && stripePromise) {
+      if (result?.clientSecret && stripePromise) {
         const stripe = await stripePromise;
         if (stripe) {
-          const { error } = await stripe.confirmCardPayment(result.data.clientSecret);
+          const { error } = await stripe.confirmCardPayment(result.clientSecret);
           
           if (error) {
+            console.error('Payment confirmation error:', error);
+            
+            // Provide user-friendly error messages with clear directions
+            let errorMessage = "Payment failed";
+            let errorDescription = "There was an issue processing your payment. Please try again.";
+            
+            // Check for specific Stripe errors and provide better guidance
+            if (error.message && error.message.includes('payment method of type card was expected')) {
+              errorMessage = "Payment method required";
+              errorDescription = "Please add a payment method to your account before making purchases. You can do this on the Billing & Payments page.";
+            } else if (error.message && error.message.includes('No such payment_intent')) {
+              errorMessage = "Payment session expired";
+              errorDescription = "Your payment session has expired. Please try your purchase again.";
+            } else if (error.message) {
+              // Use the original error message if it's more descriptive
+              errorDescription = error.message;
+            }
+            
             toast({
-              title: "Payment failed",
-              description: error.message,
+              title: errorMessage,
+              description: errorDescription,
               variant: "destructive"
             });
             return;
@@ -217,22 +236,16 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
           setAdditionalSessions('');
         }
       } else {
-        // Calculate the correct total cost (sessions × duration × price per minute)
-        const costPerSession = sessionLength * parseFloat(sessionCost);
-        const totalCost = parseFloat((sessionsToAdd * costPerSession).toFixed(2));
-        
+        console.error('No clientSecret in response:', result);
+        // If there's no clientSecret, it means something went wrong
         toast({
-          title: "Sessions purchased",
-          description: `${sessionsToAdd} sessions added to your pool for $${totalCost.toFixed(2)}`,
+          title: "Purchase failed",
+          description: "Failed to initiate payment processing. Please try again.",
+          variant: "destructive"
         });
-        
-        if (onSessionPurchase) {
-          onSessionPurchase(sessionsToAdd, totalCost);
-        }
-        
-        setAdditionalSessions('');
       }
     } catch (error: any) {
+      console.error('Purchase error:', error);
       // Provide more specific error messages based on the error type
       let errorMessage = "Purchase failed";
       let errorDescription = error.message || "An unexpected error occurred";

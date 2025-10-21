@@ -181,7 +181,7 @@ const sessionController = {
       const institutionId = req.user.institutionId;
 
       const result = await db.query(
-        `SELECT id, institution_id, session_count, used_count, created_at, updated_at
+        `SELECT id, institution_id, total_sessions as session_count, used_sessions as used_count, created_at, updated_at
          FROM session_pools 
          WHERE institution_id = $1`,
         [institutionId]
@@ -257,7 +257,7 @@ const sessionController = {
 
       // Check if institution has enough sessions in pool
       const poolResult = await db.query(
-        `SELECT session_count, used_count 
+        `SELECT total_sessions as session_count, used_sessions as used_count 
          FROM session_pools 
          WHERE institution_id = $1`,
         [institutionId]
@@ -351,7 +351,7 @@ const sessionController = {
       // If changing allocated count, check if institution has enough sessions
       if (allocatedCount !== undefined && allocatedCount !== currentAllocation.allocated_count) {
         const poolResult = await db.query(
-          `SELECT session_count, used_count 
+          `SELECT total_sessions as session_count, used_sessions as used_count 
            FROM session_pools 
            WHERE institution_id = $1`,
           [institutionId]
