@@ -39,9 +39,25 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
     const initializeStripe = async () => {
       // Use import.meta.env instead of process.env for Vite projects
       const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      
+      // Check if we're in development mode
+      const isDevelopment = import.meta.env.DEV;
+      
       if (stripeKey) {
+        // Warn in development if using production key
+        if (isDevelopment && stripeKey.startsWith('pk_live_')) {
+          console.warn('Using production Stripe key in development environment');
+        }
+        
+        // Warn in production if using test key
+        if (!isDevelopment && stripeKey.startsWith('pk_test_')) {
+          console.warn('Using test Stripe key in production environment');
+        }
+        
         const stripe = await loadStripe(stripeKey);
         setStripePromise(stripe);
+      } else {
+        console.error('Stripe publishable key is missing');
       }
     };
     
@@ -70,12 +86,26 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
         setPaymentMethods([]);
         
         // Provide user-friendly error message for token issues
-        if (error.status === 403 && error.message === 'Invalid or expired token') {
-          toast({
-            title: "Session expired",
-            description: "Please log in again to view your payment methods.",
-            variant: "destructive"
-          });
+        if (error.status === 403) {
+          if (error.message === 'Invalid or expired token') {
+            toast({
+              title: "Session expired",
+              description: "Please log in again to view your payment methods.",
+              variant: "destructive"
+            });
+          } else if (error.message === 'Insufficient permissions') {
+            toast({
+              title: "Access denied",
+              description: "You don't have permission to view payment methods. Only institution administrators can manage payment methods.",
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "Access forbidden",
+              description: "You don't have permission to access this resource.",
+              variant: "destructive"
+            });
+          }
         } else if (error.status === 401) {
           toast({
             title: "Authentication required",
@@ -86,6 +116,12 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
           toast({
             title: "Server error",
             description: "Unable to load payment methods. Please try again later.",
+            variant: "destructive"
+          });
+        } else if (error.status === 400) {
+          toast({
+            title: "Bad request",
+            description: "Unable to load payment methods. Please contact support.",
             variant: "destructive"
           });
         }

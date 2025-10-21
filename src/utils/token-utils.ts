@@ -16,7 +16,7 @@ export async function refreshToken(): Promise<boolean> {
     // Get current Firebase user
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      console.warn('No current Firebase user found');
+      console.warn('No current Firebase user found during token refresh');
       return false;
     }
 
@@ -37,6 +37,25 @@ export async function refreshToken(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Token refresh failed:', error);
+    
+    // If it's a network error, we might want to retry
+    if (error instanceof Error && error.message.includes('Network Error')) {
+      console.log('Network error during token refresh, will retry');
+      // Wait a bit and try once more
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const firebaseToken = await currentUser.getIdToken(true);
+          const exchangeResult = await firebaseAuthService.exchangeFirebaseToken(firebaseToken);
+          apiClient.setAuthToken(exchangeResult.token);
+          return true;
+        }
+      } catch (retryError) {
+        console.error('Token refresh retry failed:', retryError);
+      }
+    }
+    
     return false;
   }
 }
@@ -62,7 +81,41 @@ export function isTokenExpired(): boolean {
   }
 }
 
+/**
+ * Schedule a token refresh before it expires
+ */
+export function scheduleTokenRefresh(): void {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  
+  try {
+    // Decode the JWT token to get expiration time
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expirationTime = payload.exp * 1000; // Convert to milliseconds
+    const currentTime = Date.now();
+    
+    // Calculate time until expiration (with 5 minute buffer)
+    const timeUntilExpiration = expirationTime - currentTime - (5 * 60 * 1000);
+    
+    // Only schedule if token is still valid
+    if (timeUntilExpiration > 0) {
+      console.log(`Scheduling token refresh in ${Math.floor(timeUntilExpiration / 1000)} seconds`);
+      
+      // Schedule token refresh
+      setTimeout(async () => {
+        console.log('Performing scheduled token refresh');
+        await refreshToken();
+      }, timeUntilExpiration);
+    } else {
+      console.log('Token is already expired or about to expire');
+    }
+  } catch (error) {
+    console.error('Error scheduling token refresh:', error);
+  }
+}
+
 export default {
   refreshToken,
-  isTokenExpired
+  isTokenExpired,
+  scheduleTokenRefresh
 };

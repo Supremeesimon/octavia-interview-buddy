@@ -94,22 +94,6 @@ export class SessionService {
       const response = await apiClient.post('/sessions/purchases', purchaseData);
       return response.data;
     } catch (error: any) {
-      // Handle 401 errors (Access token required) - this usually means the user needs to re-authenticate
-      if (error.status === 401) {
-        // Check if user is actually authenticated before forcing re-authentication
-        if (authService.isAuthenticated()) {
-          // If we get here, it means token refresh failed
-          toast.error('Authentication expired. Please log in again.');
-          await authService.logout();
-          throw new Error('Authentication required: Please log in again.');
-        } else {
-          // User is not authenticated
-          toast.error('Authentication required: Please log in to complete this purchase.');
-          await authService.logout();
-          throw new Error('Authentication required: Please log in again.');
-        }
-      }
-      
       // Show error toast for actual errors
       if (error.status === undefined) {
         // Network error

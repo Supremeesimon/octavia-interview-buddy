@@ -6,16 +6,16 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth.middlew
 // Webhook endpoint (no authentication as it comes from Stripe)
 router.post('/webhook', express.raw({type: 'application/json'}), stripeController.handleWebhook);
 
-// Get payment methods for institution
-router.get('/payment-methods', authenticateToken, authorizeRole('institution_admin'), stripeController.getPaymentMethods);
+// Get payment methods for institution - allow institution admins and teachers
+router.get('/payment-methods', authenticateToken, authorizeRole('institution_admin', 'teacher'), stripeController.getPaymentMethods);
 
-// Save payment method for institution
+// Save payment method for institution - only institution admins
 router.post('/payment-methods', authenticateToken, authorizeRole('institution_admin'), stripeController.savePaymentMethod);
 
-// Delete payment method for institution
+// Delete payment method for institution - only institution admins
 router.delete('/payment-methods', authenticateToken, authorizeRole('institution_admin'), stripeController.deletePaymentMethod);
 
-// Get invoices for institution
-router.get('/invoices', authenticateToken, authorizeRole('institution_admin'), stripeController.getInvoices);
+// Get invoices for institution - allow institution admins and teachers
+router.get('/invoices', authenticateToken, authorizeRole('institution_admin', 'teacher'), stripeController.getInvoices);
 
 module.exports = router;

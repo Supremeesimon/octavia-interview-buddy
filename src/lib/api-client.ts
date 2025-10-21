@@ -197,6 +197,15 @@ class ApiClient {
       console.error('Token refresh error:', error);
       // If refresh fails, process the queue with an error
       this.processQueue(error);
+      
+      // Provide more specific error messages
+      if (error instanceof Error && error.message.includes('Network Error')) {
+        throw {
+          message: 'Network error. Please check your internet connection and try again.',
+          status: 0,
+        } as ApiError;
+      }
+      
       throw error;
     } finally {
       this.isRefreshing = false;

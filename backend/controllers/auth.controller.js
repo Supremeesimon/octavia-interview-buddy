@@ -519,9 +519,12 @@ const authController = {
   // Exchange Firebase ID token for backend JWT token
   async exchangeFirebaseToken(req, res) {
     try {
+      console.log('Starting token exchange process');
       const { firebaseToken } = req.body;
+      console.log('Received firebaseToken:', firebaseToken ? 'PRESENT' : 'MISSING');
 
       if (!firebaseToken) {
+        console.log('Token exchange failed: Firebase token is missing');
         return res.status(400).json({
           success: false,
           message: 'Firebase token is required'
@@ -530,16 +533,19 @@ const authController = {
 
       // Verify Firebase ID token
       if (!firebaseAdmin) {
+        console.error('Firebase Admin not initialized - check Firebase configuration');
         return res.status(500).json({
           success: false,
-          message: 'Firebase Admin not initialized'
+          message: 'Firebase Admin not initialized - Authentication service unavailable'
         });
       }
 
       let decodedToken;
       try {
+        console.log('Verifying Firebase token');
         // Add additional validation for the token
         if (typeof firebaseToken !== 'string' || firebaseToken.length < 10) {
+          console.log('Token exchange failed: Invalid Firebase token format');
           return res.status(400).json({
             success: false,
             message: 'Invalid Firebase token format'
@@ -547,8 +553,10 @@ const authController = {
         }
         
         decodedToken = await firebaseAdmin.auth().verifyIdToken(firebaseToken, true); // checkRevoked=true
+        console.log('Firebase token verified successfully for user:', decodedToken.uid);
       } catch (error) {
         console.error('Firebase token verification error:', error);
+        console.error('Error stack:', error.stack);
         return res.status(401).json({
           success: false,
           message: 'Invalid or expired Firebase token',
@@ -558,57 +566,123 @@ const authController = {
 
       const firebaseUid = decodedToken.uid;
       const firebaseEmail = decodedToken.email;
+      console.log('Looking up user in database with UID:', firebaseUid, 'and email:', firebaseEmail);
 
       // Find user in database by Firebase UID
-      const result = await db.query(
-        'SELECT * FROM users WHERE firebase_uid = $1',
-        [firebaseUid]
-      );
+      console.log('Executing database query for firebase_uid:', firebaseUid);
+      let result;
+      try {
+        result = await db.query(
+          'SELECT * FROM users WHERE firebase_uid = $1',
+          [firebaseUid]
+        );
+        console.log('Database query result for firebase_uid:', result.rows.length, 'rows');
+      } catch (dbError) {
+        console.error('Database query error for firebase_uid:', dbError);
+        console.error('Error stack:', dbError.stack);
+        throw dbError; // Re-throw to be caught by outer try-catch
+      }
 
       let user = result.rows[0];
 
       // If user doesn't exist in our database, create them
       if (!user) {
+        console.log('User not found by Firebase UID, trying email lookup');
         // Try to find by email as fallback
-        const emailResult = await db.query(
-          'SELECT * FROM users WHERE email = $1',
-          [firebaseEmail]
-        );
+        let emailResult;
+        try {
+          emailResult = await db.query(
+            'SELECT * FROM users WHERE email = $1',
+            [firebaseEmail]
+          );
+          console.log('Email lookup result:', emailResult.rows.length, 'rows');
+        } catch (dbError) {
+          console.error('Database query error for email lookup:', dbError);
+          console.error('Error stack:', dbError.stack);
+          throw dbError; // Re-throw to be caught by outer try-catch
+        }
         
         user = emailResult.rows[0];
         
         if (user) {
+          console.log('Found user by email, updating with Firebase UID');
           // Update existing user with Firebase UID
-          await db.query(
-            'UPDATE users SET firebase_uid = $1 WHERE id = $2',
-            [firebaseUid, user.id]
-          );
+          try {
+            await db.query(
+              'UPDATE users SET firebase_uid = $1 WHERE id = $2',
+              [firebaseUid, user.id]
+            );
+            console.log('Successfully updated user with Firebase UID');
+          } catch (dbError) {
+            console.error('Database update error:', dbError);
+            console.error('Error stack:', dbError.stack);
+            throw dbError; // Re-throw to be caught by outer try-catch
+          }
         } else {
+          console.log('Creating new user in database');
           // Create new user
           const name = decodedToken.name || firebaseEmail.split('@')[0] || 'Anonymous User';
           
-          // Determine role (this is a simplified approach - you might want to implement a more sophisticated role assignment)
-          const role = 'student'; // Default role
+          // Determine role based on email patterns or other criteria
+          let role = 'student'; // Default role
           
-          const insertResult = await db.query(
-            `INSERT INTO users (email, name, role, firebase_uid, is_email_verified, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-             RETURNING *`,
-            [firebaseEmail, name, role, firebaseUid, true]
-          );
+          // Check if user should be institution admin
+          if (firebaseEmail === 'supremeesimon@gmail.com') {
+            role = 'institution_admin';
+          } else if (firebaseEmail === 'octaviaintelligence@gmail.com') {
+            role = 'institution_admin';
+          }
+          // Add more role assignment logic as needed
+          
+          // For Firebase users, we don't have a password hash, so we'll use a placeholder
+          const passwordHash = 'firebase_auth'; // Placeholder for Firebase authenticated users
+          
+          let insertResult;
+          try {
+            insertResult = await db.query(
+              `INSERT INTO users (email, name, role, firebase_uid, is_email_verified, password_hash, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+               RETURNING *`,
+              [firebaseEmail, name, role, firebaseUid, true, passwordHash]
+            );
+            console.log('New user created successfully');
+          } catch (dbError) {
+            console.error('Database insert error:', dbError);
+            console.error('Error stack:', dbError.stack);
+            throw dbError; // Re-throw to be caught by outer try-catch
+          }
           
           user = insertResult.rows[0];
+          console.log('New user created with ID:', user.id);
         }
+      } else {
+        console.log('Found existing user with ID:', user.id);
       }
 
       // Generate backend JWT token
+      console.log('Generating backend JWT token');
+      console.log('User data for token generation:', {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        institution_id: user.institution_id
+      });
       const token = generateToken(user);
+      console.log('Backend JWT token generated');
 
       // Update last login
-      await db.query(
-        'UPDATE users SET last_login_at = NOW() WHERE id = $1',
-        [user.id]
-      );
+      console.log('Updating last login timestamp for user:', user.id);
+      try {
+        await db.query(
+          'UPDATE users SET last_login_at = NOW() WHERE id = $1',
+          [user.id]
+        );
+        console.log('Last login timestamp updated successfully');
+      } catch (dbError) {
+        console.error('Database update error for last login:', dbError);
+        console.error('Error stack:', dbError.stack);
+        // Don't throw here as this is not critical for the token exchange
+      }
 
       res.json({
         success: true,
@@ -625,8 +699,18 @@ const authController = {
           token
         }
       });
+      console.log('Token exchange response sent successfully');
     } catch (error) {
       console.error('Token exchange error:', error);
+      console.error('Error stack:', error.stack);
+      // More specific error handling
+      if (error.code === 'auth/argument-error') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid Firebase token format'
+        });
+      }
+      
       res.status(500).json({
         success: false,
         message: 'Internal server error during token exchange',

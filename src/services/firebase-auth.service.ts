@@ -959,9 +959,18 @@ export class FirebaseAuthService {
   // Exchange Firebase ID token for backend JWT token
   async exchangeFirebaseToken(firebaseToken: string): Promise<{ user: UserProfile; token: string }> {
     try {
+      console.log('exchangeFirebaseToken: Starting token exchange', {
+        tokenLength: firebaseToken?.length,
+        tokenType: typeof firebaseToken,
+        isString: typeof firebaseToken === 'string',
+        tokenPreview: firebaseToken ? firebaseToken.substring(0, 50) + '...' : 'null'
+      });
+      
       // Validate the token before sending
       if (!firebaseToken || typeof firebaseToken !== 'string' || firebaseToken.length < 10) {
-        throw new Error('Invalid Firebase token format');
+        const error = new Error('Invalid Firebase token format');
+        console.error('Token validation failed:', error.message);
+        throw error;
       }
 
       console.log('Exchanging Firebase token for backend JWT token');
@@ -978,7 +987,19 @@ export class FirebaseAuthService {
       console.log('Token exchange response:', response.status, data);
 
       if (!response.ok) {
-        throw new Error(data.message || `Token exchange failed with status ${response.status}`);
+        const errorMessage = data.message || `Token exchange failed with status ${response.status}`;
+        console.error('Token exchange HTTP error:', response.status, errorMessage);
+        
+        // More specific error handling based on status codes
+        if (response.status === 400) {
+          throw new Error(`Invalid request: ${errorMessage}`);
+        } else if (response.status === 401) {
+          throw new Error(`Authentication failed: ${errorMessage}`);
+        } else if (response.status === 500) {
+          throw new Error(`Server error: ${errorMessage}`);
+        } else {
+          throw new Error(errorMessage);
+        }
       }
 
       return {
@@ -987,6 +1008,13 @@ export class FirebaseAuthService {
       };
     } catch (error) {
       console.error('Token exchange error:', error);
+      
+      // Network error handling
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error('Network error: Unable to connect to authentication service. Please check your internet connection.');
+      }
+      
+      // Re-throw the error with additional context
       throw new Error(`Token exchange failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

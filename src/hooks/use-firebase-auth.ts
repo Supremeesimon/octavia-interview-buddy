@@ -4,6 +4,7 @@ import { auth } from '@/lib/firebase';
 import { firebaseAuthService } from '@/services/firebase-auth.service';
 import { apiClient, ApiResponse } from '@/lib/api-client';
 import type { UserProfile, UserRole } from '@/types';
+import { scheduleTokenRefresh } from '@/utils/token-utils';
 
 interface ExchangeResponse {
   user: UserProfile;
@@ -50,8 +51,24 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
           console.log('useFirebaseAuth: Fetching user profile for', firebaseUser.uid);
           
           // Get a fresh Firebase ID token with forced refresh
+          console.log('useFirebaseAuth: Getting Firebase ID token for user', firebaseUser.uid);
           const firebaseToken = await firebaseUser.getIdToken(true);
-          console.log('useFirebaseAuth: Got Firebase token', { tokenLength: firebaseToken?.length });
+          console.log('useFirebaseAuth: Got Firebase token', { 
+            tokenLength: firebaseToken?.length,
+            tokenType: typeof firebaseToken,
+            isString: typeof firebaseToken === 'string',
+            tokenPreview: firebaseToken ? firebaseToken.substring(0, 50) + '...' : 'null'
+          });
+          
+          // Validate token before sending
+          if (!firebaseToken || typeof firebaseToken !== 'string' || firebaseToken.length < 10) {
+            console.error('useFirebaseAuth: Invalid Firebase token retrieved', {
+              token: firebaseToken,
+              tokenType: typeof firebaseToken,
+              tokenLength: firebaseToken?.length
+            });
+            throw new Error('Failed to retrieve valid Firebase authentication token');
+          }
           
           // Exchange Firebase token for backend JWT token
           try {
@@ -60,6 +77,9 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
             
             // Set the backend JWT token in apiClient for API calls that need it
             apiClient.setAuthToken(exchangeResult.token);
+            
+            // Schedule token refresh before it expires
+            scheduleTokenRefresh();
             
             // Fetch user profile from our service
             const userProfile = await firebaseAuthService.getCurrentUser();
