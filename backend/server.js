@@ -9,7 +9,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.local') }); // Then load 
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 3005; // Changed to 3005
+const PORT = process.env.PORT || 3006; // Changed to 3006 to avoid conflict
 
 // Middleware
 app.use(cors());
@@ -72,7 +72,18 @@ module.exports = { app };
 
 // Only start the server if this file is run directly (not imported)
 if (require.main === module && !process.env.FUNCTIONS_EMULATOR && !process.env.K_SERVICE) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Backend server running on port ${PORT}`);
+  });
+  
+  // Add error handling for the server
+  server.on('error', (error) => {
+    console.error('Server error:', error);
+  });
+  
+  // Log when the server starts listening
+  server.on('listening', () => {
+    const address = server.address();
+    console.log(`Server listening on ${typeof address === 'string' ? address : `http://localhost:${address.port}`}`);
   });
 }

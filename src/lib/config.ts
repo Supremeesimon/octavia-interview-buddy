@@ -40,7 +40,9 @@ const config: Config = {
     enableDevtools: import.meta.env.VITE_ENABLE_DEVTOOLS === 'true',
   },
   api: {
-    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3005/api',
+    baseUrl: import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' 
+      ? 'https://us-central1-octavia-practice-interviewer.cloudfunctions.net/api' 
+      : 'http://localhost:3006/api'),
     timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000', 10),
     mockApi: import.meta.env.VITE_MOCK_API === 'true',
   },

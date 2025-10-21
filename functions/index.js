@@ -4,11 +4,17 @@ const admin = require('firebase-admin');
 // Import the migration function
 const { applyDatabaseMigration } = require('./src/apply-migration');
 
+// Import the API
+const { api } = require('./src/api');
+
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
 // Export the migration function
 exports.applyDatabaseMigration = applyDatabaseMigration;
+
+// Export the API
+exports.api = api;
 
 // VAPI Webhook Function (1st Gen)
 exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
