@@ -49,7 +49,7 @@ export class SessionService {
   // Session Purchase Methods
   static async getSessionPurchases(institutionId: string): Promise<SessionPurchase[]> {
     try {
-      const response: ApiResponse<SessionPurchase[]> = await apiClient.get(`${this.baseUrl}/purchases/${institutionId}`);
+      const response: ApiResponse<SessionPurchase[]> = await apiClient.get(`${this.baseUrl}/purchases`);
       // Handle case where response.data might be null or undefined
       if (!response.data) {
         return [];

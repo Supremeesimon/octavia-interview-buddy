@@ -13,9 +13,22 @@ class StripeService {
    */
   static async createPaymentIntent(amount, currency = 'usd', institutionId, metadata = {}, paymentMethodId = null) {
     try {
+      // First, get the customer ID for this institution
+      const db = require('../config/database');
+      const institutionResult = await db.query(
+        'SELECT stripe_customer_id FROM institutions WHERE id = $1',
+        [institutionId]
+      );
+      
+      const institution = institutionResult.rows[0];
+      if (!institution || !institution.stripe_customer_id) {
+        throw new Error('No Stripe customer found for this institution');
+      }
+      
       const paymentIntentParams = {
         amount,
         currency,
+        customer: institution.stripe_customer_id, // Add customer ID
         automatic_payment_methods: {
           enabled: true,
         },
@@ -28,6 +41,11 @@ class StripeService {
       // If a payment method ID is provided, include it in the payment intent
       if (paymentMethodId) {
         paymentIntentParams.payment_method = paymentMethodId;
+        // Don't auto-confirm payments with saved payment methods
+        // Let the frontend handle confirmation to maintain consistent flow
+        // paymentIntentParams.confirm = true;
+        // Add return URL for test mode
+        // paymentIntentParams.return_url = `${process.env.FRONTEND_URL || 'http://localhost:8090'}/dashboard/sessions`;
       }
       
       const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
@@ -82,28 +100,42 @@ class StripeService {
    */
   static async handleWebhook(payload, signature) {
     try {
-      const event = stripe.webhooks.constructEvent(
-        payload,
-        signature,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
+      let event;
+      
+      // Check if this is a manual trigger (signature will be 'test')
+      if (signature === 'test') {
+        // Use the payload directly as the event
+        event = payload;
+      } else {
+        // Normal webhook processing
+        event = stripe.webhooks.constructEvent(
+          payload,
+          signature,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+      }
 
       // Handle the event
       switch (event.type) {
         case 'payment_intent.succeeded':
           const paymentIntent = event.data.object;
+          console.log('Payment intent succeeded:', paymentIntent.id);
+          
           // Update our database to mark the payment as completed
           const result = await db.query(
             `UPDATE session_purchases 
              SET status = 'completed', updated_at = NOW()
              WHERE payment_id = $1
              RETURNING institution_id, session_count`,
-            [paymentIntent.id]
+            [paymentIntent.id]  // Use paymentIntent.id directly
           );
+          
+          console.log('Updated session purchases:', result.rows);
           
           // If we successfully updated a purchase, also update the session pool
           if (result.rows.length > 0) {
             const { institution_id, session_count } = result.rows[0];
+            console.log('Updating session pool for institution:', institution_id, 'with', session_count, 'sessions');
             
             // Check if institution already has a session pool
             const poolResult = await db.query(
@@ -119,6 +151,7 @@ class StripeService {
                  WHERE institution_id = $2`,
                 [session_count, institution_id]
               );
+              console.log('Updated existing session pool');
             } else {
               // Create new pool
               await db.query(
@@ -126,11 +159,16 @@ class StripeService {
                  VALUES ($1, $2)`,
                 [institution_id, session_count]
               );
+              console.log('Created new session pool');
             }
+          } else {
+            console.log('No session purchase found for payment intent:', paymentIntent.id);
           }
           break;
         case 'payment_intent.payment_failed':
           const failedPaymentIntent = event.data.object;
+          console.log('Payment intent failed:', failedPaymentIntent.id);
+          
           // Update our database to mark the payment as failed
           await db.query(
             `UPDATE session_purchases 

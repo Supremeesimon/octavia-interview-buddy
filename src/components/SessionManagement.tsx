@@ -221,6 +221,7 @@ const SessionManagement = ({
     
     try {
       const sessionPool = await SessionService.getSessionPool();
+      console.log('Session pool data refreshed:', sessionPool);
       if (sessionPool) {
         setTotalSessions(sessionPool.totalSessions || 0);
         setUsedSessions(sessionPool.usedSessions || 0);
@@ -229,6 +230,20 @@ const SessionManagement = ({
       console.warn('Failed to refresh session data:', error);
     }
   };
+  
+  // Listen for session purchase completion events
+  useEffect(() => {
+    const handleSessionPurchaseCompleted = () => {
+      // Refresh session data when a purchase is completed
+      refreshSessionData();
+    };
+    
+    window.addEventListener('sessionPurchaseCompleted', handleSessionPurchaseCompleted);
+    
+    return () => {
+      window.removeEventListener('sessionPurchaseCompleted', handleSessionPurchaseCompleted);
+    };
+  }, [institutionId]);
   
   // Update the handleSessionPurchase callback to refresh data after purchase
   const handleSessionPurchaseWithRefresh = async (sessions: number, cost: number) => {

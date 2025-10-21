@@ -119,6 +119,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         // Fetch session pool data to get current session count
         try {
           const sessionPool = await SessionService.getSessionPool();
+          console.log('Session pool data fetched:', sessionPool);
           if (sessionPool) {
             setSessionCount(sessionPool.totalSessions || 0);
             setUsedSessions(sessionPool.usedSessions || 0);

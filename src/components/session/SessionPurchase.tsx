@@ -191,7 +191,20 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
       if (result?.clientSecret && stripePromise) {
         const stripe = await stripePromise;
         if (stripe) {
-          const { error } = await stripe.confirmCardPayment(result.clientSecret);
+          // If we have a payment method ID, include it in the confirmation
+          let confirmationResult;
+          if (selectedPaymentMethod) {
+            confirmationResult = await stripe.confirmCardPayment(result.clientSecret, {
+              payment_method: selectedPaymentMethod,
+              return_url: `${window.location.origin}/dashboard/sessions`
+            });
+          } else {
+            confirmationResult = await stripe.confirmCardPayment(result.clientSecret, {
+              return_url: `${window.location.origin}/dashboard/sessions`
+            });
+          }
+          
+          const { error } = confirmationResult;
           
           if (error) {
             console.error('Payment confirmation error:', error);
@@ -233,7 +246,14 @@ const SessionPurchase = ({ sessionLength, sessionCost, onSessionPurchase }: Sess
             onSessionPurchase(sessionsToAdd, totalCost);
           }
           
+          // Clear the input field
           setAdditionalSessions('');
+          
+          // Trigger a global refresh of session data after a short delay
+          // This allows time for the webhook to process and update the database
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('sessionPurchaseCompleted'));
+          }, 2000);
         }
       } else {
         console.error('No clientSecret in response:', result);

@@ -112,7 +112,7 @@ const sessionController = {
         console.error('Stripe payment intent creation error:', stripeError);
         return res.status(500).json({
           success: false,
-          message: 'Failed to create payment intent'
+          message: 'Failed to create payment intent: ' + stripeError.message
         });
       }
 
@@ -180,18 +180,38 @@ const sessionController = {
       }
 
       const institutionId = req.user.institutionId;
+      console.log('Fetching session pool for institution:', institutionId);
 
       const result = await db.query(
-        `SELECT id, institution_id, total_sessions as session_count, used_sessions as used_count, created_at, updated_at
+        `SELECT id, institution_id, total_sessions, used_sessions, created_at, updated_at
          FROM session_pools 
          WHERE institution_id = $1`,
         [institutionId]
       );
 
-      res.json({
-        success: true,
-        data: result.rows
-      });
+      console.log('Session pool query result:', result.rows);
+
+      if (result.rows.length > 0) {
+        const pool = result.rows[0];
+        const responseData = {
+          totalSessions: pool.total_sessions,
+          usedSessions: pool.used_sessions,
+          availableSessions: pool.total_sessions - pool.used_sessions,
+          lastUpdated: pool.updated_at
+        };
+        console.log('Returning session pool data:', responseData);
+        res.json({
+          success: true,
+          data: responseData
+        });
+      } else {
+        // Return null data if no pool exists
+        console.log('No session pool found for institution');
+        res.json({
+          success: true,
+          data: null
+        });
+      }
     } catch (error) {
       console.error('Get session pool error:', error);
       res.status(500).json({
