@@ -105,7 +105,8 @@ const sessionController = {
             sessionCount: sessionCount.toString(),
             pricePerSession: pricePerSession.toString(),
             description: `Purchase of ${sessionCount} interview sessions`
-          }
+          },
+          paymentMethodId || null
         );
       } catch (stripeError) {
         console.error('Stripe payment intent creation error:', stripeError);

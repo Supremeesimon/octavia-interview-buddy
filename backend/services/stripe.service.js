@@ -8,11 +8,12 @@ class StripeService {
    * @param {string} currency - The currency code (e.g., 'usd')
    * @param {string} institutionId - The institution ID
    * @param {Object} metadata - Additional metadata
+   * @param {string} [paymentMethodId] - The payment method ID (optional)
    * @returns {Promise<Object>} The created payment intent
    */
-  static async createPaymentIntent(amount, currency = 'usd', institutionId, metadata = {}) {
+  static async createPaymentIntent(amount, currency = 'usd', institutionId, metadata = {}, paymentMethodId = null) {
     try {
-      const paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntentParams = {
         amount,
         currency,
         automatic_payment_methods: {
@@ -22,7 +23,14 @@ class StripeService {
           institutionId,
           ...metadata
         }
-      });
+      };
+      
+      // If a payment method ID is provided, include it in the payment intent
+      if (paymentMethodId) {
+        paymentIntentParams.payment_method = paymentMethodId;
+      }
+      
+      const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
       
       return paymentIntent;
     } catch (error) {
