@@ -49,14 +49,21 @@ export class SessionService {
   // Session Purchase Methods
   static async getSessionPurchases(institutionId: string): Promise<SessionPurchase[]> {
     try {
-      const response: ApiResponse<SessionPurchase[]> = await apiClient.get(`${this.baseUrl}/purchases`);
+      const response: ApiResponse<any[]> = await apiClient.get(`${this.baseUrl}/purchases`);
       // Handle case where response.data might be null or undefined
       if (!response.data) {
         return [];
       }
       return response.data.map((purchase: any) => ({
-        ...purchase,
-        purchaseDate: purchase.purchaseDate ? new Date(purchase.purchaseDate) : new Date(),
+        id: purchase.id,
+        institutionId: purchase.institution_id,
+        sessionId: purchase.session_id,
+        purchaseDate: purchase.created_at ? new Date(purchase.created_at) : new Date(),
+        quantity: purchase.session_count,
+        pricePerSession: purchase.price_per_session,
+        totalPrice: purchase.total_amount,
+        status: purchase.status,
+        clientSecret: purchase.client_secret
       }));
     } catch (error: any) {
       // Handle different types of errors appropriately
@@ -266,6 +273,28 @@ export class SessionService {
       toast.success('Session allocation deleted');
     } catch (error: any) {
       toast.error('Failed to delete session allocation');
+      throw error;
+    }
+  }
+
+  // Add method for deleting session purchases
+  static async deleteSessionPurchase(id: string): Promise<void> {
+    try {
+      await apiClient.delete(`${this.baseUrl}/purchases/${id}`);
+      toast.success('Session purchase deleted successfully');
+    } catch (error: any) {
+      // Show error toast for actual errors
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to delete session purchase');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to delete session purchase');
+      } else if (error.status >= 400) {
+        // Client error
+        toast.error(error.message || 'Failed to delete session purchase');
+      }
+      
       throw error;
     }
   }

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building, Trash2, CalendarIcon } from 'lucide-react';
+import { CreditCard, DollarSign, Clock, Calendar, Wallet, Plus, Users, Building, Trash2, CalendarIcon, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import ResetSettingsDialog from './ResetSettingsDialog';
@@ -17,7 +17,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { jsPDF } from 'jspdf';
 
 interface SessionPurchase {
   id: string;
@@ -41,10 +44,11 @@ interface PaymentMethod {
 }
 
 interface BillingHistoryItem {
+  id: string;
   date: Date;
   description: string;
   amount: number;
-  status: 'paid' | 'pending' | 'failed';
+  status: 'paid' | 'pending' | 'failed' | 'cancelled';
 }
 
 interface BillingControlsProps {
@@ -61,6 +65,14 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user, isLoading } = useFirebaseAuth(); // Also get isLoading state
+
+  // Add state for delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [purchaseToDelete, setPurchaseToDelete] = useState<{id: string, description: string} | null>(null);
+
+  // Add state for invoice dialog
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [selectedPurchase, setSelectedPurchase] = useState<BillingHistoryItem | null>(null);
 
   // Simple pricing - no plans, just credit-based pricing
   const PRICE_PER_SESSION = 1.99;
@@ -181,15 +193,22 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
         
         // Fetch billing history
         try {
+          console.log('Fetching session purchases for institution ID:', user.institutionId);
           const purchases = await SessionService.getSessionPurchases(user.institutionId);
+          console.log('Raw purchases data from backend:', purchases);
           // Handle case where purchases might be null or undefined
           const safePurchases = Array.isArray(purchases) ? purchases : [];
+          console.log('Safe purchases array:', safePurchases);
           const historyItems: BillingHistoryItem[] = safePurchases.map(purchase => ({
+            id: purchase.id,
             date: purchase.purchaseDate instanceof Date ? purchase.purchaseDate : new Date(purchase.purchaseDate),
             description: `Session purchase (${purchase.quantity} sessions)`,
             amount: purchase.totalPrice,
-            status: purchase.status as 'paid' | 'pending' | 'failed'
+            status: purchase.status === 'completed' ? 'paid' : 
+                   purchase.status === 'pending' ? 'pending' :
+                   purchase.status === 'cancelled' ? 'cancelled' : 'failed'
           }));
+          console.log('Mapped billing history items:', historyItems);
           setBillingHistory(historyItems);
         } catch (error: any) {
           // Handle different types of errors appropriately
@@ -310,9 +329,147 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
       });
     }
   };
-  
-  const totalSessionCost = (billingHistory || []).reduce((total, item) => total + (item.amount || 0), 0);
+
+  // Add function to handle delete session purchase
+  const handleDeleteSessionPurchase = (id: string, description: string) => {
+    setPurchaseToDelete({ id, description });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteSessionPurchase = async () => {
+    if (!purchaseToDelete) return;
+
+    try {
+      await SessionService.deleteSessionPurchase(purchaseToDelete.id);
+      // Refresh billing history
+      if (user) {
+        const purchases = await SessionService.getSessionPurchases(user.institutionId);
+        const safePurchases = Array.isArray(purchases) ? purchases : [];
+        const historyItems: BillingHistoryItem[] = safePurchases.map(purchase => ({
+          id: purchase.id,
+          date: purchase.purchaseDate instanceof Date ? purchase.purchaseDate : new Date(purchase.purchaseDate),
+          description: `Session purchase (${purchase.quantity} sessions)`,
+          amount: purchase.totalPrice,
+          status: purchase.status === 'completed' ? 'paid' : 
+                 purchase.status === 'pending' ? 'pending' :
+                 purchase.status === 'cancelled' ? 'cancelled' : 'failed'
+        }));
+        setBillingHistory(historyItems);
+      }
+      toast({
+        title: "Session purchase deleted",
+        description: "Your session purchase has been deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete session purchase",
+        variant: "destructive"
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setPurchaseToDelete(null);
+    }
+  };
+
+  const cancelDeleteSessionPurchase = () => {
+    setDeleteDialogOpen(false);
+    setPurchaseToDelete(null);
+  };
+
+  // Add function to handle view invoice
+  const handleViewInvoice = (purchase: BillingHistoryItem) => {
+    setSelectedPurchase(purchase);
+    setInvoiceDialogOpen(true);
+  };
+
+  const handleDownloadInvoice = () => {
+    if (!selectedPurchase) return;
+    
+    // Create a new PDF document
+    const doc = new jsPDF();
+    
+    // Add company header
+    doc.setFontSize(20);
+    doc.text('Octavia Interview Buddy', 20, 20);
+    
+    doc.setFontSize(12);
+    doc.text('123 Education Street', 20, 30);
+    doc.text('San Francisco, CA 94107', 20, 37);
+    doc.text('contact@octavia-interview.com', 20, 44);
+    
+    // Add invoice title
+    doc.setFontSize(16);
+    doc.text('INVOICE', 150, 20);
+    
+    // Add invoice details
+    doc.setFontSize(12);
+    doc.text(`Date: ${format(selectedPurchase.date, 'MMMM d, yyyy')}`, 150, 30);
+    doc.text(`Invoice #: INV-${selectedPurchase.id.substring(0, 8).toUpperCase()}`, 150, 37);
+    
+    // Add a line separator
+    doc.line(20, 50, 190, 50);
+    
+    // Add billing information
+    doc.setFontSize(14);
+    doc.text('Bill To:', 20, 60);
+    
+    doc.setFontSize(12);
+    if (user) {
+      doc.text(user.name || 'Unknown Customer', 20, 70);
+      if (user.email) {
+        doc.text(user.email, 20, 77);
+      }
+    }
+    
+    // Add line items
+    doc.setFontSize(14);
+    doc.text('Description', 20, 90);
+    doc.text('Amount', 170, 90);
+    
+    doc.line(20, 95, 190, 95);
+    
+    doc.setFontSize(12);
+    doc.text(selectedPurchase.description, 20, 105);
+    doc.text(`$${typeof selectedPurchase.amount === 'number' ? selectedPurchase.amount.toFixed(2) : selectedPurchase.amount}`, 170, 105);
+    
+    // Add total
+    doc.line(150, 120, 190, 120);
+    doc.setFontSize(14);
+    doc.text('Total:', 150, 130);
+    doc.text(`$${typeof selectedPurchase.amount === 'number' ? selectedPurchase.amount.toFixed(2) : selectedPurchase.amount}`, 170, 130);
+    
+    // Add status
+    doc.setFontSize(12);
+    doc.text(`Status: ${selectedPurchase.status.charAt(0).toUpperCase() + selectedPurchase.status.slice(1)}`, 20, 130);
+    
+    // Add footer
+    doc.setFontSize(10);
+    doc.text('Thank you for your business!', 20, 150);
+    doc.text('For any questions regarding this invoice, please contact our support team.', 20, 157);
+    
+    // Save the PDF
+    doc.save(`invoice-${format(selectedPurchase.date, 'yyyy-MM-dd')}.pdf`);
+    
+    toast({
+      title: "Invoice Downloaded",
+      description: "Your invoice has been downloaded successfully.",
+    });
+  };
+
+  const totalSessionCost = (billingHistory || []).reduce((total, item) => {
+    console.log('Calculating total - item:', item, 'item.amount:', item.amount, 'type:', typeof item.amount);
+    // Ensure amount is a number
+    const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
+    console.log('Adding amount:', amount, 'to total:', total);
+    return total + amount;
+  }, 0);
+  console.log('Final totalSessionCost:', totalSessionCost, 'type:', typeof totalSessionCost);
   const availableSessions = sessionCount - usedSessions;
+  
+  // Ensure totalSessionCost is a valid number
+  const validTotalSessionCost = typeof totalSessionCost === 'number' && !isNaN(totalSessionCost) ? totalSessionCost : 0;
+  console.log('Valid total session cost:', validTotalSessionCost);
   
   if (loading) {
     return (
@@ -407,7 +564,7 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
               
               <div className="bg-muted rounded-md p-3">
                 <div className="text-muted-foreground text-sm">Total Spent</div>
-                <div className="text-2xl font-bold">${totalSessionCost.toFixed(2)}</div>
+                <div className="text-2xl font-bold">${validTotalSessionCost.toFixed(2)}</div>
                 <div className="text-xs text-muted-foreground mt-1">All time</div>
               </div>
             </div>
@@ -546,9 +703,24 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">
-                      View Invoice
-                    </Button>
+                    <div className="flex justify-end space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleViewInvoice(item)}
+                      >
+                        View Invoice
+                      </Button>
+                      {item.status === 'pending' && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteSessionPurchase(item.id, item.description)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -567,6 +739,78 @@ const BillingControls = ({ sessionPurchases = [] }: BillingControlsProps) => {
             onSuccess={handleAddCardSuccess}
             onCancel={handleAddCardCancel}
           />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Session Purchase Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the session purchase "{purchaseToDelete?.description}"? 
+              This action cannot be undone and only pending purchases can be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteSessionPurchase}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteSessionPurchase} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Invoice Dialog */}
+      <Dialog open={invoiceDialogOpen} onOpenChange={setInvoiceDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Invoice Details</DialogTitle>
+            <DialogDescription>
+              View details of your session purchase invoice
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPurchase && (
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4">
+                <h3 className="font-medium mb-2">Purchase Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span>{format(selectedPurchase.date, 'MMMM d, yyyy')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Description:</span>
+                    <span>{selectedPurchase.description}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount:</span>
+                    <span className="font-medium">${typeof selectedPurchase.amount === 'number' ? selectedPurchase.amount.toFixed(2) : selectedPurchase.amount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Status:</span>
+                    <span className={`${
+                      selectedPurchase.status === 'paid' ? 'text-green-600' : 
+                      selectedPurchase.status === 'pending' ? 'text-amber-600' : 
+                      'text-red-600'
+                    }`}>
+                      {selectedPurchase.status.charAt(0).toUpperCase() + selectedPurchase.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center pt-4">
+                <Button variant="outline" onClick={handleDownloadInvoice}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Invoice
+                </Button>
+                <Button onClick={() => setInvoiceDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       

@@ -9,6 +9,9 @@ router.get('/purchases', authenticateToken, authorizeRole('institution_admin'), 
 // Create session purchase
 router.post('/purchases', authenticateToken, authorizeRole('institution_admin'), sessionController.createSessionPurchase);
 
+// Delete session purchase
+router.delete('/purchases/:id', authenticateToken, authorizeRole('institution_admin'), sessionController.deleteSessionPurchase);
+
 // Get session pool for institution
 router.get('/pool', authenticateToken, sessionController.getSessionPool);
 

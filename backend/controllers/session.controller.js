@@ -491,6 +491,63 @@ const sessionController = {
         message: 'Internal server error while deleting session allocation'
       });
     }
+  },
+
+  // Delete session purchase
+  async deleteSessionPurchase(req, res) {
+    try {
+      if (!req.user || !req.user.institutionId) {
+        return res.status(400).json({
+          success: false,
+          message: 'User is not associated with an institution.'
+        });
+      }
+
+      const institutionId = req.user.institutionId;
+      const purchaseId = req.params.id;
+
+      // Get the session purchase to check if it belongs to the institution
+      const purchaseResult = await db.query(
+        `SELECT id, institution_id, session_count, status
+         FROM session_purchases 
+         WHERE id = $1 AND institution_id = $2`,
+        [purchaseId, institutionId]
+      );
+
+      const purchase = purchaseResult.rows[0];
+      if (!purchase) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session purchase not found or does not belong to your institution'
+        });
+      }
+
+      // Only allow deletion of pending purchases
+      if (purchase.status !== 'pending') {
+        return res.status(400).json({
+          success: false,
+          message: 'Only pending session purchases can be deleted'
+        });
+      }
+
+      // Delete the session purchase
+      await db.query(
+        `DELETE FROM session_purchases 
+         WHERE id = $1 AND institution_id = $2`,
+        [purchaseId, institutionId]
+      );
+
+      res.json({
+        success: true,
+        message: 'Session purchase deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete session purchase error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while deleting session purchase'
+      });
+    }
   }
 };
 
