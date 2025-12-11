@@ -13,12 +13,6 @@ const InstitutionDashboard = lazy(() => import('@/components/InstitutionDashboar
 const SessionManagement = lazy(() => import('@/components/SessionManagement'));
 const BillingControls = lazy(() => import('@/components/BillingControls'));
 
-interface SessionPurchase {
-  sessions: number;
-  cost: number;
-  date: Date;
-}
-
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -26,7 +20,6 @@ const LoadingSpinner = () => (
 );
 
 const Dashboard = () => {
-  const [sessionPurchases, setSessionPurchases] = useState<SessionPurchase[]>([]);
   const isMobile = useIsMobile();
   const { user, isLoading } = useFirebaseAuth();
   const navigate = useNavigate();
@@ -98,16 +91,6 @@ const Dashboard = () => {
     return null;
   }
   
-  const handleSessionPurchase = (sessions: number, cost: number) => {
-    const newPurchase = {
-      sessions,
-      cost,
-      date: new Date()
-    };
-    
-    setSessionPurchases(prev => [...prev, newPurchase]);
-  };
-  
   return (
     <div className="min-h-screen flex flex-col overflow-hidden w-full">
       <Header />
@@ -153,14 +136,13 @@ const Dashboard = () => {
               <TabsContent value="session" className="overflow-hidden">
                 <Suspense fallback={<LoadingSpinner />}>
                   <SessionManagement 
-                    onSessionPurchase={handleSessionPurchase} 
                     institutionId={user?.institutionId}
                   />
                 </Suspense>
               </TabsContent>
               <TabsContent value="billing" className="overflow-hidden">
                 <Suspense fallback={<LoadingSpinner />}>
-                  <BillingControls sessionPurchases={sessionPurchases} />
+                  <BillingControls />
                 </Suspense>
               </TabsContent>
             </Tabs>

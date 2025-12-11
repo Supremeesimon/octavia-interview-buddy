@@ -193,7 +193,11 @@ class AutomatedInstitutionSetup {
           enableFeedbackEmails: true,
           enableInterviewReminders: true,
           reminderHours: 24
-        }
+        },
+        // Session allocation settings
+        openToAllStudents: true,
+        allocationMethod: 'institution',
+        sessionsPerStudent: 3
       }
     });
     

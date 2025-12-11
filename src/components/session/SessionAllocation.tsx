@@ -20,7 +20,7 @@ interface SessionAllocationProps {
 
 const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
   const [openToAll, setOpenToAll] = useState(true);
-  const [allocationMethod, setAllocationMethod] = useState('institution');
+  const [allocationMethod, setAllocationMethod] = useState<'student' | 'institution' | 'department'>('institution');
   const [sessionsPerStudent, setSessionsPerStudent] = useState(3);
   const [loading, setLoading] = useState(false);
   const [allocations, setAllocations] = useState<SessionAllocationType[]>([]);
@@ -86,7 +86,7 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
   }, [institutionId, toast]);
   
   // Function to save settings
-  const saveSettings = useCallback(async (newOpenToAll: boolean, newAllocationMethod: string, newSessionsPerStudent: number) => {
+  const saveSettings = useCallback(async (newOpenToAll: boolean, newAllocationMethod: 'student' | 'institution' | 'department', newSessionsPerStudent: number) => {
     if (!institutionId) return;
     
     try {
@@ -121,7 +121,7 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
     }
     
     const saveTimer = setTimeout(() => {
-      saveSettings(openToAll, allocationMethod, sessionsPerStudent);
+      saveSettings(openToAll, allocationMethod as 'student' | 'institution' | 'department', sessionsPerStudent);
     }, 1000); // Debounce the save by 1 second
     
     return () => clearTimeout(saveTimer);
@@ -147,7 +147,7 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
           await SessionService.createSessionAllocation({
             institutionId,
             name: 'Per Student Allocation',
-            allocationType: 'student',
+            allocationType: 'student' as const,
             allocatedSessions: sessionsPerStudent,
             endDate: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year from now
           });
@@ -162,7 +162,7 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
           await SessionService.createSessionAllocation({
             institutionId,
             name: 'Institution Wide Allocation',
-            allocationType: 'institution',
+            allocationType: 'institution' as const,
             allocatedSessions: 0, // Unlimited for institution-wide
             endDate: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year from now
           });
@@ -236,7 +236,11 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
               <ToggleGroup 
                 type="single" 
                 value={allocationMethod} 
-                onValueChange={(value) => value && setAllocationMethod(value)}
+                onValueChange={(value) => {
+                  if (value && (value === 'student' || value === 'institution' || value === 'department')) {
+                    setAllocationMethod(value);
+                  }
+                }}
                 disabled={isSaving}
               >
                 <ToggleGroupItem value="institution" className="flex items-center gap-2 flex-1">

@@ -8,13 +8,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from "sonner";
 import { Clock, UserPlus, Mail, Phone, Eye, LinkIcon, CheckCircle, Trash2, RefreshCw } from 'lucide-react';
 import { InstitutionInterestService } from '@/services/institution-interest.service';
 import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
+import { InstitutionService } from '@/services/institution.service';
+import type { Institution } from '@/types';
 import { User } from '@/types';
 
 // Define the InstitutionInterest interface locally since it's not in the types file
@@ -281,7 +283,7 @@ const InstitutionInterests = ({ currentUser, onInterestsUpdate }: InstitutionInt
           // Institution doesn't exist, create it
           try {
             // Create a new institution with the required fields
-            const newInstitutionData = {
+            const newInstitutionData: Omit<import('@/types').Institution, 'id' | 'createdAt' | 'updatedAt'> = {
               name: trimmedInstitutionName,
               domain: '', // Will need to be set by admin later
               platform_admin_id: currentUser?.id || '',
@@ -293,11 +295,26 @@ const InstitutionInterests = ({ currentUser, onInterestsUpdate }: InstitutionInt
                 enableDepartmentAllocations: false,
                 enableStudentGroups: false,
                 emailNotifications: {
-                  enableInterviewReminders: true,
-                  enableFeedbackEmails: true,
                   enableWeeklyReports: false,
+                  enableFeedbackEmails: true,
+                  enableInterviewReminders: true,
                   reminderHours: 24
-                }
+                },
+                // Session allocation settings
+                openToAllStudents: true,
+                allocationMethod: 'institution',
+                sessionsPerStudent: 3
+              },
+              sessionPool: {
+                id: '',
+                institutionId: '',
+                totalSessions: 500,
+                usedSessions: 0,
+                availableSessions: 500,
+                allocations: [],
+                purchases: [],
+                createdAt: new Date(),
+                updatedAt: new Date()
               },
               stats: {
                 totalStudents: 0,

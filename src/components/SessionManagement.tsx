@@ -34,6 +34,29 @@ const SessionManagement = ({
   const isMobile = useIsMobile();
   const { user } = useFirebaseAuth();
   
+  // Helper function to get current institution settings
+  const getCurrentInstitutionSettings = async (): Promise<any> => {
+    if (!institutionId) return {};
+    
+    try {
+      const institution = await InstitutionService.getInstitutionById(institutionId);
+      return {
+        ...institution?.settings,
+        // Ensure allocation settings have defaults
+        openToAllStudents: institution?.settings?.openToAllStudents ?? true,
+        allocationMethod: institution?.settings?.allocationMethod ?? 'institution',
+        sessionsPerStudent: institution?.settings?.sessionsPerStudent ?? 3
+      };
+    } catch (error) {
+      console.error('Failed to fetch current institution settings:', error);
+      return {
+        openToAllStudents: true,
+        allocationMethod: 'institution',
+        sessionsPerStudent: 3
+      };
+    }
+  };
+  
   // Function to save session length setting
   const saveSessionLength = useCallback(async (newSessionLength: number) => {
     if (!institutionId) return;
@@ -47,7 +70,11 @@ const SessionManagement = ({
         settings: {
           // Preserve existing settings while updating sessionLength
           ...institution?.settings,
-          sessionLength: newSessionLength
+          sessionLength: newSessionLength,
+          // Preserve allocation settings with defaults if they don't exist
+          openToAllStudents: institution?.settings?.openToAllStudents ?? true,
+          allocationMethod: institution?.settings?.allocationMethod ?? 'institution',
+          sessionsPerStudent: institution?.settings?.sessionsPerStudent ?? 3
         }
       });
     } catch (error) {
