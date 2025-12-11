@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SessionPoolStatus from './session/SessionPoolStatus';
 import SessionDuration from './session/SessionDuration';
 import SessionPurchase from './session/SessionPurchase';
@@ -25,7 +25,7 @@ const SessionManagement = ({
   totalSessions: propTotalSessions,
   usedSessions: propUsedSessions
 }: SessionManagementProps) => {
-  const [sessionLength, setSessionLength] = useState(20); // Default 20 minutes
+  const [sessionLength, setSessionLength] = useState(30); // Default 30 minutes to match automated setup
   const [totalSessions, setTotalSessions] = useState(propTotalSessions || 0);
   const [usedSessions, setUsedSessions] = useState(propUsedSessions || 0);
   const [loading, setLoading] = useState(false);
@@ -33,6 +33,40 @@ const SessionManagement = ({
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { user } = useFirebaseAuth();
+  
+  // Function to save session length setting
+  const saveSessionLength = useCallback(async (newSessionLength: number) => {
+    if (!institutionId) return;
+    
+    try {
+      // First get the current institution to preserve existing settings
+      const institution = await InstitutionService.getInstitutionById(institutionId);
+      
+      // Update the institution's session length setting in Firestore
+      await InstitutionService.updateInstitution(institutionId, {
+        settings: {
+          // Preserve existing settings while updating sessionLength
+          ...institution?.settings,
+          sessionLength: newSessionLength
+        }
+      });
+    } catch (error) {
+      console.error('Failed to save session length setting:', error);
+      // Don't show toast for this error as it's not critical
+    }
+  }, [institutionId]);
+  
+  // Effect to save session length when it changes (with debouncing)
+  useEffect(() => {
+    // Only save if we have an institution ID and the session length is different from default
+    if (institutionId && sessionLength !== 30) {
+      const saveTimer = setTimeout(() => {
+        saveSessionLength(sessionLength);
+      }, 1000); // Debounce the save by 1 second
+      
+      return () => clearTimeout(saveTimer);
+    }
+  }, [sessionLength, institutionId, saveSessionLength]);
   
   // Fetch platform pricing settings and institution-specific overrides
   useEffect(() => {

@@ -371,7 +371,7 @@ export class InstitutionDashboardService {
       } catch (serviceError) {
         // If SessionService fails with actual errors (not 404/400), log and fall back
         // For 404/400 errors, SessionService now returns null instead of throwing
-        console.warn('SessionService failed, falling back to Firestore method:', serviceError);
+        console.warn('SessionService failed, falling back to direct database method:', serviceError);
         
         // Show error toast only for actual network/server errors
         if (serviceError.status === undefined) {
@@ -383,31 +383,7 @@ export class InstitutionDashboardService {
         }
       }
       
-      // Fetch the institution document to get session information
-      const institutionRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId);
-      const institutionSnap = await getDoc(institutionRef);
-      
-      if (institutionSnap.exists()) {
-        const data = institutionSnap.data();
-        
-        // Extract session information from sessionPool
-        if (data.sessionPool) {
-          const sessionPool = data.sessionPool;
-          const totalSessions = sessionPool.totalSessions || 0;
-          const usedSessions = sessionPool.usedSessions || 0;
-          const availableSessions = sessionPool.availableSessions || 0;
-          const usagePercentage = totalSessions > 0 ? Math.round((usedSessions / totalSessions) * 100) : 0;
-          
-          return {
-            totalSessions,
-            usedSessions,
-            availableSessions,
-            usagePercentage
-          };
-        }
-      }
-      
-      // Default values if institution not found or no sessionPool
+      // Default values if no session data found
       return {
         totalSessions: 0,
         usedSessions: 0,
@@ -467,7 +443,7 @@ export class InstitutionDashboardService {
       } catch (serviceError: any) {
         // If SessionService fails with actual errors (not 404/400), log and fall back
         // For 404/400 errors, SessionService now returns null/[] instead of throwing
-        console.warn('SessionService failed, falling back to Firestore method:', serviceError);
+        console.warn('SessionService failed, falling back to direct database method:', serviceError);
         
         // Show error toast only for actual network/server errors
         if (serviceError.status === undefined) {
@@ -479,47 +455,7 @@ export class InstitutionDashboardService {
         }
       }
       
-      // Fetch the institution document to get session information
-      const institutionRef = doc(db, this.INSTITUTIONS_COLLECTION, institutionId);
-      const institutionSnap = await getDoc(institutionRef);
-      
-      if (institutionSnap.exists()) {
-        const data = institutionSnap.data();
-        
-        // Extract session information from sessionPool
-        if (data.sessionPool) {
-          const sessionPool = data.sessionPool;
-          const totalSessions = sessionPool.totalSessions || 0;
-          const usedSessions = sessionPool.usedSessions || 0;
-          const availableSessions = sessionPool.availableSessions || 0;
-          const usagePercentage = totalSessions > 0 ? Math.round((usedSessions / totalSessions) * 100) : 0;
-          
-          // Get additional information from session allocations
-          const allocations = sessionPool.allocations || [];
-          const purchases = sessionPool.purchases || [];
-          
-          // Calculate department usage if allocations exist
-          const departmentUsage = allocations.map(allocation => ({
-            name: allocation.name || 'Unnamed Department',
-            allocated: allocation.allocatedSessions || 0,
-            used: allocation.usedSessions || 0,
-            percentage: allocation.allocatedSessions > 0 ? 
-              Math.round((allocation.usedSessions / allocation.allocatedSessions) * 100) : 0
-          }));
-          
-          return {
-            totalSessions,
-            usedSessions,
-            availableSessions,
-            usagePercentage,
-            departmentUsage,
-            totalPurchases: purchases.length,
-            recentPurchases: purchases.slice(-5).reverse() // Last 5 purchases
-          };
-        }
-      }
-      
-      // Default values if institution not found or no sessionPool
+      // Default values if no session data found
       return {
         totalSessions: 0,
         usedSessions: 0,

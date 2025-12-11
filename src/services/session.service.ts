@@ -207,9 +207,9 @@ export class SessionService {
         return [];
       }
       
-      // For 400 responses (bad request), don't show toast but still throw the error
-      if (error.status === 400) {
-        console.warn('Session allocations request failed with 400 (Bad Request):', error.message);
+      // For 400 and 401 responses (bad request, unauthorized), don't show toast but still return empty array
+      if (error.status === 400 || error.status === 401) {
+        console.warn(`Session allocations request failed with status ${error.status}:`, error.message);
         return [];
       }
       
@@ -222,7 +222,7 @@ export class SessionService {
         // Server error
         toast.error('Server error: Failed to fetch session allocations');
       } else {
-        // Other errors (401, 403, etc.) - log but don't show toast
+        // Other errors (403, etc.) - log but don't show toast
         console.warn(`Session allocations request failed with status ${error.status}:`, error.message);
       }
       

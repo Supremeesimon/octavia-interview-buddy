@@ -143,6 +143,10 @@ export interface InstitutionSettings {
   enableDepartmentAllocations: boolean;
   enableStudentGroups: boolean;
   emailNotifications: EmailNotificationSettings;
+  // Session allocation settings
+  openToAllStudents: boolean;
+  allocationMethod: 'institution' | 'department' | 'student';
+  sessionsPerStudent: number;
 }
 
 export interface EmailNotificationSettings {

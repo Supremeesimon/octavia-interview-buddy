@@ -1,20 +1,49 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-// Import the migration function
-const { applyDatabaseMigration } = require('./src/apply-migration');
-
 // Import the API
 const { api } = require('./src/api');
+
+// Import auth functions
+const { createUser, authenticateUser } = require('./src/auth');
+
+// Import session API functions
+const { 
+  getSessionPurchases, 
+  createSessionPurchase, 
+  getSessionPool 
+} = require('./src/session-api');
+
+// Import institution management functions
+const { 
+  processInstitutionInterest,
+  scheduledSyncMonitor,
+  dailyValidationAlerts,
+  triggerSync,
+  triggerValidation
+} = require('./src/institution-management');
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
-// Export the migration function
-exports.applyDatabaseMigration = applyDatabaseMigration;
-
 // Export the API
 exports.api = api;
+
+// Export auth functions
+exports.createUser = createUser;
+exports.authenticateUser = authenticateUser;
+
+// Export session API functions
+exports.getSessionPurchases = getSessionPurchases;
+exports.createSessionPurchase = createSessionPurchase;
+exports.getSessionPool = getSessionPool;
+
+// Export institution management functions
+exports.processInstitutionInterest = processInstitutionInterest;
+exports.scheduledSyncMonitor = scheduledSyncMonitor;
+exports.dailyValidationAlerts = dailyValidationAlerts;
+exports.triggerSync = triggerSync;
+exports.triggerValidation = triggerValidation;
 
 // VAPI Webhook Function (1st Gen)
 exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
@@ -252,7 +281,7 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
 });
 
 // Financial Analytics Function - runs daily to calculate and store margin data
-exports.calculateDailyMargin = functions.pubsub.schedule('every 24 hours from 00:00').timeZone('America/New_York').onRun(async (context) => {
+exports.calculateDailyMargin = functions.pubsub.schedule('0 0 * * *').timeZone('America/New_York').onRun(async (context) => {
   try {
     console.log('📊 Starting daily margin calculation');
     

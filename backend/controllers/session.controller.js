@@ -232,7 +232,11 @@ const sessionController = {
   // Get session allocations for institution
   async getSessionAllocations(req, res) {
     try {
+      console.log('getSessionAllocations called');
+      console.log('User object:', req.user);
+      
       if (!req.user || !req.user.institutionId) {
+        console.log('User is not associated with an institution');
         return res.status(400).json({
           success: false,
           message: 'User is not associated with an institution.'
@@ -240,15 +244,40 @@ const sessionController = {
       }
 
       const institutionId = req.user.institutionId;
+      console.log('Fetching allocations for institution ID:', institutionId);
 
-      const result = await db.query(
-        `SELECT id, institution_id, department_id, teacher_id, student_id, 
-                allocated_count, used_count, allocation_type, status, created_at, updated_at
-         FROM session_allocations 
-         WHERE institution_id = $1
-         ORDER BY created_at DESC`,
+      // First get the session pool ID for this institution
+      console.log('Querying session pools for institution:', institutionId);
+      const poolResult = await db.query(
+        'SELECT id FROM session_pools WHERE institution_id = $1',
         [institutionId]
       );
+      console.log('Pool query result:', poolResult);
+
+      if (poolResult.rows.length === 0) {
+        console.log('No session pool found for institution, returning empty array');
+        // No session pool found, return empty array
+        return res.json({
+          success: true,
+          data: []
+        });
+      }
+
+      const sessionPoolId = poolResult.rows[0].id;
+      console.log('Found session pool ID:', sessionPoolId);
+
+      // Now get the session allocations for this session pool
+      console.log('Querying session allocations for pool:', sessionPoolId);
+      const result = await db.query(
+        `SELECT id, session_pool_id, name, department_id, student_id, 
+                allocated_sessions as allocated_count, used_sessions as used_count,
+                created_at, updated_at
+         FROM session_allocations 
+         WHERE session_pool_id = $1
+         ORDER BY created_at DESC`,
+        [sessionPoolId]
+      );
+      console.log('Allocations query result:', result);
 
       res.json({
         success: true,
@@ -256,6 +285,7 @@ const sessionController = {
       });
     } catch (error) {
       console.error('Get session allocations error:', error);
+      console.error('Error stack:', error.stack);
       res.status(500).json({
         success: false,
         message: 'Internal server error while fetching session allocations'

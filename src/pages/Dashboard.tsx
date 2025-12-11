@@ -152,7 +152,10 @@ const Dashboard = () => {
               </TabsContent>
               <TabsContent value="session" className="overflow-hidden">
                 <Suspense fallback={<LoadingSpinner />}>
-                  <SessionManagement onSessionPurchase={handleSessionPurchase} />
+                  <SessionManagement 
+                    onSessionPurchase={handleSessionPurchase} 
+                    institutionId={user?.institutionId}
+                  />
                 </Suspense>
               </TabsContent>
               <TabsContent value="billing" className="overflow-hidden">

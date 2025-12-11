@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import ConfirmationDialog from '../ConfirmationDialog';
 import ResetSettingsDialog from '../ResetSettingsDialog';
 import { SessionService } from '@/services/session.service';
+import { InstitutionService } from '@/services/institution.service';
 import type { SessionAllocation as SessionAllocationType } from '@/services/session.service';
 
 interface SessionAllocationProps {
@@ -23,46 +24,108 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
   const [sessionsPerStudent, setSessionsPerStudent] = useState(3);
   const [loading, setLoading] = useState(false);
   const [allocations, setAllocations] = useState<SessionAllocationType[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   
-  // Load existing interview session allocations when component mounts
+  // Load existing interview session allocations and settings when component mounts
   useEffect(() => {
-    const loadAllocations = async () => {
-      if (!institutionId) return;
+    const loadData = async () => {
+      if (!institutionId) {
+        console.log('Skipping data load - no institution ID');
+        return;
+      }
       
       try {
+        // Load session allocations
+        console.log('Loading session allocations for institution:', institutionId);
         const allocationData = await SessionService.getSessionAllocations();
-        // Since getSessionAllocations now returns [] for 404 errors instead of throwing,
-        // we don't need to catch 404 errors separately
+        console.log('Session allocations loaded:', allocationData);
         setAllocations(allocationData);
+        
+        // Load institution settings
+        console.log('Loading institution settings for institution:', institutionId);
+        const institution = await InstitutionService.getInstitutionById(institutionId);
+        if (institution?.settings) {
+          console.log('Institution settings loaded:', institution.settings);
+          setOpenToAll(institution.settings.openToAllStudents ?? true);
+          setAllocationMethod(institution.settings.allocationMethod ?? 'institution');
+          setSessionsPerStudent(institution.settings.sessionsPerStudent ?? 3);
+        }
       } catch (error: any) {
-        // Only show error message if it's a real error (network issues, server errors)
-        // For 404 and 400 errors, getSessionAllocations now returns [] instead of throwing
-        console.error('Failed to load interview session allocations:', error);
+        console.error('Failed to load data:', error);
         // Show error toast for actual network/server errors
         if (error.status === undefined) {
           // Network error
           toast({
-            title: "Error",
+            title: "Network Error",
             description: "Failed to load interview session allocation data due to network issues. Using default settings.",
             variant: "destructive"
           });
         } else if (error.status >= 500) {
-          // Server error
+          // Server error - provide more specific information
           toast({
-            title: "Error",
-            description: "Failed to load interview session allocation data due to server issues. Using default settings.",
+            title: "Server Error",
+            description: `Failed to load interview session allocation data (Status: ${error.status}). This may be temporary. Please try refreshing the page.`,
             variant: "destructive"
           });
+        } else if (error.status === 401) {
+          // Authentication error - this might happen if the user is not logged in
+          console.warn('Authentication required for session allocations');
+          // Don't show toast for authentication errors as this is handled by the auth system
+        } else if (error.status >= 400) {
+          // Other client errors - log but don't show toast for normal states
+          console.warn(`Data load failed with status ${error.status}:`, error.message);
         }
-        // For other errors (401, 403, etc.), log but don't show toast
+        // For other errors, log but don't show toast
       }
     };
     
     if (institutionId) {
-      loadAllocations();
+      loadData();
     }
   }, [institutionId, toast]);
+  
+  // Function to save settings
+  const saveSettings = useCallback(async (newOpenToAll: boolean, newAllocationMethod: string, newSessionsPerStudent: number) => {
+    if (!institutionId) return;
+    
+    try {
+      setIsSaving(true);
+      // Get current institution to preserve existing settings
+      const institution = await InstitutionService.getInstitutionById(institutionId);
+      
+      // Update the institution's settings in Firestore
+      await InstitutionService.updateInstitution(institutionId, {
+        settings: {
+          // Preserve existing settings while updating allocation settings
+          ...institution?.settings,
+          openToAllStudents: newOpenToAll,
+          allocationMethod: newAllocationMethod,
+          sessionsPerStudent: newSessionsPerStudent
+        }
+      });
+    } catch (error) {
+      console.error('Failed to save allocation settings:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [institutionId]);
+  
+  // Effect to save settings when they change (with debouncing)
+  useEffect(() => {
+    if (!institutionId) return;
+    
+    // Skip initial render
+    if (openToAll === true && allocationMethod === 'institution' && sessionsPerStudent === 3) {
+      return;
+    }
+    
+    const saveTimer = setTimeout(() => {
+      saveSettings(openToAll, allocationMethod, sessionsPerStudent);
+    }, 1000); // Debounce the save by 1 second
+    
+    return () => clearTimeout(saveTimer);
+  }, [openToAll, allocationMethod, sessionsPerStudent, institutionId, saveSettings]);
   
   const handleSaveSettings = async () => {
     if (!institutionId) {
@@ -162,6 +225,7 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
           <Switch 
             checked={openToAll} 
             onCheckedChange={setOpenToAll}
+            disabled={isSaving}
           />
         </div>
         
@@ -169,7 +233,12 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
           <>
             <div className="space-y-2">
               <Label>Allocation Method</Label>
-              <ToggleGroup type="single" value={allocationMethod} onValueChange={(value) => value && setAllocationMethod(value)}>
+              <ToggleGroup 
+                type="single" 
+                value={allocationMethod} 
+                onValueChange={(value) => value && setAllocationMethod(value)}
+                disabled={isSaving}
+              >
                 <ToggleGroupItem value="institution" className="flex items-center gap-2 flex-1">
                   <Building className="h-4 w-4" />
                   <span>Institution-Wide</span>
@@ -195,6 +264,7 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
                     value={sessionsPerStudent}
                     onChange={(e) => setSessionsPerStudent(Number(e.target.value))}
                     className="w-24" 
+                    disabled={isSaving}
                   />
                   <span>interview sessions per student</span>
                 </div>
@@ -211,7 +281,7 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
                   Configure how interview sessions are allocated to different departments.
                 </p>
                 <Link to="/departments">
-                  <Button variant="outline" size="sm" className="mt-2">
+                  <Button variant="outline" size="sm" className="mt-2" disabled={isSaving}>
                     <Plus className="h-4 w-4 mr-1" /> Manage Department Allocation
                   </Button>
                 </Link>
@@ -250,11 +320,11 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
             confirmText: "Save Changes",
           }}
           trigger={
-            <Button className="w-full" disabled={loading}>
-              {loading ? (
+            <Button className="w-full" disabled={loading || isSaving}>
+              {loading || isSaving ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                  Saving...
+                  {isSaving ? 'Saving...' : 'Saving...'}
                 </>
               ) : (
                 <>
