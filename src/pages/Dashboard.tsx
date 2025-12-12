@@ -75,6 +75,16 @@ const Dashboard = () => {
     );
   }
   
+  // Show loading state if user exists but role is not yet determined
+  // This can happen during the transition period when the user profile is being fetched
+  if (user && !user.role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
   // Redirect non-institution admins
   if (user && user.role !== 'institution_admin') {
     // Redirect to appropriate dashboard based on role

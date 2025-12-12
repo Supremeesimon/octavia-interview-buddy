@@ -115,7 +115,7 @@ const Header = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link 
-                    to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : user.role === 'institution_admin' ? '/teacher-dashboard' : '/dashboard'}
+                    to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : user.role === 'institution_admin' ? '/dashboard' : '/dashboard'}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                   >
                     Dashboard
@@ -199,7 +199,7 @@ const Header = () => {
                 // Authenticated user mobile menu
                 <>
                   <DropdownMenuItem asChild>
-                    <Link to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : user.role === 'institution_admin' ? '/teacher-dashboard' : '/dashboard'}>
+                    <Link to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : user.role === 'institution_admin' ? '/dashboard' : '/dashboard'}>
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
