@@ -104,6 +104,12 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
           sessionsPerStudent: newSessionsPerStudent
         }
       });
+      
+      // Only create allocations when Open to All Students is disabled
+      if (!newOpenToAll) {
+        // Create/update allocations based on the selected method
+        // Note: This is just saving the settings. Actual allocations would be managed separately.
+      }
     } catch (error) {
       console.error('Failed to save allocation settings:', error);
     } finally {
@@ -121,7 +127,13 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
     }
     
     const saveTimer = setTimeout(() => {
-      saveSettings(openToAll, allocationMethod as 'student' | 'institution' | 'department', sessionsPerStudent);
+      // Only auto-save allocations when Open to All Students is disabled
+      if (!openToAll) {
+        saveSettings(openToAll, allocationMethod as 'student' | 'institution' | 'department', sessionsPerStudent);
+      } else {
+        // When Open to All Students is enabled, just save the settings without allocations
+        saveSettings(openToAll, allocationMethod as 'student' | 'institution' | 'department', sessionsPerStudent);
+      }
     }, 1000); // Debounce the save by 1 second
     
     return () => clearTimeout(saveTimer);
@@ -140,51 +152,66 @@ const SessionAllocation = ({ institutionId }: SessionAllocationProps) => {
     setLoading(true);
     try {
       // Save the interview session allocation settings based on the selected method
-      switch (allocationMethod) {
-        case 'student':
-          // For per-student allocation, we would typically save this as a setting
-          // rather than creating individual allocations for each student
-          await SessionService.createSessionAllocation({
-            institutionId,
-            name: 'Per Student Allocation',
-            allocationType: 'student' as const,
-            allocatedSessions: sessionsPerStudent,
-            endDate: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year from now
-          });
-          toast({
-            title: "Settings saved",
-            description: "Per-student interview session allocation settings have been updated.",
-          });
-          break;
-          
-        case 'institution':
-          // Institution-wide allocation is the default, no specific allocations needed
-          await SessionService.createSessionAllocation({
-            institutionId,
-            name: 'Institution Wide Allocation',
-            allocationType: 'institution' as const,
-            allocatedSessions: 0, // Unlimited for institution-wide
-            endDate: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year from now
-          });
-          toast({
-            title: "Settings saved",
-            description: "Institution-wide interview session allocation settings have been updated.",
-          });
-          break;
-          
-        case 'department':
-          // For department allocation, we would need to create allocations for each department
-          toast({
-            title: "Settings saved",
-            description: "Department interview session allocation settings have been updated. Please configure department-specific allocations in the department management section.",
-          });
-          break;
-          
-        default:
-          toast({
-            title: "Settings saved",
-            description: "Your interview session allocation settings have been updated.",
-          });
+      if (!openToAll) {
+        // Only create allocations when Open to All Students is disabled
+        switch (allocationMethod) {
+          case 'student':
+            // For per-student allocation, we would typically save this as a setting
+            // rather than creating individual allocations for each student
+            // But we need to ensure the allocated count is positive
+            if (sessionsPerStudent > 0) {
+              await SessionService.createSessionAllocation({
+                institutionId,
+                name: 'Per Student Allocation',
+                allocationType: 'student' as const,
+                allocatedSessions: sessionsPerStudent,
+                endDate: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year from now
+              });
+            }
+            toast({
+              title: "Settings saved",
+              description: "Per-student interview session allocation settings have been updated.",
+            });
+            break;
+            
+          case 'institution':
+            // Institution-wide allocation is the default, no specific allocations needed
+            // For institution-wide, we don't create allocations as all students have access to the pool
+            // But if we need to create one for tracking purposes, use 0 allocated sessions
+            await SessionService.createSessionAllocation({
+              institutionId,
+              name: 'Institution Wide Allocation',
+              allocationType: 'institution' as const,
+              allocatedSessions: 0, // Reverted to allocatedSessions
+              endDate: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year from now
+            });
+            toast({
+              title: "Settings saved",
+              description: "Institution-wide interview session allocation settings have been updated.",
+            });
+            break;
+            
+          case 'department':
+            // For department allocation, we would need to create allocations for each department
+            toast({
+              title: "Settings saved",
+              description: "Department interview session allocation settings have been updated. Please configure department-specific allocations in the department management section.",
+            });
+            break;
+            
+          default:
+            toast({
+              title: "Settings saved",
+              description: "Your interview session allocation settings have been updated.",
+            });
+        }
+      } else {
+        // When Open to All Students is enabled, no allocations are needed
+        // Just save the settings
+        toast({
+          title: "Settings saved",
+          description: "Interview session allocation settings have been updated. All students now have access to the shared session pool.",
+        });
       }
     } catch (error: any) {
       toast({

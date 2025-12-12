@@ -232,7 +232,22 @@ export class SessionService {
 
   static async createSessionAllocation(allocationData: Partial<SessionAllocation>): Promise<SessionAllocation> {
     try {
-      const response: ApiResponse<SessionAllocation> = await apiClient.post(`${this.baseUrl}/allocations`, allocationData);
+      // Map frontend field names to backend field names
+      const backendData = {
+        ...allocationData,
+        allocatedCount: allocationData.allocatedSessions,
+        // Remove the frontend-specific field
+        allocatedSessions: undefined
+      };
+      
+      // Remove undefined values
+      Object.keys(backendData).forEach(key => {
+        if (backendData[key] === undefined) {
+          delete backendData[key];
+        }
+      });
+      
+      const response: ApiResponse<SessionAllocation> = await apiClient.post(`${this.baseUrl}/allocations`, backendData);
       return {
         ...response.data,
         startDate: new Date(response.data.startDate),
@@ -256,7 +271,22 @@ export class SessionService {
 
   static async updateSessionAllocation(id: string, allocationData: Partial<SessionAllocation>): Promise<SessionAllocation> {
     try {
-      const response: ApiResponse<SessionAllocation> = await apiClient.put(`${this.baseUrl}/allocations/${id}`, allocationData);
+      // Map frontend field names to backend field names
+      const backendData = {
+        ...allocationData,
+        allocatedCount: allocationData.allocatedSessions,
+        // Remove the frontend-specific field
+        allocatedSessions: undefined
+      };
+      
+      // Remove undefined values
+      Object.keys(backendData).forEach(key => {
+        if (backendData[key] === undefined) {
+          delete backendData[key];
+        }
+      });
+      
+      const response: ApiResponse<SessionAllocation> = await apiClient.put(`${this.baseUrl}/allocations/${id}`, backendData);
       return {
         ...response.data,
         startDate: new Date(response.data.startDate),
