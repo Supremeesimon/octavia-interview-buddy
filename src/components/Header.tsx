@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -65,15 +64,17 @@ const Header = () => {
   return (
     <header className={cn(
       'fixed top-0 left-0 right-0 z-50 py-4 transition-all duration-300',
-      scrolled ? 'glass-effect shadow-sm' : 'bg-transparent'
+      scrolled ? 'bg-background/90 shadow-sm' : 'bg-transparent'
     )}>
       <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
         <Tooltip>
           <TooltipTrigger asChild>
             <Link to="/" className="flex items-center space-x-2">
-              <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-white text-lg font-bold">O</span>
-              </span>
+              <img 
+                src="/images/octavia-logo.jpg" 
+                alt="Octavia Logo" 
+                className="w-10 h-10 rounded-full object-cover"
+              />
               <span className="font-medium text-xl">Octavia</span>
             </Link>
           </TooltipTrigger>
