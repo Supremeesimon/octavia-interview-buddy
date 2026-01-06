@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 
 const ForgotPassword = () => {
@@ -45,6 +45,15 @@ const ForgotPassword = () => {
                     Enter your email address and we'll send you a link to reset your password
                   </p>
                 </div>
+                
+                {/* Info box about email branding */}
+                <Alert className="mb-6 bg-yellow-50 border-yellow-200">
+                  <Info className="h-4 w-4 text-yellow-600 inline mr-2" />
+                  <AlertDescription>
+                    <strong>Note:</strong> Password reset emails may show "project-XXXXXX" in the subject. 
+                    This will be fixed when we update our Firebase project branding.
+                  </AlertDescription>
+                </Alert>
                 
                 <form onSubmit={handleSubmit}>
                   <div className="space-y-5">

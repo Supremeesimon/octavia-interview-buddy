@@ -1,0 +1,51 @@
+# Koyeb Service Configuration for Octavia Interview Buddy Backend
+services:
+  - name: octavia-backend
+    type: web
+    source:
+      type: git
+      git:
+        url: .  # Using local repository
+        branch: main
+    builder: buildpacks
+    buildpacks:
+      - heroku/nodejs
+    run_command: cd backend && npm start
+    env:
+      - name: NODE_ENV
+        value: production
+      - name: PORT
+        value: 8080
+      - name: KOYEB_DATABASE_URL
+        value: "postgres://koyeb-adm:npg_ZC5b6weVJEzG@ep-snowy-mountain-a4hq7qmm.us-east-1.pg.koyeb.app:5432/koyebdb?sslmode=require"
+      - name: DATABASE_URL
+        value: "postgres://koyeb-adm:npg_ZC5b6weVJEzG@ep-snowy-mountain-a4hq7qmm.us-east-1.pg.koyeb.app:5432/koyebdb?sslmode=require"
+      - name: FIREBASE_PRIVATE_KEY
+        secret: firebase-private-key
+      - name: FIREBASE_CLIENT_EMAIL
+        secret: firebase-client-email
+      - name: STRIPE_SECRET_KEY
+        secret: stripe-secret-key
+      - name: BREVO_API_KEY
+        secret: brevo-api-key
+    ports:
+      - port: 8080
+        protocol: http
+    routes:
+      - path: /
+        port: 8080
+    health_checks:
+      - type: http
+        path: /api/health
+        interval: 30s
+        timeout: 10s
+        success_threshold: 1
+        failure_threshold: 3
+    scaling:
+      min: 1
+      max: 1  # Start with 1, can scale later
+      metrics:
+        - type: cpu
+          target: 70
+        - type: memory
+          target: 70

@@ -17,6 +17,8 @@
     "firebase:emulators": "firebase emulators:start",
     "firebase:login": "firebase login",
     "firebase:use": "firebase use octavia-practice-interviewer",
+    "start:backend": "cd backend && npm start",
+    "start:prod": "cd backend && NODE_ENV=production npm start",
     "test-anonymous-data": "npx tsx src/scripts/test-anonymous-interview.ts",
     "test-auth-service": "npx tsx src/scripts/test-auth-service.ts",
     "test-auth-service-mocked": "npx tsx src/scripts/test-auth-service-mocked.ts",

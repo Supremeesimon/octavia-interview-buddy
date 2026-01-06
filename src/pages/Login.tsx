@@ -8,6 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { Chrome } from "lucide-react";
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -42,7 +43,12 @@ const Login = () => {
       
       toast.success(`Welcome back, ${result.user.name}!`);
     } catch (error: any) {
-      toast.error(error.message || 'Login failed');
+      // Provide more specific error messages for OAuth users
+      if (error.message.includes('wrong password') && email.includes('gmail.com')) {
+        toast.error('Accounts created with Google cannot use email/password login. Please use "Sign in with Google" instead.');
+      } else {
+        toast.error(error.message || 'Login failed');
+      }
     }
   };
   
@@ -84,6 +90,13 @@ const Login = () => {
               <h1 className="text-2xl font-bold mb-2">Welcome Back</h1>
               <p className="text-muted-foreground">Sign in to your account</p>
             </div>
+            
+            {/* Info box for Google account users */}
+            <Alert className="mb-6 bg-blue-50 border-blue-200">
+              <AlertDescription>
+                <strong>Note:</strong> If you signed up with Google, please use the "Sign in with Google" button below.
+              </AlertDescription>
+            </Alert>
             
             <form onSubmit={handleLogin}>
               <div className="space-y-5">
