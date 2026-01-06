@@ -117,9 +117,6 @@ export class AccountSwitcherService {
     // Update the API client with the new token
     apiClient.setAuthToken(accountSession.token);
     
-    // Update the current user in the auth service
-    await firebaseAuthService.setCurrentUser(accountSession.user);
-    
     this.saveState();
   }
 
@@ -134,7 +131,6 @@ export class AccountSwitcherService {
       if (this.state.activeAccount === accountId) {
         this.state.activeAccount = null;
         apiClient.clearAuthToken();
-        firebaseAuthService.clearCurrentUser();
       }
       
       this.saveState();

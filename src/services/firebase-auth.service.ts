@@ -22,6 +22,7 @@ import { doc, setDoc, getDoc, serverTimestamp, collection, getDocs, query, where
 import { auth, db } from '@/lib/firebase';
 import type { SignupRequest, LoginRequest, UserProfile, UserRole } from '@/types';
 import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
+import { accountSwitcherService } from '@/services/account-switcher.service';
 
 export class FirebaseAuthService {
   // Register new user
@@ -293,6 +294,9 @@ export class FirebaseAuthService {
         // Get Firebase token
         const token = await user.getIdToken();
 
+        // Add account to account switcher
+        accountSwitcherService.addAccount(minimalProfile, token, 'email');
+
         return { user: minimalProfile, token };
       }
 
@@ -327,6 +331,9 @@ export class FirebaseAuthService {
 
       // Get Firebase token
       const token = await user.getIdToken();
+
+      // Add account to account switcher
+      accountSwitcherService.addAccount(userProfile, token, 'email');
 
       return { user: userProfile, token };
     } catch (error) {
@@ -745,6 +752,9 @@ export class FirebaseAuthService {
       // Get Firebase token
       const token = await user.getIdToken();
 
+      // Add account to account switcher
+      accountSwitcherService.addAccount(userProfile, token, 'google');
+
       return { user: userProfile, token };
     } catch (error) {
       throw this.handleAuthError(error as AuthError);
@@ -894,7 +904,16 @@ export class FirebaseAuthService {
   // Logout user
   async logout(): Promise<void> {
     try {
+      // If account switching is enabled and there are other accounts,
+      // we might want to switch to another account instead of fully logging out
+      // For now, we'll proceed with normal logout
       await signOut(auth);
+      
+      // Clear the current session from the account switcher
+      const activeAccount = accountSwitcherService.getActiveAccount();
+      if (activeAccount) {
+        accountSwitcherService.removeAccount(activeAccount.user.id);
+      }
     } catch (error) {
       throw this.handleAuthError(error as AuthError);
     }
@@ -1002,9 +1021,21 @@ export class FirebaseAuthService {
         }
       }
 
-      return {
+      // Add the account to the account switcher
+      const { user, token } = {
         user: data.data.user,
         token: data.data.token
+      };
+      
+      // Determine login method based on the token exchange context
+      // For now, assume it's either Google or other, since email login would use a different flow
+      const loginMethod = this.isGoogleToken(firebaseToken) ? 'google' : 'other';
+      
+      accountSwitcherService.addAccount(user, token, loginMethod);
+
+      return {
+        user,
+        token
       };
     } catch (error) {
       console.error('Token exchange error:', error);
@@ -1017,6 +1048,14 @@ export class FirebaseAuthService {
       // Re-throw the error with additional context
       throw new Error(`Token exchange failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  // Helper method to determine if the token is from Google
+  private isGoogleToken(token: string): boolean {
+    // This is a simple heuristic - in a real implementation, you might decode the JWT token
+    // and check the issuer or other claims to determine the provider
+    // For now, we'll just return false and handle login method separately
+    return false;
   }
 
   // Determine user role based on email domain
