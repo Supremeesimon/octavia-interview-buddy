@@ -50,6 +50,24 @@ const Header = () => {
     }
   };
 
+  // Function to get the appropriate dashboard path for the user
+  const getDashboardPath = () => {
+    if (!user) return '/login';
+    
+    switch (user.role) {
+      case 'student':
+        return '/student';
+      case 'platform_admin':
+        return '/admin';
+      case 'institution_admin':
+        return '/dashboard';
+      case 'teacher':
+        return '/teacher-dashboard';
+      default:
+        return '/dashboard';
+    }
+  };
+
   const navLinks = [
     { name: 'Home', path: '/', tooltip: 'Go to homepage' },
     { name: 'How It Works', path: '/#how-it-works', id: 'how-it-works', tooltip: 'Learn how Octavia works' },
@@ -117,7 +135,7 @@ const Header = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link 
-                    to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : user.role === 'institution_admin' ? '/dashboard' : '/dashboard'}
+                    to={getDashboardPath()}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                   >
                     Dashboard
@@ -187,7 +205,7 @@ const Header = () => {
                 // Authenticated user mobile menu
                 <>
                   <DropdownMenuItem asChild>
-                    <Link to={user.role === 'student' ? '/student' : user.role === 'platform_admin' ? '/admin' : user.role === 'institution_admin' ? '/dashboard' : '/dashboard'}>
+                    <Link to={getDashboardPath()}>
                       Dashboard
                     </Link>
                   </DropdownMenuItem>

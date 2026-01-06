@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 import Header from '@/components/Header';
 import { aiAnalyticsService } from '@/services/ai-analytics.service';
 import { InstitutionService } from '@/services/institution.service';
@@ -43,6 +44,7 @@ const LoadingSpinner = () => (
 const AdminControlPanel = () => {
   const isMobile = useIsMobile();
   const { user: currentUser, isLoading: authLoading } = useFirebaseAuth();
+  const { isSwitching } = useAccountSwitcher(); // Add account switcher state
   
   // Log the currentUser for debugging
   console.log('AdminControlPanel - currentUser:', currentUser);
@@ -152,6 +154,16 @@ const AdminControlPanel = () => {
   
   // Determine overall loading state
   const isLoading = authLoading || componentLoading;
+  
+  // Check if user is switching to a non-platform admin account
+  if (currentUser && currentUser.role !== 'platform_admin' && isSwitching) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2">Switching account...</span>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex flex-col overflow-hidden w-full">

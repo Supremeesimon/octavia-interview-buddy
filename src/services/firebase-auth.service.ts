@@ -994,7 +994,7 @@ export class FirebaseAuthService {
 
       console.log('Exchanging Firebase token for backend JWT token');
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3005/api'}/auth/exchange-firebase-token`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3005'}/api/auth/exchange-firebase-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

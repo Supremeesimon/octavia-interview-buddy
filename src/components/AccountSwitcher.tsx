@@ -21,8 +21,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from "sonner";
+import { useNavigate } from 'react-router-dom';
 
 const AccountSwitcher: React.FC = () => {
+  const navigate = useNavigate();
   const { user: currentUser, logout } = useFirebaseAuth();
   const { 
     activeAccount, 
@@ -44,8 +46,31 @@ const AccountSwitcher: React.FC = () => {
 
   const handleAccountSwitch = async (accountId: string) => {
     try {
+      // Get the account that will be switched to
+      const targetAccount = accounts.find(acc => acc.id === accountId);
+      
       await switchAccount(accountId);
       setShowAccountList(false);
+      
+      // After switching accounts, navigate to the appropriate dashboard based on the new role
+      if (targetAccount) {
+        switch (targetAccount.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'teacher':
+            navigate('/teacher-dashboard');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+      }
     } catch (error) {
       console.error('Error switching account:', error);
     }

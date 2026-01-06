@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load components
@@ -23,6 +24,7 @@ const StudentDashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading } = useFirebaseAuth();
+  const { isSwitching } = useAccountSwitcher(); // Add account switcher state
   const [activeTab, setActiveTab] = useState('dashboard');
   
   // Set initial tab based on URL hash or query parameter
@@ -53,6 +55,16 @@ const StudentDashboardPage = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  // Check if user is switching to a non-student account
+  if (user && user.role !== 'student' && isSwitching) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2">Switching account...</span>
       </div>
     );
   }

@@ -36,6 +36,7 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAccountSwitching, setIsAccountSwitching] = useState(false);
 
   useEffect(() => {
     console.log('useFirebaseAuth: Setting up auth state listener');
@@ -117,6 +118,10 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     // Subscribe to account switcher changes
     const unsubscribeAccountSwitcher = accountSwitcherService.subscribe(() => {
       console.log('useFirebaseAuth: Account switcher notification received');
+      
+      // Set the account switching flag to prevent token exchange during switching
+      setIsAccountSwitching(true);
+      
       // Update the user to reflect the currently active account
       const activeAccountSession = accountSwitcherService.getActiveAccount();
       if (activeAccountSession) {
@@ -127,6 +132,12 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
         setUser(null);
         console.log('useFirebaseAuth: Cleared user as no active account in switcher');
       }
+      
+      // Clear the account switching flag after a brief delay to allow state to settle
+      setTimeout(() => {
+        setIsAccountSwitching(false);
+        console.log('useFirebaseAuth: Account switching flag cleared');
+      }, 500);
     });
 
     // Cleanup function

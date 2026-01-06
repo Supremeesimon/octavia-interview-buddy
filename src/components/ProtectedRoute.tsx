@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
+import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,11 +15,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole 
 }) => {
   const { user, isLoading, isAuthenticated } = useFirebaseAuth();
+  const { isSwitching } = useAccountSwitcher(); // Add account switcher state
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
-  console.log('ProtectedRoute check:', { user, isLoading, isAuthenticated, requiredRole });
+  console.log('ProtectedRoute check:', { user, isLoading, isAuthenticated, requiredRole, isSwitching });
+
+  // Add a small delay to prevent immediate re-evaluation during account switching
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsCheckingAuth(false);
+    }, 100); // Small delay to allow state to settle
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Show loading state while checking auth
-  if (isLoading) {
+  if (isLoading || isCheckingAuth) {
     console.log('ProtectedRoute: Still loading auth state');
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -49,8 +61,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Check role requirements if specified
-  if (requiredRole && user.role !== requiredRole) {
-    console.log('ProtectedRoute: User role mismatch', { userRole: user.role, requiredRole });
+  // Skip role check if an account switch is in progress to avoid premature redirects
+  if (requiredRole && user.role !== requiredRole && !isSwitching) {
+    console.log('ProtectedRoute: User role mismatch', { userRole: user.role, requiredRole, isSwitching });
     toast.error('You do not have permission to access this page');
     // Redirect based on user role
     switch (user.role) {
@@ -65,6 +78,17 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       default:
         return <Navigate to="/" replace />;
     }
+  }
+  
+  // If an account switch is in progress, show loading state instead of redirecting
+  if (requiredRole && user.role !== requiredRole && isSwitching) {
+    console.log('ProtectedRoute: Account switch in progress, showing loading');
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2">Switching account...</span>
+      </div>
+    );
   }
 
   console.log('ProtectedRoute: User authorized, rendering children');

@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useNavigate } from 'react-router-dom';
+import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 import { Loader2 } from 'lucide-react';
 import { InstitutionService } from '@/services/institution.service';
 
@@ -23,7 +24,9 @@ const LoadingSpinner = () => (
 const Dashboard = () => {
   const isMobile = useIsMobile();
   const { user, isLoading } = useFirebaseAuth();
+  const { isSwitching } = useAccountSwitcher(); // Add account switcher state
   const navigate = useNavigate();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
   // State to hold the institution name
   const [institutionName, setInstitutionName] = useState<string | null>(null);
@@ -52,6 +55,15 @@ const Dashboard = () => {
     setActiveTab(initialTab);
   }, []);
   
+  // Add a small delay to prevent immediate redirects during account switching
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsCheckingAuth(false);
+    }, 300); // Slightly longer delay to account for account switching
+
+    return () => clearTimeout(timer);
+  }, []);
+
   // Fetch institution name when user is available
   useEffect(() => {
     const fetchInstitutionName = async () => {
@@ -99,7 +111,7 @@ const Dashboard = () => {
   }
   
   // Show loading state while auth is checking
-  if (isLoading) {
+  if (isLoading || isCheckingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -117,8 +129,9 @@ const Dashboard = () => {
     );
   }
   
-  // Redirect non-institution admins
-  if (user && user.role !== 'institution_admin') {
+  // Redirect non-institution admins after a brief delay to avoid conflicts during account switching
+  // Skip redirect if an account switch is in progress
+  if (user && user.role !== 'institution_admin' && !isCheckingAuth && !isSwitching) {
     // Redirect to appropriate dashboard based on role
     switch (user.role) {
       case 'student':
@@ -131,6 +144,16 @@ const Dashboard = () => {
         navigate('/');
     }
     return null;
+  }
+  
+  // If an account switch is in progress, show loading state instead of redirecting
+  if (user && user.role !== 'institution_admin' && isSwitching) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2">Switching account...</span>
+      </div>
+    );
   }
   
   // Construct the dashboard title

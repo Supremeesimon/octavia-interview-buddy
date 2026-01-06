@@ -7,6 +7,7 @@ interface UseAccountSwitcherReturn {
   activeAccount: UserProfile | null;
   accounts: UserProfile[];
   isLoading: boolean;
+  isSwitching: boolean; // Add isSwitching property
   hasMultipleAccounts: boolean;
   switchAccount: (accountId: string) => Promise<void>;
   addCurrentAccount: () => void;
@@ -19,6 +20,7 @@ export function useAccountSwitcher(): UseAccountSwitcherReturn {
   const [activeAccount, setActiveAccount] = useState<UserProfile | null>(null);
   const [accounts, setAccounts] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSwitching, setIsSwitching] = useState(false); // Track account switching state
 
   // Load accounts and active account state
   useEffect(() => {
@@ -55,6 +57,7 @@ export function useAccountSwitcher(): UseAccountSwitcherReturn {
 
   const switchAccount = async (accountId: string): Promise<void> => {
     setIsLoading(true);
+    setIsSwitching(true); // Set switching state to true
     try {
       await accountSwitcherService.switchToAccount(accountId);
       
@@ -69,6 +72,7 @@ export function useAccountSwitcher(): UseAccountSwitcherReturn {
       throw error;
     } finally {
       setIsLoading(false);
+      setIsSwitching(false); // Set switching state to false
     }
   };
 
@@ -105,6 +109,7 @@ export function useAccountSwitcher(): UseAccountSwitcherReturn {
     activeAccount,
     accounts,
     isLoading: isLoading || authLoading,
+    isSwitching, // Add isSwitching to the return object
     hasMultipleAccounts: accountSwitcherService.hasMultipleAccounts(),
     switchAccount,
     addCurrentAccount,
