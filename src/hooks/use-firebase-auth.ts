@@ -5,6 +5,7 @@ import { firebaseAuthService } from '@/services/firebase-auth.service';
 import { apiClient, ApiResponse } from '@/lib/api-client';
 import type { UserProfile, UserRole } from '@/types';
 import { scheduleTokenRefresh } from '@/utils/token-utils';
+import { accountSwitcherService } from '@/services/account-switcher.service';
 
 interface ExchangeResponse {
   user: UserProfile;
@@ -113,10 +114,28 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
       console.log('useFirebaseAuth: Finished processing auth state change');
     });
 
+    // Subscribe to account switcher changes
+    const unsubscribeAccountSwitcher = accountSwitcherService.subscribe(() => {
+      console.log('useFirebaseAuth: Account switcher notification received');
+      // Update the user to reflect the currently active account
+      const activeAccountSession = accountSwitcherService.getActiveAccount();
+      if (activeAccountSession) {
+        setUser(activeAccountSession.user);
+        // The token is already set in the API client by the account switcher
+        console.log('useFirebaseAuth: Updated user from active account switcher session');
+      } else {
+        setUser(null);
+        console.log('useFirebaseAuth: Cleared user as no active account in switcher');
+      }
+    });
+
     // Cleanup function
     return () => {
       console.log('useFirebaseAuth: Cleaning up auth state listener');
       unsubscribe();
+      if (unsubscribeAccountSwitcher) {
+        unsubscribeAccountSwitcher();
+      }
     };
   }, []);
 

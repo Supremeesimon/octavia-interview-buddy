@@ -74,9 +74,15 @@ export function useAccountSwitcher(): UseAccountSwitcherReturn {
 
   const addCurrentAccount = (): void => {
     if (currentUser) {
-      // We can't add the current account without the token
-      // This function would typically be called from login functions
-      console.warn('addCurrentAccount: Cannot add account without token. This should be called from login functions.');
+      // Use the new method in the service to add the current account
+      accountSwitcherService.addCurrentAccount(currentUser, 'email'); // Could detect login method here
+      
+      // Update local state
+      const allAccounts = accountSwitcherService.getAllAccounts();
+      setAccounts(allAccounts.map(account => account.user));
+      
+      const activeAccountSession = accountSwitcherService.getActiveAccount();
+      setActiveAccount(activeAccountSession?.user || null);
     }
   };
 

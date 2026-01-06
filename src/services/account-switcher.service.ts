@@ -23,6 +23,7 @@ export class AccountSwitcherService {
   private static instance: AccountSwitcherService;
   private state: AccountSwitcherState;
   private readonly STORAGE_KEY = 'accountSwitcherData';
+  private listeners: Array<() => void> = [];
 
   private constructor() {
     this.state = this.loadState();
@@ -118,6 +119,9 @@ export class AccountSwitcherService {
     apiClient.setAuthToken(accountSession.token);
     
     this.saveState();
+    
+    // Notify listeners of the account change
+    this.notifyListeners();
   }
 
   /**
@@ -134,6 +138,9 @@ export class AccountSwitcherService {
       }
       
       this.saveState();
+      
+      // Notify listeners of the account change
+      this.notifyListeners();
     }
   }
 
@@ -213,6 +220,46 @@ export class AccountSwitcherService {
    */
   accountExists(email: string): boolean {
     return !!this.getAccountByEmail(email);
+  }
+
+  /**
+   * Subscribe to account changes
+   */
+  subscribe(listener: () => void): () => void {
+    this.listeners.push(listener);
+    
+    // Return unsubscribe function
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
+  }
+
+  /**
+   * Notify all listeners of account changes
+   */
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener();
+      } catch (error) {
+        console.error('Error in account switcher listener:', error);
+      }
+    });
+  }
+
+  /**
+   * Add the current account using the current token from API client
+   */
+  addCurrentAccount(user: UserProfile, loginMethod: 'email' | 'google' | 'other' = 'email'): void {
+    // Get the current token from apiClient
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('No current auth token found to add current account');
+      return;
+    }
+    
+    this.addAccount(user, token, loginMethod);
+    this.notifyListeners();
   }
 }
 

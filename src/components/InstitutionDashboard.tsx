@@ -37,7 +37,7 @@ import ResetSettingsDialog from './ResetSettingsDialog';
 import { InstitutionService } from '@/services/institution.service';
 import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
 
-import type { UserProfile, Institution } from '@/types';
+import type { UserProfile, Institution, InstitutionSettings } from '@/types';
 import { getGreetingWithName } from '@/utils/greeting.utils';
 
 interface InstitutionDashboardProps {
@@ -82,9 +82,23 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [rejectedStudents, setRejectedStudents] = useState(0);
   
-  // Institution settings state
-  const [institutionSettings, setInstitutionSettings] = useState({
+  // Define a custom type for the form that includes UI-specific fields
+  interface InstitutionFormSettings {
+    name: string;
+    domain: string;
+    website: string;
+    emailDomains: string;
+    notificationPreferences: {
+      newStudentSignups: boolean;
+      interviewReports: boolean;
+    };
+    settings?: InstitutionSettings;
+  }
+
+  // Institution settings state - matches the actual Institution type structure
+  const [institutionSettings, setInstitutionSettings] = useState<InstitutionFormSettings>({
     name: '',
+    domain: '',
     website: '',
     emailDomains: '',
     notificationPreferences: {
@@ -187,14 +201,28 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
     }
     
     try {
-      // Prepare the settings data to save
-      const settingsToSave = {
+      // Prepare the settings data to save following the actual Institution type
+      const settingsToSave: Partial<Institution> = {
         name: institutionSettings.name,
-        website_url: institutionSettings.website,
-        domain: institutionSettings.emailDomains,
+        domain: institutionSettings.emailDomains || institutionSettings.domain, // Use emailDomains for domain field
+        website: institutionSettings.website,
+        // Update specific settings while preserving other required fields
         settings: {
-          emailDomains: institutionSettings.emailDomains,
-          notificationPreferences: institutionSettings.notificationPreferences
+          allowedBookingsPerMonth: institution.settings?.allowedBookingsPerMonth || 100, // preserve existing value
+          sessionLength: institution.settings?.sessionLength || 30, // preserve existing value
+          requireResumeUpload: institution.settings?.requireResumeUpload || true, // preserve existing value
+          enableDepartmentAllocations: institution.settings?.enableDepartmentAllocations || true, // preserve existing value
+          enableStudentGroups: institution.settings?.enableStudentGroups || false, // preserve existing value
+          emailNotifications: {
+            enableInterviewReminders: institution.settings?.emailNotifications?.enableInterviewReminders || true, // preserve existing value
+            enableFeedbackEmails: institutionSettings.notificationPreferences.interviewReports, // use form value
+            enableWeeklyReports: institutionSettings.notificationPreferences.newStudentSignups, // use form value
+            reminderHours: institution.settings?.emailNotifications?.reminderHours || 24 // preserve existing value
+          },
+          // Session allocation settings
+          openToAllStudents: institution.settings?.openToAllStudents || true, // preserve existing value
+          allocationMethod: institution.settings?.allocationMethod || 'institution', // preserve existing value
+          sessionsPerStudent: institution.settings?.sessionsPerStudent || 5 // preserve existing value
         }
       };
       
@@ -214,11 +242,12 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
       // Reset to current institution data
       setInstitutionSettings({
         name: institution.name || '',
-        website: institution.website_url || '',
-        emailDomains: institution.domain ? institution.domain : (institution.settings?.emailDomains || ''),
+        domain: institution.domain || '',
+        website: institution.website || '',
+        emailDomains: institution.domain || '', // Use the domain field for email domains
         notificationPreferences: {
-          newStudentSignups: institution.settings?.notificationPreferences?.newStudentSignups ?? true,
-          interviewReports: institution.settings?.notificationPreferences?.interviewReports ?? true
+          newStudentSignups: institution.settings?.emailNotifications?.enableWeeklyReports ?? true,
+          interviewReports: institution.settings?.emailNotifications?.enableFeedbackEmails ?? true
         }
       });
     }
@@ -243,7 +272,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
       }
     }));
   };
-  
+
   // Fetch institution details and dashboard data
   useEffect(() => {
     const fetchData = async () => {
@@ -262,12 +291,14 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
         if (institutionData) {
           setInstitutionSettings({
             name: institutionData.name || '',
-            website: institutionData.website_url || '',
-            emailDomains: institutionData.domain ? institutionData.domain : (institutionData.settings?.emailDomains || ''),
+            domain: institutionData.domain || '',
+            website: institutionData.website || '',
+            emailDomains: institutionData.domain || '', // Use domain field for email domains
             notificationPreferences: {
-              newStudentSignups: institutionData.settings?.notificationPreferences?.newStudentSignups ?? true,
-              interviewReports: institutionData.settings?.notificationPreferences?.interviewReports ?? true
-            }
+              newStudentSignups: institutionData.settings?.emailNotifications?.enableWeeklyReports ?? true,
+              interviewReports: institutionData.settings?.emailNotifications?.enableFeedbackEmails ?? true
+            },
+            settings: institutionData.settings // Preserve the original settings for save operation
           });
         }
         

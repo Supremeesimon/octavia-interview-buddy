@@ -13,6 +13,7 @@ import { Menu } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { toast } from 'sonner';
+import AccountSwitcher from '@/components/AccountSwitcher';
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -126,21 +127,7 @@ const Header = () => {
                   <p>Go to your dashboard</p>
                 </TooltipContent>
               </Tooltip>
-              <Button 
-                variant="outline" 
-                onClick={async () => {
-                  try {
-                    await logout();
-                    navigate('/');
-                    toast.success('Logged out successfully');
-                  } catch (error) {
-                    toast.error('Logout failed');
-                  }
-                }}
-                className="text-sm"
-              >
-                Logout
-              </Button>
+              <AccountSwitcher />
             </>
           ) : (
             // Unauthenticated user navigation
@@ -204,19 +191,10 @@ const Header = () => {
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={async () => {
-                      try {
-                        await logout();
-                        navigate('/');
-                        toast.success('Logged out successfully');
-                      } catch (error) {
-                        toast.error('Logout failed');
-                      }
-                    }}
-                    className="text-red-500 hover:bg-red-50"
-                  >
-                    Logout
+                  <DropdownMenuItem asChild>
+                    <div className="w-full">
+                      <AccountSwitcher />
+                    </div>
                   </DropdownMenuItem>
                 </>
               ) : (
