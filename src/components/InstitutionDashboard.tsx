@@ -36,7 +36,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import ResetSettingsDialog from './ResetSettingsDialog';
 import { InstitutionService } from '@/services/institution.service';
 import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
-import SessionManagement from './SessionManagement';
+
 import type { UserProfile, Institution } from '@/types';
 import { getGreetingWithName } from '@/utils/greeting.utils';
 
@@ -82,6 +82,168 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [rejectedStudents, setRejectedStudents] = useState(0);
   
+  // Institution settings state
+  const [institutionSettings, setInstitutionSettings] = useState({
+    name: '',
+    website: '',
+    emailDomains: '',
+    notificationPreferences: {
+      newStudentSignups: true,
+      interviewReports: true
+    }
+  });
+
+  // Generate a unique signup link for the institution
+  const generateSignupLink = (userType: 'student' | 'teacher' = 'student') => {
+    // Use the actual institution ID from the user context
+    if (institution && institution.customSignupLink) {
+      // Use the institution's custom signup link with the user type parameter
+      return `${institution.customSignupLink}?type=${userType}`;
+    }
+    
+    // Fallback for now
+    if (user?.institutionId) {
+      return `https://octavia.ai/signup-institution/${user.institutionId}?type=${userType}`;
+    }
+    
+    return '';
+  };
+  
+  const [signupLink, setSignupLink] = useState('');
+  const [teacherSignupLink, setTeacherSignupLink] = useState('');
+  
+  const copySignupLink = () => {
+    navigator.clipboard.writeText(signupLink);
+    setCopiedLink(true);
+    toast.success("Link copied to clipboard!");
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+  
+  const approveStudent = (studentId) => {
+    toast.success(`Student #${studentId} approved successfully`);
+  };
+  
+  const rejectStudent = (studentId) => {
+    toast.success(`Student #${studentId} rejected`);
+  };
+  
+  const regenerateLink = async (userType: 'student' | 'teacher' = 'student') => {
+    if (institution && user.institutionId) {
+      try {
+        // Regenerate the institution's signup token
+        const { link } = await InstitutionService.regenerateSignupToken(user.institutionId);
+        
+        // Update the institution state with the new link
+        setInstitution({
+          ...institution,
+          customSignupLink: link
+        });
+        
+        // Update the signup links with the new link and user type
+        const newLink = `${link}?type=${userType}`;
+        if (userType === 'student') {
+          setSignupLink(newLink);
+        } else {
+          setTeacherSignupLink(newLink);
+        }
+        
+        toast.success(`New ${userType} signup link generated successfully!`);
+      } catch (error) {
+        console.error('Error regenerating signup link:', error);
+        toast.error(`Failed to regenerate ${userType} signup link`);
+      }
+    } else {
+      // Fallback to the old method
+      const newLink = generateSignupLink(userType);
+      if (userType === 'student') {
+        setSignupLink(newLink);
+      } else {
+        setTeacherSignupLink(newLink);
+      }
+      toast.success(`New ${userType} signup link generated successfully!`);
+    }
+  };
+  
+  const copyTeacherSignupLink = () => {
+    navigator.clipboard.writeText(teacherSignupLink);
+    setCopiedLink(true);
+    toast.success("Teacher link copied to clipboard!");
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+  
+  const exportData = () => {
+    toast.success("Exporting student data...");
+  };
+  
+  const exportAnalyticsData = () => {
+    toast.success("Exporting analytics data...");
+  };
+  
+  // Update the settings save function
+  const saveSettings = async () => {
+    if (!user?.institutionId) {
+      toast.error("No institution ID found");
+      return;
+    }
+    
+    try {
+      // Prepare the settings data to save
+      const settingsToSave = {
+        name: institutionSettings.name,
+        website_url: institutionSettings.website,
+        domain: institutionSettings.emailDomains,
+        settings: {
+          emailDomains: institutionSettings.emailDomains,
+          notificationPreferences: institutionSettings.notificationPreferences
+        }
+      };
+      
+      // Update the institution in Firestore
+      await InstitutionService.updateInstitution(user.institutionId, settingsToSave);
+      
+      toast.success("Settings saved successfully!");
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast.error("Failed to save settings. Please try again.");
+    }
+  };
+  
+  // Update the reset settings function
+  const resetSettings = () => {
+    if (institution) {
+      // Reset to current institution data
+      setInstitutionSettings({
+        name: institution.name || '',
+        website: institution.website_url || '',
+        emailDomains: institution.domain ? institution.domain : (institution.settings?.emailDomains || ''),
+        notificationPreferences: {
+          newStudentSignups: institution.settings?.notificationPreferences?.newStudentSignups ?? true,
+          interviewReports: institution.settings?.notificationPreferences?.interviewReports ?? true
+        }
+      });
+    }
+    toast.success("Settings reset to current values");
+  };
+  
+  // Handle input changes for institution settings
+  const handleSettingChange = (field: string, value: any) => {
+    setInstitutionSettings(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  // Handle notification preference changes
+  const handleNotificationChange = (pref: string, value: boolean) => {
+    setInstitutionSettings(prev => ({
+      ...prev,
+      notificationPreferences: {
+        ...prev.notificationPreferences,
+        [pref]: value
+      }
+    }));
+  };
+  
   // Fetch institution details and dashboard data
   useEffect(() => {
     const fetchData = async () => {
@@ -95,6 +257,19 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
         // Fetch institution details
         const institutionData = await InstitutionService.getInstitutionById(user.institutionId);
         setInstitution(institutionData);
+        
+        // Update institution settings state with real data
+        if (institutionData) {
+          setInstitutionSettings({
+            name: institutionData.name || '',
+            website: institutionData.website_url || '',
+            emailDomains: institutionData.domain ? institutionData.domain : (institutionData.settings?.emailDomains || ''),
+            notificationPreferences: {
+              newStudentSignups: institutionData.settings?.notificationPreferences?.newStudentSignups ?? true,
+              interviewReports: institutionData.settings?.notificationPreferences?.interviewReports ?? true
+            }
+          });
+        }
         
         // Check if institution has departments
         try {
@@ -191,96 +366,6 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
     
     fetchAnalyticsData();
   }, [activeMainTab, user?.institutionId]);
-  
-  // Generate a unique signup link for the institution
-  const generateSignupLink = (userType: 'student' | 'teacher' = 'student') => {
-    // Use the actual institution ID from the user context
-    if (institution && institution.customSignupLink) {
-      // Use the institution's custom signup link with the user type parameter
-      return `${institution.customSignupLink}?type=${userType}`;
-    }
-    
-    // Fallback for now
-    if (user?.institutionId) {
-      return `https://octavia.ai/signup-institution/${user.institutionId}?type=${userType}`;
-    }
-    
-    return '';
-  };
-  
-  const [signupLink, setSignupLink] = useState('');
-  const [teacherSignupLink, setTeacherSignupLink] = useState('');
-  
-  const copySignupLink = () => {
-    navigator.clipboard.writeText(signupLink);
-    setCopiedLink(true);
-    toast.success("Link copied to clipboard!");
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-  
-  const approveStudent = (studentId) => {
-    toast.success(`Student #${studentId} approved successfully`);
-  };
-  
-  const rejectStudent = (studentId) => {
-    toast.success(`Student #${studentId} rejected`);
-  };
-  
-  const regenerateLink = async (userType: 'student' | 'teacher' = 'student') => {
-    if (institution && user.institutionId) {
-      try {
-        // Regenerate the institution's signup token
-        const { link } = await InstitutionService.regenerateSignupToken(user.institutionId);
-        
-        // Update the institution state with the new link
-        setInstitution({
-          ...institution,
-          customSignupLink: link
-        });
-        
-        // Update the signup links with the new link and user type
-        const newLink = `${link}?type=${userType}`;
-        if (userType === 'student') {
-          setSignupLink(newLink);
-        } else {
-          setTeacherSignupLink(newLink);
-        }
-        
-        toast.success(`New ${userType} signup link generated successfully!`);
-      } catch (error) {
-        console.error('Error regenerating signup link:', error);
-        toast.error(`Failed to regenerate ${userType} signup link`);
-      }
-    } else {
-      // Fallback to the old method
-      const newLink = generateSignupLink(userType);
-      if (userType === 'student') {
-        setSignupLink(newLink);
-      } else {
-        setTeacherSignupLink(newLink);
-      }
-      toast.success(`New ${userType} signup link generated successfully!`);
-    }
-  };
-  
-  const copyTeacherSignupLink = () => {
-    navigator.clipboard.writeText(teacherSignupLink);
-    setCopiedLink(true);
-    toast.success("Teacher link copied to clipboard!");
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-  
-  const exportData = () => {
-    toast.success("Exporting student data...");
-  };
-  
-  const exportAnalyticsData = () => {
-    toast.success("Exporting analytics data...");
-  };
-  
-  const resetSettings = () => {
-    toast.success("Settings reset to default values");
-  };
   
   const toggleStudentDetails = (studentId) => {
     if (expandedStudent === studentId) {
@@ -456,13 +541,6 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
             className={activeMainTab === "interviews" ? "border-b-2 border-primary" : ""}
           >
             Scheduled Interviews
-          </TabsTrigger>
-          <TabsTrigger 
-            value="session"
-            tooltip="Manage your institution's interview session pool and allocation settings"
-            className={activeMainTab === "session" ? "border-b-2 border-primary" : ""}
-          >
-            Session Pool
           </TabsTrigger>
           <TabsTrigger 
             value="analytics"
@@ -800,29 +878,6 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-        
-        <TabsContent value="session">
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Session Management</h2>
-                <p className="text-muted-foreground">
-                  Manage your institution's interview session pool and allocation settings
-                </p>
-              </div>
-            </div>
-            
-            <SessionManagement 
-              institutionId={user?.institutionId}
-              totalSessions={totalSessions}
-              usedSessions={usedSessions}
-              onSessionPurchase={(sessions, cost) => {
-                // Update the session info when sessions are purchased
-                setTotalSessions(prev => prev + sessions);
-              }}
-            />
-          </div>
         </TabsContent>
         
         <TabsContent value="analytics">
@@ -1363,7 +1418,8 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                         <label className="text-sm font-medium">Institution Name</label>
                         <input 
                           type="text" 
-                          defaultValue="University of Technology" 
+                          value={institutionSettings.name}
+                          onChange={(e) => handleSettingChange('name', e.target.value)}
                           className="w-full mt-1 px-3 py-2 border rounded-md"
                         />
                       </div>
@@ -1371,7 +1427,8 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                         <label className="text-sm font-medium">Website</label>
                         <input 
                           type="text" 
-                          defaultValue="https://uot.edu" 
+                          value={institutionSettings.website}
+                          onChange={(e) => handleSettingChange('website', e.target.value)}
                           className="w-full mt-1 px-3 py-2 border rounded-md"
                         />
                       </div>
@@ -1381,7 +1438,8 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                       <label className="text-sm font-medium">Email Domain(s) for Student Verification</label>
                       <input 
                         type="text" 
-                        defaultValue="uot.edu, tech.uot.edu" 
+                        value={institutionSettings.emailDomains}
+                        onChange={(e) => handleSettingChange('emailDomains', e.target.value)}
                         className="w-full mt-1 px-3 py-2 border rounded-md"
                         placeholder="Enter comma-separated domains"
                       />
@@ -1407,7 +1465,8 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                       </div>
                       <input 
                         type="checkbox" 
-                        defaultChecked
+                        checked={institutionSettings.notificationPreferences.newStudentSignups}
+                        onChange={(e) => handleNotificationChange('newStudentSignups', e.target.checked)}
                         className="h-6 w-6 rounded border-gray-300 text-primary focus:ring-primary"
                       />
                     </div>
@@ -1424,7 +1483,8 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                       </div>
                       <input 
                         type="checkbox" 
-                        defaultChecked
+                        checked={institutionSettings.notificationPreferences.interviewReports}
+                        onChange={(e) => handleNotificationChange('interviewReports', e.target.checked)}
                         className="h-6 w-6 rounded border-gray-300 text-primary focus:ring-primary"
                       />
                     </div>
@@ -1437,6 +1497,7 @@ const InstitutionDashboard: React.FC<InstitutionDashboardProps> = ({ user }) => 
                     onConfirm={resetSettings}
                   />
                   <Button 
+                    onClick={saveSettings}
                     tooltip="Save all changes to institution settings"
                   >
                     Save Settings
