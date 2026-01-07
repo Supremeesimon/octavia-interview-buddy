@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { Mail, GraduationCap, Users, Shield, Chrome, Building } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 
 // Mock departments data - in a real app, this would come from an API
 const MOCK_DEPARTMENTS = [
@@ -27,6 +28,7 @@ const EnhancedSignup = () => {
   const [activeTab, setActiveTab] = useState('student');
   const navigate = useNavigate();
   const { register, loginWithGoogle, isLoading } = useFirebaseAuth();
+  const { addCurrentAccount } = useAccountSwitcher();
 
   // Student form state
   const [studentForm, setStudentForm] = useState({
@@ -91,8 +93,51 @@ const EnhancedSignup = () => {
         department: studentForm.department
       });
       
-      navigate('/student');
-      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
+      
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        navigate('/student');
+      } else {
+        // Normal signup flow
+        navigate('/student');
+        toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      }
     } catch (error: any) {
       // Provide more specific guidance for email already registered error
       if (error.message === 'Email address is already registered') {
@@ -134,8 +179,51 @@ const EnhancedSignup = () => {
         department: teacherForm.department
       });
       
-      navigate('/teacher-dashboard');
-      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
+      
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        navigate('/teacher-dashboard');
+      } else {
+        // Normal signup flow
+        navigate('/teacher-dashboard');
+        toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      }
     } catch (error: any) {
       // Provide more specific guidance for email already registered error
       if (error.message === 'Email address is already registered') {
@@ -163,7 +251,7 @@ const EnhancedSignup = () => {
     }
 
     try {
-      // For admin signup, explicitly set role to institution_admin (not platform_admin)
+      // For admin signup, explicitly set role to institution_admin (not platform admin)
       const result = await register({
         name: adminForm.fullName,
         email: adminForm.email,
@@ -171,22 +259,76 @@ const EnhancedSignup = () => {
         role: 'institution_admin' // Institution admin role (not platform admin)
       });
       
-      // Navigate based on the actual role assigned by Firebase
-      switch (result.user.role) {
-        case 'platform_admin':
-          navigate('/admin');
-          break;
-        case 'institution_admin':
-          navigate('/dashboard');
-          break;
-        case 'teacher':
-          navigate('/teacher-dashboard');
-          break;
-        default:
-          navigate('/');
-      }
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
       
-      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        switch (result.user.role) {
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'teacher':
+            navigate('/teacher-dashboard');
+            break;
+          default:
+            navigate('/');
+        }
+      } else {
+        // Navigate based on the actual role assigned by Firebase
+        switch (result.user.role) {
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'teacher':
+            navigate('/teacher-dashboard');
+            break;
+          default:
+            navigate('/');
+        }
+        
+        toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      }
     } catch (error: any) {
       // Provide more specific guidance for email already registered error
       if (error.message === 'Email address is already registered') {
@@ -208,25 +350,82 @@ const EnhancedSignup = () => {
     try {
       const result = await loginWithGoogle();
       
-      // Navigate based on user role
-      switch (result.user.role) {
-        case 'student':
-          navigate('/student');
-          break;
-        case 'institution_admin':
-          navigate('/dashboard');
-          break;
-        case 'teacher':
-          navigate('/teacher-dashboard');
-          break;
-        case 'platform_admin':
-          navigate('/admin');
-          break;
-        default:
-          navigate('/');
-      }
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
       
-      toast.success(`Welcome ${result.user.name}!`);
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'teacher':
+            navigate('/teacher-dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+      } else {
+        // Navigate based on user role (normal signup flow)
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'teacher':
+            navigate('/teacher-dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+        
+        toast.success(`Welcome ${result.user.name}!`);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Google sign in failed');
     }

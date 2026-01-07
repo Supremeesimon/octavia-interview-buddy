@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from "sonner";
 import { Mail, GraduationCap, Users, Shield, Chrome } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 import { InstitutionHierarchyService } from '@/services/institution-hierarchy.service';
 import EnhancedDepartmentSelector from '@/components/EnhancedDepartmentSelector';
 import type { SignupRequest } from '@/types';
@@ -21,6 +22,7 @@ const InstitutionalSignup = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { register, loginWithGoogle, isLoading } = useFirebaseAuth();
+  const { addCurrentAccount } = useAccountSwitcher();
   const [activeTab, setActiveTab] = useState('student');
   
   // Form states for different user types

@@ -9,11 +9,13 @@ import { toast } from "sonner";
 import { Chrome } from "lucide-react";
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, loginWithGoogle, isLoading } = useFirebaseAuth();
+  const { addCurrentAccount } = useAccountSwitcher();
   const navigate = useNavigate();
   
   
@@ -23,25 +25,76 @@ const Login = () => {
     try {
       const result = await login(email, password);
       
-      // Navigate based on user role
-      switch (result.user.role) {
-        case 'student':
-          navigate('/student');
-          break;
-        case 'teacher':
-          navigate('/teacher-dashboard');
-          break;
-        case 'institution_admin':
-          navigate('/dashboard');
-          break;
-        case 'platform_admin':
-          navigate('/admin');
-          break;
-        default:
-          navigate('/');
-      }
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
       
-      toast.success(`Welcome back, ${result.user.name}!`);
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+      } else {
+        // Navigate based on user role (normal login flow)
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+        
+        toast.success(`Welcome back, ${result.user.name}!`);
+      }
     } catch (error: any) {
       // Provide more specific error messages for OAuth users
       if (error.message.includes('wrong password') && email.includes('gmail.com')) {
@@ -56,25 +109,76 @@ const Login = () => {
     try {
       const result = await loginWithGoogle();
       
-      // Navigate based on user role
-      switch (result.user.role) {
-        case 'student':
-          navigate('/student');
-          break;
-        case 'teacher':
-          navigate('/teacher-dashboard');
-          break;
-        case 'institution_admin':
-          navigate('/dashboard');
-          break;
-        case 'platform_admin':
-          navigate('/admin');
-          break;
-        default:
-          navigate('/');
-      }
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
       
-      toast.success(`Welcome back, ${result.user.name}!`);
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+      } else {
+        // Navigate based on user role (normal login flow)
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+        
+        toast.success(`Welcome back, ${result.user.name}!`);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Google sign in failed');
     }

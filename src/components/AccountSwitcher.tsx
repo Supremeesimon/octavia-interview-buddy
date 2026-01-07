@@ -5,7 +5,8 @@ import {
   LogOut, 
   ChevronDown, 
   ChevronUp,
-  UserRoundPlus
+  UserRoundPlus,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAccountSwitcher } from '@/hooks/use-account-switcher';
@@ -25,7 +26,7 @@ import { useNavigate } from 'react-router-dom';
 
 const AccountSwitcher: React.FC = () => {
   const navigate = useNavigate();
-  const { user: currentUser, logout } = useFirebaseAuth();
+  const { user: currentUser, isAccountSwitching, logout } = useFirebaseAuth();
   const { 
     activeAccount, 
     accounts, 
@@ -45,6 +46,12 @@ const AccountSwitcher: React.FC = () => {
   };
 
   const handleAccountSwitch = async (accountId: string) => {
+    // Prevent switching if already switching
+    if (isAccountSwitching) {
+      console.log('Account switching in progress, skipping duplicate switch');
+      return;
+    }
+    
     try {
       // Get the account that will be switched to
       const targetAccount = accounts.find(acc => acc.id === accountId);
@@ -81,11 +88,27 @@ const AccountSwitcher: React.FC = () => {
     removeAccount(accountId);
   };
 
-  // Function to add current account to the account switcher
+  // Function to initiate adding a new account by opening login in a new tab
   const handleAddAccount = () => {
-    if (currentUser) {
-      addCurrentAccount();
-      toast.success('Current account added to account switcher');
+    // Create a new window/tab for the user to log in
+    const newWindow = window.open('/login', '_blank', 'width=800,height=600');
+    
+    if (newWindow) {
+      // Store a flag to indicate we're adding a new account
+      localStorage.setItem('addingNewAccountViaSwitcher', 'true');
+      
+      // Store the return URL so the login page knows where to redirect after login
+      const returnUrl = window.location.href;
+      localStorage.setItem('postAuthRedirect', returnUrl);
+      
+      // Focus the new window
+      newWindow.focus();
+      
+      // Optional: Show a toast to inform the user
+      toast.info('Login window opened. Complete the login process to add the account.');
+    } else {
+      // Handle case where popup is blocked
+      toast.error('Popup blocked. Please allow popups for this site or try again.');
     }
   };
 
@@ -95,6 +118,23 @@ const AccountSwitcher: React.FC = () => {
       return 'Unknown User';
     }
     return account.name || account.email?.split('@')[0] || 'Unknown User';
+  };
+
+  // Get the role display name
+  const getRoleDisplayName = (role: string | undefined) => {
+    if (!role) return 'User';
+    switch(role) {
+      case 'student':
+        return 'Student';
+      case 'teacher':
+        return 'Teacher';
+      case 'institution_admin':
+        return 'Admin';
+      case 'platform_admin':
+        return 'Platform Admin';
+      default:
+        return role.charAt(0).toUpperCase() + role.slice(1);
+    }
   };
 
   // Get the avatar fallback for an account
@@ -116,15 +156,20 @@ const AccountSwitcher: React.FC = () => {
         <Button 
           variant="ghost" 
           className="relative h-8 flex items-center gap-2"
+          disabled={isAccountSwitching}
         >
           <Avatar className="h-6 w-6">
             <AvatarImage src={currentUser?.profilePicture} alt={getAccountDisplayName(currentUser)} />
             <AvatarFallback>{getAvatarFallback(currentUser)}</AvatarFallback>
           </Avatar>
           <span className="hidden md:inline-block truncate max-w-[120px]">
-            {getAccountDisplayName(currentUser)}
+            {isAccountSwitching ? 'Switching...' : getAccountDisplayName(currentUser)}
           </span>
-          <ChevronDown className="h-4 w-4" />
+          {isAccountSwitching ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="end">
@@ -140,9 +185,11 @@ const AccountSwitcher: React.FC = () => {
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="font-medium truncate">{getAccountDisplayName(activeAccount)}</div>
-              <div className="text-xs text-muted-foreground truncate">{activeAccount?.email || 'No email'}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {activeAccount?.email || 'No email'} • {getRoleDisplayName(activeAccount?.role)}
+              </div>
             </div>
-            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">Active</span>
+            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">{getRoleDisplayName(activeAccount?.role)}</span>
           </div>
         </div>
         
@@ -166,7 +213,9 @@ const AccountSwitcher: React.FC = () => {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{getAccountDisplayName(account)}</div>
-                      <div className="text-xs text-muted-foreground truncate">{account.email || 'No email'}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {account.email || 'No email'} • {getRoleDisplayName(account.role)}
+                      </div>
                     </div>
                     <Button
                       variant="ghost"
@@ -186,7 +235,7 @@ const AccountSwitcher: React.FC = () => {
         <DropdownMenuItem onClick={handleAddAccount} className="cursor-pointer">
           <div className="flex items-center gap-2 w-full">
             <UserPlus className="h-4 w-4" />
-            <span>Add Current Account</span>
+            <span>Add Another Account</span>
           </div>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

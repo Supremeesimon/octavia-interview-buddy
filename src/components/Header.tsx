@@ -83,7 +83,7 @@ const Header = () => {
   return (
     <header className={cn(
       'fixed top-0 left-0 right-0 z-50 py-4 transition-all duration-300',
-      scrolled ? 'bg-background/90 shadow-sm' : 'bg-transparent'
+      scrolled ? 'bg-background/80 backdrop-blur-sm shadow-sm' : 'bg-background/80 backdrop-blur-sm'
     )}>
       <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
         <Tooltip>
@@ -209,11 +209,9 @@ const Header = () => {
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <div className="w-full">
-                      <AccountSwitcher />
-                    </div>
-                  </DropdownMenuItem>
+                  <div className="px-2 py-1 border-t mt-1">
+                    <AccountSwitcher />
+                  </div>
                 </>
               ) : (
                 // Unauthenticated user mobile menu

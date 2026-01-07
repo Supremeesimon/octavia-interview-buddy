@@ -23,6 +23,7 @@ interface UseFirebaseAuthReturn {
   user: UserProfile | null;
   firebaseUser: User | null;
   isLoading: boolean;
+  isAccountSwitching: boolean; // Add isAccountSwitching to the return interface
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ user: UserProfile; token: string }>;
   register: (data: { name: string; email: string; password: string; institutionDomain?: string; role?: UserRole; department?: string; yearOfStudy?: string; }) => Promise<{ user: UserProfile; token: string }>;
@@ -42,7 +43,15 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     console.log('useFirebaseAuth: Setting up auth state listener');
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('useFirebaseAuth: Auth state changed', { firebaseUser: !!firebaseUser });
+      console.log('useFirebaseAuth: Auth state changed', { firebaseUser: !!firebaseUser, isAccountSwitching });
+      
+      // Skip token exchange if an account switch is in progress
+      if (isAccountSwitching) {
+        console.log('useFirebaseAuth: Account switching in progress, skipping token exchange');
+        setFirebaseUser(firebaseUser);
+        setIsLoading(false);
+        return;
+      }
       
       // Set loading state when auth state changes
       setIsLoading(true);
@@ -140,12 +149,20 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
       }, 500);
     });
 
+    // Subscribe to account switcher switching state changes
+    const unsubscribeSwitching = accountSwitcherService.subscribeToSwitching((isSwitching) => {
+      setIsAccountSwitching(isSwitching);
+    });
+    
     // Cleanup function
     return () => {
       console.log('useFirebaseAuth: Cleaning up auth state listener');
       unsubscribe();
       if (unsubscribeAccountSwitcher) {
         unsubscribeAccountSwitcher();
+      }
+      if (unsubscribeSwitching) {
+        unsubscribeSwitching();
       }
     };
   }, []);
@@ -264,6 +281,7 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
     user,
     firebaseUser,
     isLoading,
+    isAccountSwitching, // Add isAccountSwitching to the return object
     isAuthenticated: !!user,
     login,
     register,

@@ -14,11 +14,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   requiredRole 
 }) => {
-  const { user, isLoading, isAuthenticated } = useFirebaseAuth();
+  const { user, isLoading, isAuthenticated, isAccountSwitching } = useFirebaseAuth();
   const { isSwitching } = useAccountSwitcher(); // Add account switcher state
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
-  console.log('ProtectedRoute check:', { user, isLoading, isAuthenticated, requiredRole, isSwitching });
+  console.log('ProtectedRoute check:', { user, isLoading, isAuthenticated, requiredRole, isSwitching, isAccountSwitching });
 
   // Add a small delay to prevent immediate re-evaluation during account switching
   useEffect(() => {
@@ -62,11 +62,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Check role requirements if specified
   // Skip role check if an account switch is in progress to avoid premature redirects
-  if (requiredRole && user.role !== requiredRole && !isSwitching) {
-    console.log('ProtectedRoute: User role mismatch', { userRole: user.role, requiredRole, isSwitching });
+  if (requiredRole && user?.role !== requiredRole && !isSwitching && !isAccountSwitching) {
+    console.log('ProtectedRoute: User role mismatch', { userRole: user?.role, requiredRole, isSwitching, isAccountSwitching });
     toast.error('You do not have permission to access this page');
     // Redirect based on user role
-    switch (user.role) {
+    switch (user?.role) {
       case 'student':
         return <Navigate to="/student" replace />;
       case 'teacher':
@@ -81,7 +81,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
   
   // If an account switch is in progress, show loading state instead of redirecting
-  if (requiredRole && user.role !== requiredRole && isSwitching) {
+  if (requiredRole && user?.role !== requiredRole && (isSwitching || isAccountSwitching)) {
     console.log('ProtectedRoute: Account switch in progress, showing loading');
     return (
       <div className="flex items-center justify-center min-h-screen">

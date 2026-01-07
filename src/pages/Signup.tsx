@@ -10,12 +10,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from "sonner";
 import { Mail, GraduationCap, Users, Shield, Chrome } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 
 const Signup = () => {
   const [activeTab, setActiveTab] = useState('student');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { register, loginWithGoogle, isLoading } = useFirebaseAuth();
+  const { addCurrentAccount } = useAccountSwitcher();
 
   // Check if this is an institutional signup link
   const institutionParam = searchParams.get('institution');
@@ -90,8 +92,51 @@ const Signup = () => {
         yearOfStudy: studentForm.yearOfStudy
       });
       
-      navigate('/student');
-      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
+      
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        navigate('/student');
+      } else {
+        // Normal signup flow
+        navigate('/student');
+        toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
     }
@@ -102,6 +147,11 @@ const Signup = () => {
     
     if (!validateGenericEmail(teacherForm.email)) {
       toast.error("Please enter a valid email address");
+      return;
+    }
+
+    if (!teacherForm.department) {
+      toast.error("Please select your department");
       return;
     }
 
@@ -116,9 +166,51 @@ const Signup = () => {
         yearOfStudy: teacherForm.yearOfStudy
       });
       
-      // For now, we'll navigate to dashboard, but we should enhance this to properly handle teacher roles
-      navigate('/dashboard');
-      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
+      
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        navigate('/dashboard');
+      } else {
+        // Normal signup flow
+        navigate('/dashboard');
+        toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
     }
@@ -141,19 +233,70 @@ const Signup = () => {
         role: 'platform_admin' // Platform admin role
       });
       
-      // Navigate based on the actual role assigned by Firebase
-      switch (result.user.role) {
-        case 'platform_admin':
-          navigate('/admin');
-          break;
-        case 'institution_admin':
-          navigate('/dashboard');
-          break;
-        default:
-          navigate('/');
-      }
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
       
-      toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        switch (result.user.role) {
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          default:
+            navigate('/');
+        }
+      } else {
+        // Navigate based on the actual role assigned by Firebase
+        switch (result.user.role) {
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          default:
+            navigate('/');
+        }
+        
+        toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
     }
@@ -172,22 +315,76 @@ const Signup = () => {
       // For non-institutional signup, proceed with Google signup
       const result = await loginWithGoogle();
       
-      // Navigate based on user role
-      switch (result.user.role) {
-        case 'student':
-          navigate('/student');
-          break;
-        case 'institution_admin':
-          navigate('/dashboard');
-          break;
-        case 'platform_admin':
-          navigate('/admin');
-          break;
-        default:
-          navigate('/');
-      }
+      // Check if we're adding a new account via account switcher
+      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
       
-      toast.success(`Welcome ${result.user.name}!`);
+      if (isAddingNewAccount) {
+        // Add current account to account switcher
+        addCurrentAccount();
+        
+        // Show success message
+        toast.success(`Account added successfully: ${result.user.name}`);
+        
+        // Clear the flag
+        localStorage.removeItem('addingNewAccountViaSwitcher');
+        
+        // Check for return context and navigate back if available
+        const returnUrl = localStorage.getItem('postAuthRedirect');
+        if (returnUrl) {
+          localStorage.removeItem('postAuthRedirect');
+          
+          // Close the current window if it's a popup
+          if (window.opener && window.opener !== window) {
+            // This is a popup window, close it and refresh the opener
+            window.close();
+            
+            // Try to refresh the opener window
+            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
+              try {
+                (window.opener as Window).location.reload();
+              } catch (reloadError) {
+                console.error('Could not reload opener window:', reloadError);
+              }
+            }
+          } else {
+            // Not a popup, navigate to return URL
+            window.location.href = returnUrl;
+          }
+          return;
+        }
+        
+        // If no return context, just navigate to the appropriate dashboard
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+      } else {
+        // Navigate based on user role (normal signup flow)
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student');
+            break;
+          case 'institution_admin':
+            navigate('/dashboard');
+            break;
+          case 'platform_admin':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+        }
+        
+        toast.success(`Welcome ${result.user.name}!`);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Google sign in failed');
     }
