@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
-import { useAccountSwitcher } from '@/hooks/use-account-switcher';
+// import { useAccountSwitcher } from "@/hooks/use-account-switcher"; // Removed
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
