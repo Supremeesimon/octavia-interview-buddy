@@ -13,7 +13,7 @@ import { Menu } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { toast } from 'sonner';
-import AccountSwitcher from '@/components/AccountSwitcher';
+// AccountSwitcher import removed
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -145,7 +145,7 @@ const Header = () => {
                   <p>Go to your dashboard</p>
                 </TooltipContent>
               </Tooltip>
-              <AccountSwitcher />
+              {/* AccountSwitcher removed */}
             </>
           ) : (
             // Unauthenticated user navigation
@@ -210,7 +210,7 @@ const Header = () => {
                     </Link>
                   </DropdownMenuItem>
                   <div className="px-2 py-1 border-t mt-1">
-                    <AccountSwitcher />
+                    {/* AccountSwitcher removed */}
                   </div>
                 </>
               ) : (
