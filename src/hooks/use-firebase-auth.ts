@@ -96,6 +96,9 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
             const userProfile = await firebaseAuthService.getCurrentUser();
             console.log('useFirebaseAuth: User profile fetched', { userProfile: !!userProfile });
             setUser(userProfile);
+          
+            // Check for and handle pending account switches
+            accountSwitcherService.handlePendingAccountSwitch();
           } catch (exchangeError) {
             console.error('Error exchanging Firebase token:', exchangeError);
             // If token exchange fails, fall back to using the Firebase token directly
@@ -106,6 +109,9 @@ export function useFirebaseAuth(): UseFirebaseAuthReturn {
             const userProfile = await firebaseAuthService.getCurrentUser();
             console.log('useFirebaseAuth: User profile fetched (fallback)', { userProfile: !!userProfile });
             setUser(userProfile);
+            
+            // Check for and handle pending account switches even in fallback mode
+            accountSwitcherService.handlePendingAccountSwitch();
           }
         } catch (error) {
           console.error('Error getting user profile:', error);

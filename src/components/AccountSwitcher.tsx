@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User, 
   UserPlus, 
@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { errorHandler } from '@/lib/error-handler';
+import { useCrossAccountSwitch } from '@/hooks/use-cross-account-switch';
 
 const AccountSwitcher: React.FC = () => {
   const navigate = useNavigate();
@@ -36,7 +37,13 @@ const AccountSwitcher: React.FC = () => {
     addCurrentAccount,
     removeAccount 
   } = useAccountSwitcher();
+  const { showCrossAccountSwitchToast } = useCrossAccountSwitch();
   const [showAccountList, setShowAccountList] = useState(false);
+
+  // Force re-render when active account changes
+  useEffect(() => {
+    // This will cause the component to re-render when activeAccount changes
+  }, [activeAccount]);
 
   const handleLogout = async () => {
     try {
@@ -82,8 +89,37 @@ const AccountSwitcher: React.FC = () => {
       }
       
       toast.success('Account switched successfully');
-    } catch (error) {
-      errorHandler.handleAccountSwitchError(error, accountId);
+    } catch (error: any) {
+      // Comprehensive error detection for cross-account switching scenarios
+      const isCrossAccountError = (
+        // Direct CTA trigger
+        error.message === 'cross_account_switch_required' ||
+        // Error handler patterns
+        error.message?.includes('cross_account_switch_required') ||
+        // Account switch service patterns
+        error.message?.includes('Failed to switch to account') ||
+        // Guidance message patterns
+        error.message?.includes('Sign out completely') ||
+        error.message?.includes('sign in with the account') ||
+        error.message?.includes('different user') ||
+        // Protected route patterns
+        error.message?.includes('permission to access this page') ||
+        // General account switching patterns
+        (error.message?.includes('switch') && error.message?.includes('account'))
+      );
+      
+      if (isCrossAccountError) {
+        const targetAccount = accounts.find(acc => acc.id === accountId);
+        if (targetAccount) {
+          showCrossAccountSwitchToast({
+            accountId: targetAccount.id,
+            accountEmail: targetAccount.email || '',
+            accountName: targetAccount.name || targetAccount.email?.split('@')[0] || 'Unknown User'
+          });
+        }
+      } else {
+        errorHandler.handleAccountSwitchError(error, accountId);
+      }
     }
   };
 
@@ -121,13 +157,26 @@ const AccountSwitcher: React.FC = () => {
     if (!account) {
       return 'Unknown User';
     }
-    return account.name || account.email?.split('@')[0] || 'Unknown User';
+    
+    // Prefer name, then email username, then generic fallback
+    if (account.name && account.name.trim()) {
+      return account.name.trim();
+    }
+    
+    if (account.email) {
+      const emailUsername = account.email.split('@')[0];
+      if (emailUsername && emailUsername.trim()) {
+        return emailUsername.trim();
+      }
+    }
+    
+    return 'User';
   };
 
   // Get the role display name
   const getRoleDisplayName = (role: string | undefined) => {
     if (!role) return 'User';
-    switch(role) {
+    switch(role.toLowerCase()) {
       case 'student':
         return 'Student';
       case 'teacher':
@@ -137,7 +186,10 @@ const AccountSwitcher: React.FC = () => {
       case 'platform_admin':
         return 'Platform Admin';
       default:
-        return role.charAt(0).toUpperCase() + role.slice(1);
+        // Handle any other role formats
+        return role.split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
     }
   };
 
@@ -148,6 +200,30 @@ const AccountSwitcher: React.FC = () => {
     }
     const name = getAccountDisplayName(account);
     return name.charAt(0).toUpperCase();
+  };
+
+  // Filter out invalid/duplicate accounts
+  const getValidAccounts = (allAccounts: UserProfile[], activeAccountId: string | null) => {
+    const validAccounts = allAccounts.filter(account => {
+      // Remove accounts with missing essential data
+      if (!account.id || !account.email) {
+        console.warn('Skipping account with missing data:', account);
+        return false;
+      }
+      
+      // Remove duplicates based on email
+      const duplicateCount = allAccounts.filter(a => a.email === account.email).length;
+      if (duplicateCount > 1) {
+        console.warn('Potential duplicate account found:', account.email);
+        // Keep the one with more complete data
+        return account.name && account.name.trim();
+      }
+      
+      return true;
+    });
+    
+    // Filter out active account from switch list
+    return validAccounts.filter(account => account.id !== activeAccountId);
   };
 
   if (!currentUser) {
@@ -163,11 +239,11 @@ const AccountSwitcher: React.FC = () => {
           disabled={isAccountSwitching}
         >
           <Avatar className="h-6 w-6">
-            <AvatarImage src={currentUser?.profilePicture} alt={getAccountDisplayName(currentUser)} />
-            <AvatarFallback>{getAvatarFallback(currentUser)}</AvatarFallback>
+            <AvatarImage src={activeAccount?.profilePicture || currentUser?.profilePicture} alt={getAccountDisplayName(activeAccount || currentUser)} />
+            <AvatarFallback>{getAvatarFallback(activeAccount || currentUser)}</AvatarFallback>
           </Avatar>
           <span className="hidden md:inline-block truncate max-w-[120px]">
-            {isAccountSwitching ? 'Switching...' : getAccountDisplayName(currentUser)}
+            {isAccountSwitching ? 'Switching...' : getAccountDisplayName(activeAccount || currentUser)}
           </span>
           {isAccountSwitching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -202,8 +278,7 @@ const AccountSwitcher: React.FC = () => {
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Switch Account</DropdownMenuLabel>
             
-            {accounts
-              .filter(account => account.id !== activeAccount?.id)
+            {getValidAccounts(accounts, activeAccount?.id)
               .map(account => (
                 <DropdownMenuItem 
                   key={account.id} 

@@ -192,8 +192,12 @@ export class ErrorHandler {
       appError.message = 'No valid authentication session found.';
       appError.code = 'NO_AUTH_TOKEN';
     } else if (error.message?.includes('Failed to refresh expired token')) {
-      appError.message = `Unable to refresh session for account ${accountId}. Please re-authenticate this account.`;
+      // For cross-account switching scenarios, we want to show a CTA button
+      // This will be handled by the calling component instead of showing a toast here
+      appError.message = 'cross_account_switch_required';
       appError.code = 'TOKEN_REFRESH_FAILED';
+      // Don't show toast here - let the calling component handle it
+      return appError;
     } else if (error.message?.includes('Cannot switch to account') && error.message?.includes('Current user')) {
       const match = error.message.match(/Cannot switch to account ([^:]+): Current user ([^ ]+) doesn't match account owner ([^.]+)/);
       if (match) {
@@ -208,6 +212,15 @@ export class ErrorHandler {
       appError.message = `Account user doesn't match current session. Please log out and log back in as the correct user.`;
       appError.code = 'USER_MISMATCH';
     } else if (accountId) {
+      // For account switching errors, don't show generic error messages
+      // These should be handled by the AccountSwitcher component with CTA buttons
+      if (error.message?.includes('switch') || error.message?.includes('account')) {
+        appError.message = 'cross_account_switch_required';
+        appError.code = 'ACCOUNT_SWITCH_ERROR';
+        // Don't show toast - let AccountSwitcher handle it
+        return appError;
+      }
+      
       appError.message = `Failed to switch to account ${accountId}`;
       // Add more specific error details if available
       if (error.message) {
@@ -218,8 +231,10 @@ export class ErrorHandler {
     // Log detailed error information for debugging
     this.logDetailedAccountError(appError, accountId, error);
     
-    toast.error('Account Switch Failed', {
-      description: appError.message
+    // Show user-friendly toast with clear guidance
+    toast.error('Cross-Account Access Required', {
+      description: appError.message,
+      duration: 8000 // Longer duration for important guidance
     });
 
     return appError;

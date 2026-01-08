@@ -558,10 +558,38 @@ const authController = {
         console.log('Firebase token verified successfully for user:', decodedToken.uid);
       } catch (error) {
         console.error('Firebase token verification error:', error);
+        console.error('Error code:', error.code);
         console.error('Error stack:', error.stack);
-        return res.status(401).json({
+        
+        // More specific Firebase auth error messages
+        let errorMessage = 'Invalid or expired Firebase token';
+        let statusCode = 401;
+        
+        switch (error.code) {
+          case 'auth/argument-error':
+            errorMessage = 'Invalid Firebase token format';
+            statusCode = 400;
+            break;
+          case 'auth/id-token-expired':
+            errorMessage = 'Firebase token has expired';
+            break;
+          case 'auth/invalid-id-token':
+            errorMessage = 'Invalid Firebase token';
+            break;
+          case 'auth/user-token-revoked':
+            errorMessage = 'User session has been revoked';
+            break;
+          case 'auth/user-disabled':
+            errorMessage = 'User account has been disabled';
+            statusCode = 403;
+            break;
+          default:
+            errorMessage = 'Authentication failed';
+        }
+        
+        return res.status(statusCode).json({
           success: false,
-          message: 'Invalid or expired Firebase token',
+          message: errorMessage,
           error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
       }
@@ -729,6 +757,7 @@ const authController = {
     } catch (error) {
       console.error('Token exchange error:', error);
       console.error('Error stack:', error.stack);
+      
       // More specific error handling
       if (error.code === 'auth/argument-error') {
         return res.status(400).json({
@@ -737,10 +766,88 @@ const authController = {
         });
       }
       
+      // Handle Firebase auth specific errors
+      if (error.code === 'auth/id-token-expired') {
+        return res.status(401).json({
+          success: false,
+          message: 'Firebase token has expired. Please refresh your authentication.'
+        });
+      }
+      
+      if (error.code === 'auth/invalid-id-token') {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid Firebase token. Please re-authenticate.'
+        });
+      }
+      
+      if (error.code === 'auth/user-token-revoked') {
+        return res.status(401).json({
+          success: false,
+          message: 'User session has been revoked. Please log in again.'
+        });
+      }
+      
+      // Handle database connection errors
+      if (error.message && (error.message.includes('connect ECONNREFUSED') || 
+                           error.message.includes('database') || 
+                           error.message.includes('connection'))) {
+        console.error('Database connection error during token exchange');
+        return res.status(503).json({
+          success: false,
+          message: 'Authentication service temporarily unavailable. Please try again later.'
+        });
+      }
+      
+      // Handle general server errors
       res.status(500).json({
         success: false,
         message: 'Internal server error during token exchange',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  },
+
+  // Get user profile (lightweight endpoint for token validation)
+  async getProfile(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      // Fetch user data from database
+      const result = await db.query(
+        'SELECT id, email, name, role, institution_id, profile_picture_url, is_email_verified, created_at, last_login_at FROM users WHERE id = $1',
+        [userId]
+      );
+      
+      const user = result.rows[0];
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            institutionId: user.institution_id,
+            profilePictureUrl: user.profile_picture_url,
+            isEmailVerified: user.is_email_verified,
+            createdAt: user.created_at,
+            lastLoginAt: user.last_login_at
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Get profile error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
       });
     }
   }

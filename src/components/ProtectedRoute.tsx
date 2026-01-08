@@ -64,7 +64,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Skip role check if an account switch is in progress to avoid premature redirects
   if (requiredRole && user?.role !== requiredRole && !isSwitching && !isAccountSwitching) {
     console.log('ProtectedRoute: User role mismatch', { userRole: user?.role, requiredRole, isSwitching, isAccountSwitching });
-    toast.error('You do not have permission to access this page');
+    // Only show permission error if we're not in the middle of an account switch
+    if (!isSwitching && !isAccountSwitching) {
+      toast.error('You do not have permission to access this page');
+    }
     // Redirect based on user role
     switch (user?.role) {
       case 'student':

@@ -15,6 +15,7 @@ router.post('/resend-verification', authController.resendEmailVerification);
 router.post('/exchange-firebase-token', authController.exchangeFirebaseToken); // New route
 
 // Protected routes
+router.get('/profile', authenticateToken, authController.getProfile);
 router.post('/change-password', authenticateToken, authController.changePassword);
 router.put('/profile', authenticateToken, authController.updateProfile);
 

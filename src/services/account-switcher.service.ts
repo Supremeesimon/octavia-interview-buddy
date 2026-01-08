@@ -138,7 +138,13 @@ export class AccountSwitcherService {
           // Try alternative approaches
           const alternativeSuccess = await this.attemptAlternativeSwitch(accountId, accountSession);
           if (!alternativeSuccess) {
-            throw new Error(`Failed to refresh expired token for account ${accountId} and no alternative methods succeeded`);
+            // Provide clear, actionable guidance instead of technical error
+            const guidanceMessage = `To access this account:\n\n` +
+              `1. Sign out completely\n` +
+              `2. Sign in with the account's credentials\n\n` +
+              `The system will automatically switch to this account after sign-in.`;
+            
+            throw new Error(guidanceMessage);
           }
           console.log(`Successfully switched to account ${accountId} using alternative method`);
         } else {
@@ -354,6 +360,43 @@ export class AccountSwitcherService {
   }
 
   /**
+   * Check for pending account switches after successful login
+   */
+  checkPendingAccountSwitch(): { accountId: string; userEmail: string; userName: string } | null {
+    try {
+      const pendingSwitch = localStorage.getItem('pendingAccountSwitch');
+      if (pendingSwitch) {
+        const switchInfo = JSON.parse(pendingSwitch);
+        
+        // Check if the switch info is recent (within 24 hours)
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (Date.now() - switchInfo.timestamp < twentyFourHours) {
+          return {
+            accountId: switchInfo.accountId,
+            userEmail: switchInfo.userEmail,
+            userName: switchInfo.userName
+          };
+        } else {
+          // Remove expired pending switch
+          localStorage.removeItem('pendingAccountSwitch');
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error checking pending account switch:', error);
+      localStorage.removeItem('pendingAccountSwitch'); // Clean up on error
+      return null;
+    }
+  }
+
+  /**
+   * Clear pending account switch
+   */
+  clearPendingAccountSwitch(): void {
+    localStorage.removeItem('pendingAccountSwitch');
+  }
+
+  /**
    * Set account switching state
    */
   private setAccountSwitching(switching: boolean): void {
@@ -416,7 +459,7 @@ export class AccountSwitcherService {
       const { getAuth, getIdToken } = await import('firebase/auth');
       const currentUser = getAuth().currentUser;
       
-      if (currentUser && currentUser.uid === accountSession.user.id) {
+      if (currentUser && currentUser.email === accountSession.user.email) {
         console.log('Trying direct Firebase token approach');
         const firebaseToken = await getIdToken(currentUser, true);
         if (firebaseToken) {
@@ -428,8 +471,31 @@ export class AccountSwitcherService {
         }
       }
       
-      // Method 2: Remove the problematic account and suggest re-login
-      console.log('Alternative methods failed, removing problematic account');
+      // Method 2: Check if this is a cross-Firebase-user switching scenario
+      if (currentUser && currentUser.email !== accountSession.user.email) {
+        console.log('Cross-Firebase-user switching detected. Providing clear guidance.');
+        
+        // Store the target account info for easy re-access after re-authentication
+        localStorage.setItem('pendingAccountSwitch', JSON.stringify({
+          accountId: accountId,
+          userEmail: accountSession.user.email,
+          userName: accountSession.user.name,
+          timestamp: Date.now()
+        }));
+        
+        // Provide clear guidance about the required process
+        const guidanceMessage = `Cross-account switching requires signing out and signing in with the target account.\n\n` +
+          `To access ${accountSession.user.email}:\n` +
+          `1. Sign out completely\n` +
+          `2. Sign in with ${accountSession.user.email}\n\n` +
+          `The system will automatically switch to this account after sign-in.`;
+        
+        console.log(guidanceMessage);
+        return false;
+      }
+      
+      // Method 3: Remove the problematic account as last resort
+      console.log('All alternative methods failed, removing problematic account');
       this.removeAccount(accountId);
       
       // Notify that account needs to be re-added
@@ -468,12 +534,27 @@ export class AccountSwitcherService {
       }
       
       // Verify this is the correct user for this account
-      if (currentUser.uid !== accountSession.user.id) {
-        console.warn(`Current Firebase user (${currentUser.uid}) doesn't match account user (${accountSession.user.id})`);
-        // This indicates we're trying to switch to an account that belongs to a different user
-        // Remove the account from storage since we can't switch to it
-        this.removeAccount(accountId);
-        throw new Error(`Cannot switch to account ${accountId}: Current user ${currentUser.uid} doesn't match account owner ${accountSession.user.id}. Account has been removed.`);
+      // Compare emails instead of IDs since Firebase UIDs and backend IDs are different
+      if (currentUser.email !== accountSession.user.email) {
+        console.warn(`Current Firebase user (${currentUser.email}) doesn't match account user (${accountSession.user.email})`);
+        // This indicates we're trying to switch to an account that belongs to a different Firebase user
+        // Cross-Firebase-user switching requires complete sign-out/sign-in
+        
+        // Store the target account info for easy re-access after re-authentication
+        localStorage.setItem('pendingAccountSwitch', JSON.stringify({
+          accountId: accountId,
+          userEmail: accountSession.user.email,
+          userName: accountSession.user.name,
+          timestamp: Date.now()
+        }));
+        
+        // Provide clear guidance to the user about what needs to happen
+        const errorMessage = `Cannot switch to account ${accountSession.user.email} because it belongs to a different user. To access this account:\n\n` +
+          `1. Sign out completely\n` +
+          `2. Sign in with ${accountSession.user.email}\n\n` +
+          `The system will automatically switch to this account after you sign in.`;
+        
+        throw new Error(errorMessage);
       }
       
       console.log(`Getting fresh Firebase token for user ${currentUser.uid}`);
@@ -516,6 +597,58 @@ export class AccountSwitcherService {
       }
       
       return null;
+    }
+  }
+
+  /**
+   * Check for and handle pending account switches after login
+   * This should be called after successful authentication
+   */
+  handlePendingAccountSwitch(): void {
+    try {
+      const pendingSwitchData = localStorage.getItem('pendingAccountSwitch');
+      if (pendingSwitchData) {
+        const pendingSwitch = JSON.parse(pendingSwitchData);
+        
+        // Check if the data is recent (within 1 hour)
+        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+        if (pendingSwitch.timestamp && pendingSwitch.timestamp < oneHourAgo) {
+          console.log('Pending account switch data is too old, clearing it');
+          localStorage.removeItem('pendingAccountSwitch');
+          return;
+        }
+        
+        const { accountId, userEmail, userName } = pendingSwitch;
+        console.log(`Found pending account switch to ${userName} (${userEmail})`);
+        
+        // Check if we're now logged in as the target user
+        const { auth } = require('@/lib/firebase');
+        const { getAuth } = require('firebase/auth');
+        const currentUser = getAuth().currentUser;
+        
+        if (currentUser && currentUser.email === userEmail) {
+          console.log(`Successfully logged in as target user ${userEmail}, switching to account ${accountId}`);
+          
+          // Switch to the pending account
+          this.switchToAccount(accountId)
+            .then(() => {
+              console.log(`Successfully switched to pending account ${accountId}`);
+              // Clear the pending switch data
+              localStorage.removeItem('pendingAccountSwitch');
+            })
+            .catch((error) => {
+              console.error(`Failed to switch to pending account ${accountId}:`, error);
+              // Still clear the pending data to avoid infinite loops
+              localStorage.removeItem('pendingAccountSwitch');
+            });
+        } else {
+          console.log(`Still not logged in as target user ${userEmail}, keeping pending switch data`);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling pending account switch:', error);
+      // Clear malformed data
+      localStorage.removeItem('pendingAccountSwitch');
     }
   }
 }
