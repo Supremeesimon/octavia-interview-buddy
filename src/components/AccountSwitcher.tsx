@@ -152,25 +152,28 @@ const AccountSwitcher: React.FC = () => {
     }
   };
 
-  // Get the display name for an account
+  // Get the display name for an account with better fallbacks
   const getAccountDisplayName = (account: UserProfile | null | undefined) => {
     if (!account) {
       return 'Unknown User';
     }
     
-    // Prefer name, then email username, then generic fallback
+    // Prefer name first
     if (account.name && account.name.trim()) {
       return account.name.trim();
     }
     
-    if (account.email) {
-      const emailUsername = account.email.split('@')[0];
-      if (emailUsername && emailUsername.trim()) {
-        return emailUsername.trim();
-      }
+    // Then email
+    if (account.email && account.email.trim()) {
+      return account.email.trim();
     }
     
-    return 'User';
+    // Then ID as last resort
+    if (account.id) {
+      return `User-${account.id.substring(0, 8)}`;
+    }
+    
+    return 'Unknown User';
   };
 
   // Get the role display name
@@ -196,29 +199,79 @@ const AccountSwitcher: React.FC = () => {
   // Get the avatar fallback for an account
   const getAvatarFallback = (account: UserProfile | null | undefined) => {
     if (!account) {
-      return 'U';
+      return '?';
     }
-    const name = getAccountDisplayName(account);
-    return name.charAt(0).toUpperCase();
+    
+    // Try name first
+    if (account.name && account.name.trim()) {
+      return account.name.trim().charAt(0).toUpperCase();
+    }
+    
+    // Try email
+    if (account.email && account.email.trim()) {
+      const emailParts = account.email.split('@');
+      if (emailParts.length > 0 && emailParts[0].trim()) {
+        return emailParts[0].trim().charAt(0).toUpperCase();
+      }
+    }
+    
+    // Fallback to ID
+    if (account.id) {
+      return account.id.charAt(0).toUpperCase();
+    }
+    
+    return '?';
   };
 
-  // Filter out invalid/duplicate accounts
+  // Filter out invalid/duplicate accounts and improve data quality
   const getValidAccounts = (allAccounts: UserProfile[], activeAccountId: string | null) => {
-    const validAccounts = allAccounts.filter(account => {
-      // Remove accounts with missing essential data
-      if (!account.id || !account.email) {
-        console.warn('Skipping account with missing data:', account);
+    // First, group accounts by email to identify duplicates
+    const accountsByEmail: Record<string, UserProfile[]> = {};
+    
+    allAccounts.forEach(account => {
+      if (account.email) {
+        if (!accountsByEmail[account.email]) {
+          accountsByEmail[account.email] = [];
+        }
+        accountsByEmail[account.email].push(account);
+      }
+    });
+    
+    // For each email group, select the best account (most complete data)
+    const deduplicatedAccounts: UserProfile[] = [];
+    
+    Object.values(accountsByEmail).forEach(accountGroup => {
+      if (accountGroup.length === 1) {
+        // Single account, add it directly
+        deduplicatedAccounts.push(accountGroup[0]);
+      } else {
+        // Multiple accounts with same email, pick the best one
+        const bestAccount = accountGroup.reduce((best, current) => {
+          // Score based on data completeness
+          const bestScore = (best.name ? 1 : 0) + (best.role ? 1 : 0) + (best.profilePicture ? 1 : 0);
+          const currentScore = (current.name ? 1 : 0) + (current.role ? 1 : 0) + (current.profilePicture ? 1 : 0);
+          
+          return currentScore > bestScore ? current : best;
+        });
+        
+        deduplicatedAccounts.push(bestAccount);
+        console.log(`Deduplicated ${accountGroup.length} accounts for email ${bestAccount.email}, kept best one`);
+      }
+    });
+    
+    // Filter out accounts with missing essential data
+    const validAccounts = deduplicatedAccounts.filter(account => {
+      if (!account.id) {
+        console.warn('Skipping account with missing ID:', account);
         return false;
       }
       
-      // Remove duplicates based on email
-      const duplicateCount = allAccounts.filter(a => a.email === account.email).length;
-      if (duplicateCount > 1) {
-        console.warn('Potential duplicate account found:', account.email);
-        // Keep the one with more complete data
-        return account.name && account.name.trim();
+      if (!account.email) {
+        console.warn('Skipping account with missing email:', account);
+        return false;
       }
       
+      // Consider accounts with at least email valid
       return true;
     });
     
