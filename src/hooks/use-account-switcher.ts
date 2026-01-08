@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { accountSwitcherService } from '@/services/account-switcher.service';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useErrorHandler } from '@/hooks/use-error-handler';
 import type { UserProfile } from '@/types';
 
 interface UseAccountSwitcherReturn {
@@ -10,13 +11,14 @@ interface UseAccountSwitcherReturn {
   isSwitching: boolean; // Add isSwitching property
   hasMultipleAccounts: boolean;
   switchAccount: (accountId: string) => Promise<void>;
-  addCurrentAccount: () => void;
+  addCurrentAccount: () => Promise<void>;
   removeAccount: (accountId: string) => void;
   getAccountCount: () => number;
 }
 
 export function useAccountSwitcher(): UseAccountSwitcherReturn {
   const { user: currentUser, isLoading: authLoading } = useFirebaseAuth();
+  const { handleAccountError } = useErrorHandler();
   const [activeAccount, setActiveAccount] = useState<UserProfile | null>(null);
   const [accounts, setAccounts] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +70,7 @@ export function useAccountSwitcher(): UseAccountSwitcherReturn {
       const activeAccountSession = accountSwitcherService.getActiveAccount();
       setActiveAccount(activeAccountSession?.user || null);
     } catch (error) {
-      console.error('Error switching account:', error);
+      handleAccountError(error, accountId);
       throw error;
     } finally {
       setIsLoading(false);
@@ -76,17 +78,22 @@ export function useAccountSwitcher(): UseAccountSwitcherReturn {
     }
   };
 
-  const addCurrentAccount = (): void => {
+  const addCurrentAccount = async (): Promise<void> => {
     if (currentUser) {
-      // Use the new method in the service to add the current account
-      accountSwitcherService.addCurrentAccount(currentUser, 'email'); // Could detect login method here
-      
-      // Update local state
-      const allAccounts = accountSwitcherService.getAllAccounts();
-      setAccounts(allAccounts.map(account => account.user));
-      
-      const activeAccountSession = accountSwitcherService.getActiveAccount();
-      setActiveAccount(activeAccountSession?.user || null);
+      try {
+        // Use the new method in the service to add the current account
+        await accountSwitcherService.addCurrentAccount(currentUser, 'email'); // Could detect login method here
+        
+        // Update local state
+        const allAccounts = accountSwitcherService.getAllAccounts();
+        setAccounts(allAccounts.map(account => account.user));
+        
+        const activeAccountSession = accountSwitcherService.getActiveAccount();
+        setActiveAccount(activeAccountSession?.user || null);
+      } catch (error) {
+        handleAccountError(error);
+        throw error;
+      }
     }
   };
 

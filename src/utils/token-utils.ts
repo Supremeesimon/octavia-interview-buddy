@@ -63,20 +63,20 @@ export async function refreshToken(): Promise<boolean> {
 /**
  * Check if the current token is expired
  */
-export function isTokenExpired(): boolean {
-  const token = localStorage.getItem('authToken');
-  if (!token) return true;
+export function isTokenExpired(token?: string): boolean {
+  const authToken = token || localStorage.getItem('authToken');
+  if (!authToken) return true;
   
   try {
     // Decode the JWT token to check expiration
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(atob(authToken.split('.')[1]));
     const expirationTime = payload.exp * 1000; // Convert to milliseconds
     const currentTime = Date.now();
     
     // Consider token expired if it's within 5 minutes of expiration
     return currentTime > (expirationTime - 5 * 60 * 1000);
   } catch (error) {
-    console.error('Error decoding token:', error);
+    console.warn('Error decoding token, treating as expired:', error);
     return true;
   }
 }
@@ -94,23 +94,38 @@ export function scheduleTokenRefresh(): void {
     const expirationTime = payload.exp * 1000; // Convert to milliseconds
     const currentTime = Date.now();
     
-    // Calculate time until expiration (with 5 minute buffer)
-    const timeUntilExpiration = expirationTime - currentTime - (5 * 60 * 1000);
+    // Calculate time until expiration (with 10 minute buffer for proactive refresh)
+    const timeUntilExpiration = expirationTime - currentTime - (10 * 60 * 1000);
     
     // Only schedule if token is still valid
     if (timeUntilExpiration > 0) {
-      console.log(`Scheduling token refresh in ${Math.floor(timeUntilExpiration / 1000)} seconds`);
+      console.log(`Scheduling proactive token refresh in ${Math.floor(timeUntilExpiration / 1000)} seconds`);
       
       // Schedule token refresh
       setTimeout(async () => {
-        console.log('Performing scheduled token refresh');
-        await refreshToken();
+        try {
+          console.log('Performing scheduled token refresh');
+          const success = await refreshToken();
+          if (success) {
+            console.log('Scheduled token refresh successful');
+          } else {
+            console.warn('Scheduled token refresh failed');
+          }
+        } catch (error) {
+          console.error('Scheduled token refresh error:', error);
+        }
       }, timeUntilExpiration);
     } else {
-      console.log('Token is already expired or about to expire');
+      console.log('Token is already expired or about to expire, attempting immediate refresh');
+      refreshToken().catch(error => {
+        console.error('Immediate token refresh failed:', error);
+      });
     }
   } catch (error) {
-    console.error('Error scheduling token refresh:', error);
+    console.warn('Error scheduling token refresh, attempting immediate refresh:', error);
+    refreshToken().catch(refreshError => {
+      console.error('Fallback token refresh failed:', refreshError);
+    });
   }
 }
 

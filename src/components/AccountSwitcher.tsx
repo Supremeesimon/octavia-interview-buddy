@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
+import { errorHandler } from '@/lib/error-handler';
 
 const AccountSwitcher: React.FC = () => {
   const navigate = useNavigate();
@@ -40,8 +41,9 @@ const AccountSwitcher: React.FC = () => {
   const handleLogout = async () => {
     try {
       await logout();
+      toast.success('Logged out successfully');
     } catch (error) {
-      console.error('Error logging out:', error);
+      errorHandler.handleAuthError(error, 'logout');
     }
   };
 
@@ -78,8 +80,10 @@ const AccountSwitcher: React.FC = () => {
             navigate('/');
         }
       }
+      
+      toast.success('Account switched successfully');
     } catch (error) {
-      console.error('Error switching account:', error);
+      errorHandler.handleAccountSwitchError(error, accountId);
     }
   };
 
