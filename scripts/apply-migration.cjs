@@ -5,14 +5,24 @@ const path = require('path');
 // Load environment variables
 require('dotenv').config({ path: path.resolve(__dirname, '../.env.local') });
 
+// Determine database configuration
+let connectionString;
+if (process.env.KOYEB_DATABASE_URL) {
+  // Use Koyeb database with SSL requirement
+  connectionString = process.env.KOYEB_DATABASE_URL + '?sslmode=require';
+  console.log('Using Koyeb database with SSL');
+} else if (process.env.DATABASE_URL) {
+  connectionString = process.env.DATABASE_URL;
+  console.log('Using DATABASE_URL');
+} else {
+  // Local database
+  connectionString = `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'octavia_interview'}`;
+  console.log('Using local database configuration');
+}
+
 // PostgreSQL connection pool
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'octavia_interview',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: process.env.DB_PORT || 5432,
-  connectionString: process.env.DATABASE_URL,
+  connectionString: connectionString,
 });
 
 async function applyMigrations() {
@@ -43,7 +53,7 @@ async function applyMigrations() {
         await client.query(migrationSQL);
         console.log(`Migration ${migrationFile} applied successfully!`);
       } catch (error) {
-        console.error(`Error applying migration ${migrationFile}:`, error);
+        console.error(`Error applying migration ${migrationFile}:`, error.message);
         // Don't stop on error, continue with other migrations
       } finally {
         client.release();

@@ -63,6 +63,7 @@ export interface UserProfile extends User {
   profileCompleted: boolean;
   department?: string;
   yearOfStudy?: string;
+  linkedinUrl?: string; // Added LinkedIn URL field
 }
 
 export interface Student extends User {

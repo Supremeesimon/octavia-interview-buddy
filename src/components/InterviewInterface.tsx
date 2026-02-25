@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import useVapi from '@/hooks/use-vapi';
 import { useAuth } from '@/hooks/use-auth';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import type { InterviewFeedback } from '@/types';
 
 interface InterviewInterfaceProps {
@@ -26,9 +27,15 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const navigate = useNavigate();
   const { user: customUser } = useAuth();
   const { user: firebaseUser } = useFirebaseAuth();
+  const { listUserFiles } = useFirebaseStorage();
   
   // Use Firebase user for consistency with the rest of the app
   const user = firebaseUser || customUser;
+  
+  // State for resume selection
+  const [availableResumes, setAvailableResumes] = useState<any[]>([]);
+  const [selectedResume, setSelectedResume] = useState<any>(null);
+  const [isLoadingResumes, setIsLoadingResumes] = useState(true);
   
   // VAPI integration for voice interviews
   const {
@@ -55,7 +62,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       setInterviewEnded(true);
       // Stop the timer
       console.log('Stopping timer');
-      // Clear any error state when interview ends normally
+      // Clear any error state when interview ends
       console.log('Clearing errors');
       clearError();
       // Also clear VAPI error if present
@@ -64,7 +71,6 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
         clearError();
       }
       // Show success message and navigate to completion page
-      console.log('Showing success toast');
       toast.success('Interview completed by Octavia AI');
     }
   });
@@ -75,6 +81,79 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const [activeTab, setActiveTab] = useState('transcript');
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
   
+  // Load available resumes when component mounts
+  useEffect(() => {
+    const loadResumes = async () => {
+      if (!user) return;
+      
+      try {
+        setIsLoadingResumes(true);
+        const userFiles = await listUserFiles(user.id, 'resumes');
+        
+        // Process files to extract original filenames
+        const processedFiles = userFiles.map((file: any) => {
+          // Extract original filename by removing the resume ID prefix
+          // Filename format is: resume_{timestamp}_{random}_{original_filename}
+          let displayName = file.name;
+          const nameParts = file.name.split('_');
+          if (nameParts.length > 3) {
+            // Reconstruct the original filename
+            displayName = nameParts.slice(3).join('_');
+          }
+          
+          return {
+            id: file.name,
+            name: displayName,
+            originalName: file.name, // Keep the original for reference
+            size: file.size,
+            updated: file.updated,
+            downloadURL: file.downloadURL,
+            contentType: file.contentType
+          };
+        });
+        
+        setAvailableResumes(processedFiles);
+        
+        // If no resumeData was passed in and user has resumes, set the first one as selected
+        if (!resumeData && processedFiles.length > 0) {
+          const firstResume = processedFiles[0];
+          setSelectedResume({
+            type: 'file',
+            content: firstResume.name,
+            fileName: firstResume.name,
+            downloadURL: firstResume.downloadURL
+          });
+        } else if (!resumeData && processedFiles.length === 0) {
+          // If no resumeData and no resumes available, use default sample
+          setSelectedResume({
+            type: 'file',
+            content: 'Default Resume',
+            fileName: 'Default Resume',
+            downloadURL: ''
+          });
+        } else {
+          // Use the resumeData passed in props
+          setSelectedResume(resumeData);
+        }
+      } catch (error) {
+        console.error('Error loading resumes:', error);
+        toast.error('Failed to load resumes. Using default resume.');
+        
+        // Fallback to default resume if loading fails
+        setSelectedResume({
+          type: 'file',
+          content: 'Default Resume',
+          fileName: 'Default Resume',
+          downloadURL: ''
+        });
+      } finally {
+        setIsLoadingResumes(false);
+      }
+    };
+    
+    loadResumes();
+  }, [user, listUserFiles, resumeData]);
+
   // Effect to ensure interviewEnded is set when call ends
   useEffect(() => {
     if (currentCall?.status === 'ended' && !interviewEnded) {
@@ -114,7 +193,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   
   // Process resume data for display
   const getDisplayJobData = () => {
-    if (!resumeData) {
+    if (!selectedResume) {
       return {
         title: "(SAMPLE) Customer Support Specialist @ Slack",
         resumeName: "Default Resume"
@@ -122,17 +201,17 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     }
     
     // Determine resume name based on type
-    let resumeName = "Uploaded Resume";
-    if (resumeData.type === 'linkedin' && typeof resumeData.content === 'string') {
+    let resumeName = selectedResume.fileName || selectedResume.name || "Uploaded Resume";
+    if (selectedResume.type === 'linkedin' && typeof selectedResume.content === 'string') {
       try {
-        const url = new URL(resumeData.content);
+        const url = new URL(selectedResume.content);
         resumeName = `LinkedIn: ${url.hostname}${url.pathname}`;
       } catch {
         resumeName = "LinkedIn Profile";
       }
-    } else if (resumeData.type === 'file' && resumeData.fileName) {
-      resumeName = resumeData.fileName;
-    } else if (resumeData.type === 'voice') {
+    } else if (selectedResume.type === 'file' && selectedResume.fileName) {
+      resumeName = selectedResume.fileName;
+    } else if (selectedResume.type === 'voice') {
       resumeName = "Voice Description";
     }
     
@@ -174,9 +253,9 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       console.log('handleStartInterview called');
       
       // Log the resumeData being passed
-      console.log('Resume data:', resumeData);
-      console.log('Resume data type:', typeof resumeData);
-      console.log('Resume data keys:', resumeData ? Object.keys(resumeData) : 'null/undefined');
+      console.log('Resume data:', selectedResume);
+      console.log('Resume data type:', typeof selectedResume);
+      console.log('Resume data keys:', selectedResume ? Object.keys(selectedResume) : 'null/undefined');
       
       // Extract hierarchical information from user context
       const studentId = user?.id || '';
@@ -199,7 +278,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       }
       
       await startInterview(
-        resumeData, 
+        selectedResume, 
         'general',
         studentId,
         departmentId,
@@ -477,6 +556,53 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                   <h3 className="font-medium mb-2">Interview Details</h3>
                   <p className="text-sm text-muted-foreground mb-2">{displayJobData.title}</p>
                   <p className="text-sm text-muted-foreground">Resume: {displayJobData.resumeName}</p>
+                  
+                  {/* Resume Selection Section */}
+                  {user && (
+                    <div className="mt-4">
+                      <label className="text-sm font-medium mb-2 block">Select Resume:</label>
+                      {isLoadingResumes ? (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading resumes...
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedResume?.id || ''}
+                          onChange={(e) => {
+                            const resume = availableResumes.find(r => r.id === e.target.value);
+                            if (resume) {
+                              setSelectedResume({
+                                type: 'file',
+                                content: resume.name,
+                                fileName: resume.name,
+                                downloadURL: resume.downloadURL
+                              });
+                            }
+                          }}
+                          className="w-full p-2 border rounded mt-1 text-sm"
+                        >
+                          {availableResumes.map((resume) => (
+                            <option key={resume.id} value={resume.id}>
+                              {resume.name}
+                            </option>
+                          ))}
+                          {availableResumes.length === 0 && (
+                            <option value="">No resumes available</option>
+                          )}
+                        </select>
+                      )}
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full"
+                        onClick={() => navigate('/resumes')}
+                      >
+                        Manage Resumes
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="p-4 bg-primary/5 rounded-lg">
@@ -490,7 +616,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                 <Button 
                   onClick={handleStartInterview} 
                   className="w-full gap-2"
-                  disabled={vapiLoading || isConnecting}
+                  disabled={vapiLoading || isConnecting || isLoadingResumes}
                 >
                   {vapiLoading || isConnecting ? (
                     <>

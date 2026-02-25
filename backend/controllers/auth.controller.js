@@ -449,7 +449,7 @@ const authController = {
   async updateProfile(req, res) {
     try {
       const userId = req.user.id;
-      const { name, profilePictureUrl } = req.body;
+      const { name, profilePictureUrl, linkedinUrl } = req.body;
 
       // Build update query dynamically
       const updates = [];
@@ -468,6 +468,12 @@ const authController = {
         index++;
       }
 
+      if (linkedinUrl !== undefined) {
+        updates.push(`linkedin_url = $${index}`);
+        values.push(linkedinUrl);
+        index++;
+      }
+
       if (updates.length === 0) {
         return res.status(400).json({
           success: false,
@@ -482,7 +488,7 @@ const authController = {
         `UPDATE users 
          SET ${updates.join(', ')}, updated_at = NOW() 
          WHERE id = $${index} 
-         RETURNING id, email, name, role, institution_id, profile_picture_url, is_email_verified`,
+         RETURNING id, email, name, role, institution_id, profile_picture_url, linkedin_url, is_email_verified`,
         values
       );
 
@@ -505,6 +511,7 @@ const authController = {
             role: updatedUser.role,
             institutionId: updatedUser.institution_id,
             profilePictureUrl: updatedUser.profile_picture_url,
+            linkedinUrl: updatedUser.linkedin_url, // Added LinkedIn URL to response
             isEmailVerified: updatedUser.is_email_verified
           }
         }
@@ -654,7 +661,12 @@ const authController = {
           const name = decodedToken.name || firebaseEmail.split('@')[0] || 'Anonymous User';
           
           // Determine role (this is a simplified approach - you might want to implement a more sophisticated role assignment)
-          const role = 'student'; // Default role
+          // Check if this is a personal email domain that should create external users
+          const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
+          const emailDomain = firebaseEmail.split('@')[1]?.toLowerCase();
+          
+          // For personal email domains, default to student role and treat as external user
+          const role = personalDomains.includes(emailDomain) ? 'student' : 'student'; // Default to student for all cases now
           
           // For Firebase users, we don't have a password hash, so we'll use a placeholder
           const passwordHash = 'firebase_auth'; // Placeholder for Firebase authenticated users
@@ -815,7 +827,7 @@ const authController = {
       
       // Fetch user data from database
       const result = await db.query(
-        'SELECT id, email, name, role, institution_id, profile_picture_url, is_email_verified, created_at, last_login_at FROM users WHERE id = $1',
+        'SELECT id, email, name, role, institution_id, profile_picture_url, linkedin_url, is_email_verified, created_at, last_login_at FROM users WHERE id = $1',
         [userId]
       );
       
@@ -837,6 +849,7 @@ const authController = {
             role: user.role,
             institutionId: user.institution_id,
             profilePictureUrl: user.profile_picture_url,
+            linkedinUrl: user.linkedin_url, // Added LinkedIn URL to response
             isEmailVerified: user.is_email_verified,
             createdAt: user.created_at,
             lastLoginAt: user.last_login_at

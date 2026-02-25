@@ -8,23 +8,38 @@ export class InstitutionHierarchyService {
   private static readonly EXTERNAL_USERS_COLLECTION = 'externalUsers';
   private static readonly PLATFORM_ADMINS_COLLECTION = 'platformAdmins';
 
-  // Get all departments for an institution by institution name
+  // Get all departments for an institution by institution name or domain
   static async getDepartmentsByInstitutionName(institutionName: string): Promise<{id: string, name: string}[]> {
     try {
-      // First, find the institution by name (trim to handle any extra spaces)
+      // First, find the institution by name or domain (trim to handle any extra spaces)
       const trimmedInstitutionName = institutionName?.trim() || '';
       const institutionsRef = collection(db, this.INSTITUTIONS_COLLECTION);
-      const q = query(institutionsRef, where('name', '==', trimmedInstitutionName));
-      const querySnapshot = await getDocs(q);
       
-      if (querySnapshot.empty) {
-        console.log('No institution found with name:', trimmedInstitutionName);
-        return [];
+      // First, try to find by domain
+      const qByDomain = query(institutionsRef, where('domain', '==', trimmedInstitutionName));
+      const querySnapshotByDomain = await getDocs(qByDomain);
+      
+      let institutionId: string;
+      
+      if (!querySnapshotByDomain.empty) {
+        // Found by domain
+        const institutionDoc = querySnapshotByDomain.docs[0];
+        institutionId = institutionDoc.id;
+        console.log('Found institution by domain:', institutionDoc.data().name, 'ID:', institutionId, 'using domain:', trimmedInstitutionName);
+      } else {
+        // If not found by domain, try by name
+        const qByName = query(institutionsRef, where('name', '==', trimmedInstitutionName));
+        const querySnapshotByName = await getDocs(qByName);
+        
+        if (querySnapshotByName.empty) {
+          console.log('No institution found with name or domain:', trimmedInstitutionName);
+          return [];
+        }
+        
+        const institutionDoc = querySnapshotByName.docs[0];
+        institutionId = institutionDoc.id;
+        console.log('Found institution by name:', institutionDoc.data().name, 'ID:', institutionId, 'using name:', trimmedInstitutionName);
       }
-      
-      const institutionDoc = querySnapshot.docs[0];
-      const institutionId = institutionDoc.id;
-      console.log('Found institution:', institutionDoc.data().name, 'ID:', institutionId, 'using name:', trimmedInstitutionName);
       
       // Get all departments for this institution
       const departmentsRef = collection(db, this.INSTITUTIONS_COLLECTION, institutionId, 'departments');
@@ -258,10 +273,10 @@ export class InstitutionHierarchyService {
   }
 
   // Create external user
-  static async createExternalUser(userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'> & { authProvider?: string }): Promise<string> {
+  static async createExternalUser(userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'> & { authProvider?: string, id?: string }): Promise<string> {
     try {
       // For external users, we don't include department and yearOfStudy fields
-      const { department, yearOfStudy, institutionDomain, ...cleanedUserData } = userData;
+      const { department, yearOfStudy, institutionDomain, id, ...cleanedUserData } = userData;
       
       const externalUserData = {
         ...cleanedUserData,
@@ -270,7 +285,8 @@ export class InstitutionHierarchyService {
         lastLoginAt: Timestamp.now()
       };
 
-      const docRef = doc(collection(db, this.EXTERNAL_USERS_COLLECTION));
+      // Use the provided user ID (Firebase UID) as the document ID, or generate a new one if not provided
+      const docRef = id ? doc(collection(db, this.EXTERNAL_USERS_COLLECTION), id) : doc(collection(db, this.EXTERNAL_USERS_COLLECTION));
       await setDoc(docRef, externalUserData);
       
       const userId = docRef.id;
@@ -287,16 +303,18 @@ export class InstitutionHierarchyService {
   }
 
   // Create platform admin
-  static async createPlatformAdmin(userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  static async createPlatformAdmin(userData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<string> {
     try {
+      const { id, ...cleanedUserData } = userData;
       const platformAdminData = {
-        ...userData,
+        ...cleanedUserData,
         permissions: [], // Will be set based on role
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       };
 
-      const docRef = doc(collection(db, this.PLATFORM_ADMINS_COLLECTION));
+      // Use the provided user ID (Firebase UID) as the document ID, or generate a new one if not provided
+      const docRef = id ? doc(collection(db, this.PLATFORM_ADMINS_COLLECTION), id) : doc(collection(db, this.PLATFORM_ADMINS_COLLECTION));
       await setDoc(docRef, platformAdminData);
       
       const adminId = docRef.id;

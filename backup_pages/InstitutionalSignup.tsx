@@ -39,8 +39,9 @@ const InstitutionalSignup = () => {
     }
   }, [institutionId, navigate]);
 
-  const validateEducationalEmail = (email: string): boolean => {
-    return email.endsWith('.edu') || email.includes('.edu.');
+  const validateGenericEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
   const validateForm = (): boolean => {
@@ -54,8 +55,8 @@ const InstitutionalSignup = () => {
       return false;
     }
 
-    if (!validateEducationalEmail(form.email)) {
-      toast.error("Please use a valid educational email address (.edu)");
+    if (!validateGenericEmail(form.email)) {
+      toast.error("Please enter a valid email address");
       return false;
     }
 
@@ -130,11 +131,11 @@ const InstitutionalSignup = () => {
                   value={form.email}
                   onChange={(e) => setForm({...form, email: e.target.value})}
                   required
-                  placeholder="your.name@university.edu"
+                  placeholder="your.email@example.com"
                   className="mt-1"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Please use your institutional email (.edu domain)
+                  You can use any valid email address for signup.
                 </p>
               </div>
               

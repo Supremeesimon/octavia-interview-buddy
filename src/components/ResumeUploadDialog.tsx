@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LinkIcon, FileUp, Mic, Loader2 } from 'lucide-react';
+import { LinkIcon, FileUp, Mic, Loader2, FileText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
@@ -19,14 +19,32 @@ interface ResumeUploadDialogProps {
 }
 
 const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUploadDialogProps) => {
-  const [selectedOption, setSelectedOption] = useState<'linkedin' | 'file' | 'voice' | null>(null);
+  const [selectedOption, setSelectedOption] = useState<'linkedin' | 'file' | 'voice' | 'existing' | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [voiceSelected, setVoiceSelected] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [availableResumes, setAvailableResumes] = useState<any[]>([]);
+  const [selectedExistingResume, setSelectedExistingResume] = useState<any>(null);
   
   const { user } = useFirebaseAuth();
-  const { uploadResume, isUploading, uploadProgress } = useFirebaseStorage();
+  const { uploadResume, isUploading, uploadProgress, listUserFiles } = useFirebaseStorage();
+  
+  // Load available resumes when dialog opens
+  useEffect(() => {
+    const loadAvailableResumes = async () => {
+      if (open && user) {
+        try {
+          const resumeFiles = await listUserFiles(user.id, 'resumes');
+          setAvailableResumes(resumeFiles);
+        } catch (error) {
+          console.error('Error loading available resumes:', error);
+        }
+      }
+    };
+    
+    loadAvailableResumes();
+  }, [open, user, listUserFiles]);
 
   const handleContinue = async () => {
     if (!selectedOption || isProcessing) return;
@@ -53,6 +71,14 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
         } else {
           toast.error('Failed to upload resume. Please try again.');
         }
+      } else if (selectedOption === 'existing' && selectedExistingResume) {
+        // Use existing resume
+        onContinue({ 
+          type: 'file', 
+          content: selectedExistingResume.name,
+          downloadURL: selectedExistingResume.downloadURL,
+          fileName: selectedExistingResume.name
+        });
       } else if (selectedOption === 'voice' && voiceSelected) {
         onContinue({ type: 'voice', content: 'voice-interaction' });
       }
@@ -67,6 +93,7 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
   const isOptionComplete = () => {
     if (selectedOption === 'linkedin') return !!linkedinUrl;
     if (selectedOption === 'file') return !!resumeFile;
+    if (selectedOption === 'existing') return !!selectedExistingResume;
     if (selectedOption === 'voice') return voiceSelected;
     return false;
   };
@@ -155,6 +182,60 @@ const ResumeUploadDialog = ({ open, onClose, onContinue, studentName }: ResumeUp
                 <p>Upload resume from your device</p>
               </TooltipContent>
             </Tooltip>
+            
+            {/* Existing Resumes Option */}
+            {availableResumes && availableResumes.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedOption === 'existing' ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+                    onClick={() => setSelectedOption('existing')}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <span className="font-medium">Select from Existing Resumes</span>
+                    </div>
+                    
+                    {selectedOption === 'existing' && (
+                      <div className="mt-3 space-y-2">
+                        <Label>Select a resume</Label>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {availableResumes.map((file, index) => {
+                            // Extract original filename by removing the resume ID prefix
+                            let displayName = file.name;
+                            const nameParts = file.name.split('_');
+                            if (nameParts.length > 3) {
+                              // Reconstruct the original filename
+                              displayName = nameParts.slice(3).join('_');
+                            }
+                            
+                            return (
+                              <div 
+                                key={index}
+                                className={`p-2 border rounded cursor-pointer ${selectedExistingResume?.name === file.name ? 'border-primary bg-primary/10' : 'hover:bg-muted/50'}`}
+                                onClick={() => setSelectedExistingResume(file)}
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm truncate max-w-[70%]" title={displayName}>
+                                    {displayName}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {(file.size / 1024).toFixed(1)} KB
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Select from your previously uploaded resumes</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             
             <Tooltip>
               <TooltipTrigger asChild>

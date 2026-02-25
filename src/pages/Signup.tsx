@@ -54,31 +54,18 @@ const Signup = () => {
     password: ''
   });
 
-  const validateEducationalEmail = (email: string): boolean => {
-    return email.endsWith('.edu') || email.includes('.edu.');
-  };
-
   const validateGenericEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const isPersonalEmail = (email: string): boolean => {
-    const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
-    const domain = email.split('@')[1]?.toLowerCase();
-    return personalDomains.includes(domain);
-  };
   
   const handleStudentSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateEducationalEmail(studentForm.email)) {
-      toast.error("Please use a valid educational email address (.edu)");
-      return;
-    }
-
-    if (isPersonalEmail(studentForm.email)) {
-      toast.error("Personal emails (Gmail, Yahoo, etc.) are not permitted for student accounts");
+    // Allow any valid email address, not just educational emails
+    if (!validateGenericEmail(studentForm.email)) {
+      toast.error("Please enter a valid email address");
       return;
     }
 
@@ -445,11 +432,11 @@ const Signup = () => {
                       value={studentForm.email}
                       onChange={(e) => setStudentForm({...studentForm, email: e.target.value})}
                       required
-                      placeholder="your.name@university.edu"
+                      placeholder="your.name@example.com"
                       className="mt-1"
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Please use your institutional email. Personal emails (e.g., Gmail, Yahoo) are not permitted for student accounts.
+                      Please use a valid email address. Personal emails (Gmail, Yahoo, etc.) and institutional emails are both supported.
                     </p>
                   </div>
 

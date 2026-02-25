@@ -25,7 +25,22 @@ console.log('Server configuration - Environment:', {
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || (isKoyeb ? 'https://your-domain.com' : 'http://localhost:8080'),
+  origin: function (origin, callback) {
+    // In production, check against allowed origins
+    if (process.env.NODE_ENV === 'production') {
+      const allowedOrigins = process.env.FRONTEND_URL ?
+        (process.env.FRONTEND_URL.includes(',') ? process.env.FRONTEND_URL.split(',') : [process.env.FRONTEND_URL])
+        : [];
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    } else {
+      // In development, allow any origin to prevent CORS issues across multiple local ports
+      callback(null, true);
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -33,8 +48,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Backend server is running',
     environment: {
       NODE_ENV: process.env.NODE_ENV,
@@ -46,7 +61,7 @@ app.get('/api/health', (req, res) => {
 
 // Debug route to check environment variables
 app.get('/api/debug/env', (req, res) => {
-  res.json({ 
+  res.json({
     environment: {
       NODE_ENV: process.env.NODE_ENV,
       K_SERVICE: process.env.K_SERVICE,
@@ -82,8 +97,8 @@ app.use('/api/brevo', require('./routes/brevo.routes'));
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
-  res.status(500).json({ 
-    success: false, 
+  res.status(500).json({
+    success: false,
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });
@@ -115,12 +130,12 @@ if (require.main === module) {
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Koyeb deployment: ${isKoyeb ? 'YES' : 'NO'}`);
   });
-  
+
   // Add error handling for the server
   server.on('error', (error) => {
     console.error('Server error:', error);
   });
-  
+
   // Log when the server starts listening
   server.on('listening', () => {
     const address = server.address();

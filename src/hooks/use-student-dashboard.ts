@@ -252,11 +252,8 @@ export const useStudentDashboard = (): StudentDashboardData => {
               interview.scheduledAt > now
             );
 
-            // Check for LinkedIn profile (simplified check - in a real implementation, 
-            // you would check for actual LinkedIn URLs in the resume data)
-            const hasLinkedIn = allInterviews.some(interview => 
-              interview.resumeId && interview.resumeId.includes('linkedin')
-            );
+            // Check for LinkedIn profile in user profile
+            const hasLinkedIn = !!user?.linkedinUrl;
 
             // Calculate completed interviews and average score
             const completedInterviews = allInterviews.filter(i => i.status === 'completed').length;
@@ -271,7 +268,8 @@ export const useStudentDashboard = (): StudentDashboardData => {
               averageScore,
               hasScheduledInterviews,
               validScores: validScores.length,
-              totalInterviews: allInterviews.length
+              totalInterviews: allInterviews.length,
+              hasLinkedIn: hasLinkedIn
             });
 
             setData(prev => ({

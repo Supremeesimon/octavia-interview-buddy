@@ -7,7 +7,7 @@ const userController = {
       const userId = req.user.id;
 
       const result = await db.query(
-        `SELECT id, email, name, role, institution_id, profile_picture_url, 
+        `SELECT id, email, name, role, institution_id, profile_picture_url, linkedin_url,
                 is_email_verified, last_login_at, created_at
          FROM users WHERE id = $1`,
         [userId]
@@ -43,7 +43,7 @@ const userController = {
       if (req.user.role === 'institution_admin' && req.user.institutionId) {
         // Institution admins can only view users from their institution
         const result = await db.query(
-          `SELECT id, email, name, role, institution_id, profile_picture_url, 
+          `SELECT id, email, name, role, institution_id, profile_picture_url, linkedin_url,
                   is_email_verified, last_login_at, created_at
            FROM users 
            WHERE id = $1 AND institution_id = $2`,
@@ -65,7 +65,7 @@ const userController = {
       } else {
         // Platform admins can view any user
         const result = await db.query(
-          `SELECT id, email, name, role, institution_id, profile_picture_url, 
+          `SELECT id, email, name, role, institution_id, profile_picture_url, linkedin_url,
                   is_email_verified, last_login_at, created_at
            FROM users WHERE id = $1`,
           [id]
@@ -137,6 +137,12 @@ const userController = {
         index++;
       }
 
+      if (req.body.linkedinUrl !== undefined) {
+        updates.push(`linkedin_url = $${index}`);
+        values.push(req.body.linkedinUrl);
+        index++;
+      }
+
       if (updates.length === 0) {
         return res.status(400).json({
           success: false,
@@ -151,7 +157,7 @@ const userController = {
         `UPDATE users 
          SET ${updates.join(', ')}, updated_at = NOW() 
          WHERE id = $${index} 
-         RETURNING id, email, name, role, institution_id, profile_picture_url, is_email_verified`,
+         RETURNING id, email, name, role, institution_id, profile_picture_url, linkedin_url, is_email_verified`,
         values
       );
 

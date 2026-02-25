@@ -33,6 +33,7 @@ import DebugDashboard from './DebugDashboard';
 import StudentMessageInbox from './StudentMessageInbox';
 import InterviewSessionRequest from './InterviewSessionRequest';
 import { InstitutionService } from '@/services/institution.service';
+import { firebaseAuthService } from '@/services/firebase-auth.service';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -73,7 +74,17 @@ const StudentDashboard = () => {
     
     fetchInstitutionSettings();
   }, [user?.institutionId]);
-  const { uploadResume } = useFirebaseStorage();
+  
+  // Initialize LinkedIn URL from user profile
+  useEffect(() => {
+    if (user?.linkedinUrl) {
+      setLinkedinUrl(user.linkedinUrl);
+      setLinkedinUrlAdded(true);
+    } else {
+      setLinkedinUrlAdded(false);
+    }
+  }, [user?.linkedinUrl]);
+  const { uploadResume, listUserFiles } = useFirebaseStorage();
   const { 
     interviews, 
     stats, 
@@ -85,6 +96,37 @@ const StudentDashboard = () => {
     hasScheduledInterviews,
     isLoading 
   } = useStudentDashboard();
+  
+  // State for resume suggestions and file listing
+  const [resumeSuggestions, setResumeSuggestions] = useState<string>('Software Engineer, Product Manager, Data Analyst');
+  const [userResumeFiles, setUserResumeFiles] = useState<any[]>([]);
+  
+  // Load resume files and extract job suggestions
+  useEffect(() => {
+    const loadResumeData = async () => {
+      if (user && hasResumes) {
+        try {
+          // Load user's resume files
+          const resumeFiles = await listUserFiles(user.id, 'resumes');
+          setUserResumeFiles(resumeFiles);
+          
+          // In a real implementation, we would parse the resume content to extract job suggestions
+          // For now, we'll simulate this by extracting keywords from the resume filenames
+          if (resumeFiles.length > 0) {
+            // Extract common tech job titles from resume content or filename
+            const simulatedJobTitles = ['Software Engineer', 'Product Manager', 'Data Analyst', 'UX Designer', 'DevOps Engineer'];
+            // Pick random job titles based on resume content simulation
+            const randomTitles = simulatedJobTitles.sort(() => 0.5 - Math.random()).slice(0, 3);
+            setResumeSuggestions(randomTitles.join(', '));
+          }
+        } catch (error) {
+          console.error('Error loading resume data:', error);
+        }
+      }
+    };
+    
+    loadResumeData();
+  }, [user, hasResumes, listUserFiles]);
   const { feedback, isLoading: isFeedbackLoading } = useInterviewFeedback();
   
   // Use real student name from auth
@@ -146,6 +188,9 @@ const StudentDashboard = () => {
         toast.success("Resume uploaded successfully!");
         setSelectedFile(null);
         resetFileInput();
+        
+        // Force a refresh of the dashboard data to update the resume status indicator
+        window.location.reload();
       } else {
         throw new Error("Upload failed");
       }
@@ -158,12 +203,29 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleLinkedinSubmit = (e: React.FormEvent) => {
+  const handleLinkedinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (linkedinUrl.includes('linkedin.com')) {
-      toast.success("LinkedIn URL added successfully!");
-      setLinkedinUrlAdded(true);
-      // In a real implementation, this would save to Firebase
+    if (linkedinUrl && linkedinUrl.includes('linkedin.com')) {
+      try {
+        // Update user profile with LinkedIn URL in Firestore
+        // For production, we can rely primarily on Firestore
+        await firebaseAuthService.updateUserProfile({ linkedinUrl });
+        
+        toast.success("LinkedIn URL added successfully!");
+        setLinkedinUrlAdded(true);
+        
+        // Force a refresh of the dashboard data to update the LinkedIn status indicator
+        // This ensures the UI reflects the updated LinkedIn status immediately
+        window.location.reload();
+      } catch (error) {
+        console.error('Error saving LinkedIn URL:', error);
+        // Provide more specific error message
+        if (error instanceof Error) {
+          toast.error(`Failed to save LinkedIn URL: ${error.message}`);
+        } else {
+          toast.error("Failed to save LinkedIn URL. Please try again.");
+        }
+      }
     } else {
       toast.error("Please enter a valid LinkedIn URL");
     }
@@ -173,6 +235,9 @@ const StudentDashboard = () => {
     // In a real implementation, this would create a scheduled interview in Firebase
     setInterviewBooked(true);
     setShowBookingCalendar(false);
+    
+    // Force a refresh of the dashboard data to update the interview status indicator
+    window.location.reload();
   };
   
   const resetFileInput = () => {
@@ -218,7 +283,7 @@ const StudentDashboard = () => {
                     <XCircle className="h-5 w-5 text-red-500" />
                   }
                   <span className={hasResumes ? "text-green-600" : "text-muted-foreground"}>
-                    Upload your resume
+                    {hasResumes ? 'Resume uploaded' : 'Upload your resume'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -249,6 +314,22 @@ const StudentDashboard = () => {
                   </span>
                 </div>
               </div>
+              
+              {/* Show job titles based on resumes */}
+              {hasResumes && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <span className="font-medium">Suggested for:</span> {resumeSuggestions}
+                  </p>
+                </div>
+              )}
+              {!hasResumes && (
+                <div className="mt-4 p-3 bg-amber-50 rounded-md border border-amber-200">
+                  <p className="text-sm text-amber-800">
+                    <span className="font-medium">Next Step:</span> Upload your resume to get personalized interview recommendations
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -265,62 +346,118 @@ const StudentDashboard = () => {
             <CardDescription>Upload your resume and add your LinkedIn profile</CardDescription>
           </CardHeader>
           <CardContent className="flex-grow">
-            {selectedFile ? (
-              <div className="p-4 border rounded-md mb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{selectedFile.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatFileSize(selectedFile.size)}
-                    </div>
+            {hasResumes ? (
+              <div className="mb-4">
+                <div className="p-3 bg-green-50 rounded-md mb-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="font-medium text-green-800">Resume uploaded</span>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={resetFileInput}
-                  >
-                    Remove
-                  </Button>
                 </div>
+                
+                {/* List available resumes */}
+                <div className="mb-3">
+                  <h4 className="text-sm font-medium mb-2">Available Resumes</h4>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {userResumeFiles.map((file: any, index: number) => {
+                      // Extract original filename by removing the resume ID prefix
+                      let displayName = file.name;
+                      const nameParts = file.name.split('_');
+                      if (nameParts.length > 3) {
+                        // Reconstruct the original filename
+                        displayName = nameParts.slice(3).join('_');
+                      }
+                      
+                      return (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                          <span className="text-sm truncate max-w-[70%]" title={displayName}>
+                            {displayName}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatFileSize(file.size)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
                 <Button 
                   className="w-full mt-2" 
-                  onClick={handleResumeUpload}
-                  disabled={isUploading}
+                  onClick={handleResumeUploadClick}
+                  variant="outline"
                 >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    'Upload Resume'
-                  )}
+                  Upload New Resume
                 </Button>
+                <input 
+                  key={fileInputKey} // Add key to reset input
+                  ref={fileInputRef} // Add ref
+                  type="file" 
+                  className="hidden" 
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleFileChange}
+                />
               </div>
             ) : (
               <div className="mb-4">
-                <label 
-                  className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-primary/50 transition-colors block"
-                  onClick={handleResumeUploadClick}
-                >
-                  <Upload className="h-12 w-12 mx-auto text-muted-foreground opacity-30 mb-2" />
-                  <p className="text-muted-foreground mb-2">Drag and drop your resume here</p>
-                  <p className="text-xs text-muted-foreground mb-4">or</p>
-                  <Button type="button" variant="outline">
-                    Browse Files
-                  </Button>
-                  <input 
-                    key={fileInputKey} // Add key to reset input
-                    ref={fileInputRef} // Add ref
-                    type="file" 
-                    className="hidden" 
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                  />
-                </label>
-                <p className="text-xs text-muted-foreground text-center">
-                  Supported formats: PDF, DOC, DOCX (Max 10MB)
-                </p>
+                {selectedFile ? (
+                  <div className="p-4 border rounded-md mb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{selectedFile.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatFileSize(selectedFile.size)}
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={resetFileInput}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                    <Button 
+                      className="w-full mt-2" 
+                      onClick={handleResumeUpload}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        'Upload Resume'
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <label 
+                      className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-primary/50 transition-colors block"
+                      onClick={handleResumeUploadClick}
+                    >
+                      <Upload className="h-12 w-12 mx-auto text-muted-foreground opacity-30 mb-2" />
+                      <p className="text-muted-foreground mb-2">Drag and drop your resume here</p>
+                      <p className="text-xs text-muted-foreground mb-4">or</p>
+                      <Button type="button" variant="outline">
+                        Browse Files
+                      </Button>
+                      <input 
+                        key={fileInputKey} // Add key to reset input
+                        ref={fileInputRef} // Add ref
+                        type="file" 
+                        className="hidden" 
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Supported formats: PDF, DOC, DOCX (Max 10MB)
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             

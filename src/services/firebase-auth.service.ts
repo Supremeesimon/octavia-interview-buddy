@@ -99,28 +99,113 @@ export class FirebaseAuthService {
         }
       } else {
         // For institutional users, we need to create them in the proper hierarchy
+        let institutionId;
+        
         try {
-          // First, find the institution by name (trim to handle any extra spaces)
-          const trimmedInstitutionName = data.institutionDomain?.trim() || '';
+          // First, find the institution by domain (trim to handle any extra spaces)
+          // The institutionDomain parameter contains the domain (e.g. 'awolowo.edu.ng')
+          // which should match the domain field in the institution document
+          const trimmedInstitutionDomain = data.institutionDomain?.trim() || '';
+          
+          // Check if this is a personal email domain that should not create institutions
+          const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
+          const domain = trimmedInstitutionDomain.toLowerCase();
+          
+          // Don't proceed with institutional user creation for personal email domains
+          if (personalDomains.includes(domain)) {
+            // For personal email domains, treat as external user instead of creating institution
+            console.log(`Personal email domain "${trimmedInstitutionDomain}" detected. Creating external user instead of institution.`);
+            
+            // Clean up the user profile to remove institutionDomain since we're not associating with an institution
+            const { institutionDomain, ...cleanedUserProfile } = userProfile;
+            
+            // Create external user
+            try {
+              await InstitutionHierarchyService.createExternalUser({
+                ...cleanedUserProfile,
+                authProvider: 'email'
+              });
+            } catch (error) {
+              // If we fail to create the user document, we should delete the Firebase Auth user
+              // to avoid having orphaned auth users
+              try {
+                await user.delete();
+              } catch (deleteError) {
+                // If we can't delete the user (e.g., token expired), log the error but continue
+                console.warn('Failed to delete Firebase Auth user:', deleteError);
+              }
+              throw error;
+            }
+            
+            // Send email verification
+            await sendEmailVerification(user);
+
+            // Get Firebase token
+            const token = await user.getIdToken();
+
+            // Return early to avoid creating institutional user
+            return { user: cleanedUserProfile, token };
+          }
+          
           const institutionsRef = collection(db, 'institutions');
-          const q = query(institutionsRef, where('name', '==', trimmedInstitutionName));
+          const q = query(institutionsRef, where('domain', '==', trimmedInstitutionDomain));
           const querySnapshot = await getDocs(q);
           
           if (querySnapshot.empty) {
-            // If institution doesn't exist, delete the Firebase Auth user and throw error
-            console.log('Institution not found, deleting user');
-            try {
-              await user.delete();
-            } catch (deleteError) {
-              // If we can't delete the user (e.g., token expired), log the error but continue
-              console.warn('Failed to delete Firebase Auth user:', deleteError);
+            // If institution doesn't exist, try to find by name as fallback
+            // This handles cases where the institutionDomain parameter is passed as the institution name instead of domain
+            const institutionsRefByName = collection(db, 'institutions');
+            const qByName = query(institutionsRefByName, where('name', '==', trimmedInstitutionDomain));
+            const querySnapshotByName = await getDocs(qByName);
+            
+            if (querySnapshotByName.empty) {
+              // Institution doesn't exist for this domain/name
+              // For non-personal domains that don't match existing institutions,
+              // we should probably not auto-create institutions without proper validation
+              // For now, we'll create as external user to prevent unauthorized institution creation
+              console.log(`No institution found for domain/name "${trimmedInstitutionDomain}". Creating as external user.`);
+              
+              // Clean up the user profile to remove institutionDomain since we're not associating with an institution
+              const { institutionDomain, ...cleanedUserProfile } = userProfile;
+              
+              // Create external user
+              try {
+                await InstitutionHierarchyService.createExternalUser({
+                  ...cleanedUserProfile,
+                  authProvider: 'email'
+                });
+              } catch (error) {
+                // If we fail to create the user document, we should delete the Firebase Auth user
+                // to avoid having orphaned auth users
+                try {
+                  await user.delete();
+                } catch (deleteError) {
+                  // If we can't delete the user (e.g., token expired), log the error but continue
+                  console.warn('Failed to delete Firebase Auth user:', deleteError);
+                }
+                throw error;
+              }
+              
+              // Send email verification
+              await sendEmailVerification(user);
+
+              // Get Firebase token
+              const token = await user.getIdToken();
+
+              // Return early to avoid creating institutional user
+              return { user: cleanedUserProfile, token };
+            } else {
+              institutionId = querySnapshotByName.docs[0].id;
+              console.log(`Found institution by name "${trimmedInstitutionDomain}" with ID: ${institutionId}`);
             }
-            throw new Error(`Institution "${trimmedInstitutionName}" not found.`);
+          } else {
+            // Found institution by domain
+            institutionId = querySnapshot.docs[0].id;
+            console.log(`Found institution by domain "${trimmedInstitutionDomain}" with ID: ${institutionId}`);
           }
           
-          const institutionDoc = querySnapshot.docs[0];
-          const institutionId = institutionDoc.id;
-          console.log(`Found institution "${trimmedInstitutionName}" with ID: ${institutionId}`);
+          // Only proceed with institutional user creation if we have a valid institution
+          // (which means it wasn't a personal email domain that was converted to external user)
           
           // Find or create department based on user input
           let targetDepartmentId = null;
@@ -392,30 +477,72 @@ export class FirebaseAuthService {
           console.log('User type:', userType);
           
           try {
-            // First, we need to find the institution by name
+            // First, we need to find the institution by domain or name
+            // The institutionContext.institutionName could be either the institution name or domain
             // Trim the institution name to handle any trailing/leading spaces
             const trimmedInstitutionName = institutionContext.institutionName.trim();
             const institutionsRef = collection(db, 'institutions');
-            const q = query(institutionsRef, where('name', '==', trimmedInstitutionName));
-            console.log('Searching for institution:', trimmedInstitutionName);
-            const querySnapshot = await getDocs(q);
-            console.log('Query results:', querySnapshot.size);
             
-            if (querySnapshot.empty) {
-              // If institution doesn't exist, delete the Firebase Auth user and throw error
-              console.log('Institution not found, deleting user');
-              try {
-                await user.delete();
-              } catch (deleteError) {
-                // If we can't delete the user (e.g., token expired), log the error but continue
-                console.warn('Failed to delete Firebase Auth user:', deleteError);
+            // First, try to find by domain (most common case for OAuth)
+            const qByDomain = query(institutionsRef, where('domain', '==', trimmedInstitutionName));
+            const querySnapshotByDomain = await getDocs(qByDomain);
+            
+            let institutionId;
+            if (!querySnapshotByDomain.empty) {
+              // Found by domain
+              institutionId = querySnapshotByDomain.docs[0].id;
+              console.log('Found institution by domain with ID:', institutionId);
+            } else {
+              // If not found by domain, try by name as fallback
+              const qByName = query(institutionsRef, where('name', '==', trimmedInstitutionName));
+              const querySnapshotByName = await getDocs(qByName);
+              
+              if (querySnapshotByName.empty) {
+                // Check if this is a personal email domain that should not create institutions
+                const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
+                const domain = trimmedInstitutionName.toLowerCase();
+                
+                // Don't auto-create institutions for personal email domains
+                if (personalDomains.includes(domain)) {
+                  // For personal email domains, treat as external user instead of creating institution
+                  console.log(`Personal email domain "${trimmedInstitutionName}" detected in OAuth flow. Creating external user instead of institution.`);
+                  
+                  // Create external user
+                  try {
+                    const { institutionDomain, ...cleanedUserData } = userProfile;
+                    await InstitutionHierarchyService.createExternalUser({
+                      ...cleanedUserData,
+                      authProvider: 'gmail'
+                    });
+                  } catch (error) {
+                    // If we fail to create the user document, we should delete the Firebase Auth user
+                    // to avoid having orphaned auth users
+                    try {
+                      await user.delete();
+                    } catch (deleteError) {
+                      // If we can't delete the user (e.g., token expired), log the error but continue
+                      console.warn('Failed to delete Firebase Auth user:', deleteError);
+                    }
+                    throw error;
+                  }
+                  
+                  // Get Firebase token
+                  const token = await user.getIdToken();
+
+                  // Add account to account switcher
+                  accountSwitcherService.addAccount(userProfile, token, 'google');
+
+                  // Return early to avoid creating institutional user
+                  return { user: userProfile, token };
+                }
+              } else {
+                institutionId = querySnapshotByName.docs[0].id;
+                console.log('Found institution by name with ID:', institutionId);
               }
-              throw new Error(`Institution "${trimmedInstitutionName}" not found.`);
             }
             
-            const institutionDoc = querySnapshot.docs[0];
-            const institutionId = institutionDoc.id;
-            console.log('Found institution with ID:', institutionId);
+            // Only proceed with institutional user creation if we have a valid institution
+            // (which means it wasn't a personal email domain that was converted to external user)
             
             // For now, we'll create users without specific departments
             // In a real implementation, you might want to prompt for department selection
@@ -1064,12 +1191,7 @@ export class FirebaseAuthService {
   private determineUserRole(email: string, institutionDomain?: string): UserRole {
     const domain = email.split('@')[1]?.toLowerCase();
     
-    // Educational email domains - most likely students
-    if (domain?.endsWith('.edu') || domain?.includes('.edu.')) {
-      return 'student';
-    }
-    
-    // Institution admin (specific domain provided)
+    // If institutionDomain is provided, check if the email domain matches
     if (institutionDomain && domain === institutionDomain.toLowerCase()) {
       return 'institution_admin';
     }
@@ -1086,19 +1208,15 @@ export class FirebaseAuthService {
       return 'institution_admin';
     }
     
-    // For common email providers, assume student unless there's other indication
+    // For common email providers, default to student
     const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
     if (domain && personalDomains.includes(domain)) {
       return 'student';
     }
     
-    // For other domains, make an educated guess
-    // If the domain doesn't look like a personal email, assume institutional role
-    if (domain && !personalDomains.includes(domain)) {
-      return 'institution_admin';
-    }
-    
-    // Default to student for unknown domains
+    // For other domains, default to student unless explicitly set otherwise
+    // This removes the requirement for .edu domains for student role
+    // Previously, non-personal domains defaulted to 'institution_admin' which was problematic
     return 'student';
   }
 
@@ -1155,6 +1273,56 @@ export class FirebaseAuthService {
     
     // Handle other errors
     return new Error(error.message || 'Authentication failed');
+  }
+
+  // Update user profile in Firestore
+  async updateUserProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('No user is currently signed in');
+      }
+
+      // Find the user in Firestore by searching all possible locations
+      const userSearchResult = await InstitutionHierarchyService.findUserById(user.uid);
+      
+      if (!userSearchResult) {
+        throw new Error('User not found in Firestore');
+      }
+
+      // Update the user profile in the appropriate location
+      const { institutionId, departmentId, role } = userSearchResult;
+      const userId = user.uid;
+      
+      if (role === 'platform_admin') {
+        await setDoc(doc(db, 'platformAdmins', userId), updates, { merge: true });
+      } else if (role === 'student' && !institutionId) {
+        // External student
+        await setDoc(doc(db, 'externalUsers', userId), updates, { merge: true });
+      } else if (institutionId) {
+        // Institutional user
+        if (role === 'institution_admin') {
+          await setDoc(doc(db, 'institutions', institutionId, 'admins', userId), updates, { merge: true });
+        } else if (role === 'teacher' && departmentId) {
+          await setDoc(doc(db, 'institutions', institutionId, 'departments', departmentId, 'teachers', userId), updates, { merge: true });
+        } else if (role === 'student' && departmentId) {
+          await setDoc(doc(db, 'institutions', institutionId, 'departments', departmentId, 'students', userId), updates, { merge: true });
+        }
+      }
+
+      // Return updated user profile
+      const updatedProfile = {
+        ...userSearchResult.user,
+        ...updates
+      };
+      
+      // Update the account switcher with the new profile
+      accountSwitcherService.updateCurrentSession(updatedProfile, await user.getIdToken());
+      
+      return updatedProfile;
+    } catch (error) {
+      throw new Error(`Failed to update user profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }
 

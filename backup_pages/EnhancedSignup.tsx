@@ -71,13 +71,8 @@ const EnhancedSignup = () => {
   const handleStudentSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateEducationalEmail(studentForm.email)) {
-      toast.error("Please use a valid educational email address (.edu)");
-      return;
-    }
-
-    if (isPersonalEmail(studentForm.email)) {
-      toast.error("Personal emails (Gmail, Yahoo, etc.) are not permitted for student accounts");
+    if (!validateGenericEmail(studentForm.email)) {
+      toast.error("Please enter a valid email address");
       return;
     }
 
@@ -217,7 +212,7 @@ const EnhancedSignup = () => {
               <TabsContent value="student" className="space-y-4">
                 <div className="text-center mb-6">
                   <h2 className="text-xl font-semibold">Student Registration</h2>
-                  <p className="text-sm text-muted-foreground">Sign up with your educational email</p>
+                  <p className="text-sm text-muted-foreground">Sign up with your email</p>
                 </div>
 
                 <form onSubmit={handleStudentSignup} className="space-y-4">
@@ -241,11 +236,11 @@ const EnhancedSignup = () => {
                       value={studentForm.email}
                       onChange={(e) => setStudentForm({...studentForm, email: e.target.value})}
                       required
-                      placeholder="your.name@university.edu"
+                      placeholder="your.email@example.com"
                       className="mt-1"
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Please use your institutional email. Personal emails (e.g., Gmail, Yahoo) are not permitted for student accounts.
+                      You can use any valid email address for signup.
                     </p>
                   </div>
 

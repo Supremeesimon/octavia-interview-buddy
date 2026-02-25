@@ -174,9 +174,6 @@ service cloud.firestore {
       
       // Institution admins can read feedback from their institution
       allow read: if isAuthenticated();
-      
-      // Firebase Functions can write feedback (for webhook integration)
-      allow write: if isServerProcess();
     }
 
     // Session purchases collection (legacy - for backward compatibility)
@@ -189,6 +186,18 @@ service cloud.firestore {
       
       // Platform admins can read all purchases
       allow read: if isAuthenticated() && isPlatformAdmin();
+    }
+
+    // Stats collections
+    match /student-stats/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      allow read: if isAuthenticated() && isPlatformAdmin();
+    }
+    match /department-stats/{departmentId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /institution-stats/{institutionId} {
+      allow read, write: if isAuthenticated();
     }
 
     // Analytics collection (read-only for most users) (legacy - for backward compatibility)
