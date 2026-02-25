@@ -21,7 +21,8 @@ export class PricingSyncService {
       const dbSettings = await PlatformSettingsService.getPricingSettings();
       
       if (!dbSettings) {
-        // If no database settings, return UI state but mark as not synced
+        // If no database settings, this indicates Firebase is unavailable
+        // Return UI state with isSynced: false to indicate connection issue
         return {
           ...currentUiState,
           isSynced: false
@@ -43,6 +44,7 @@ export class PricingSyncService {
       };
     } catch (error) {
       // Return UI state if there's an error
+      console.error('Error syncing platform pricing:', error);
       return {
         ...currentUiState,
         isSynced: false

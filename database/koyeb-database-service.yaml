@@ -1,0 +1,78 @@
+# Koyeb PostgreSQL Database Service Configuration
+# This configuration creates a fully managed, serverless PostgreSQL database for Octavia Interview Buddy
+
+services:
+  - name: octavia-postgres
+    type: database
+    database:
+      engine: postgresql
+      version: "15"
+      # Production-grade configuration
+      instance_type: "standard-2x"  # 2 vCPUs, 4GB RAM
+      disk_size: 20  # GB storage
+      
+      # High availability configuration
+      backup_retention_days: 7
+      enable_point_in_time_recovery: true
+      enable_encryption: true
+      
+      # Performance optimizations
+      max_connections: 100
+      shared_buffers: "128MB"
+      effective_cache_size: "1GB"
+      
+    # Network and security
+    regions:
+      - name: us-east-1  # Primary region
+      - name: eu-west-1  # Secondary region for redundancy
+    
+    # Scaling configuration
+    scaling:
+      min: 1
+      max: 3  # Can scale up to 3 instances for high availability
+      metrics:
+        - type: cpu
+          target: 70
+        - type: memory
+          target: 80
+    
+    # Health checks and monitoring
+    health_checks:
+      - type: tcp
+        port: 5432
+        interval: 30s
+        timeout: 10s
+        success_threshold: 1
+        failure_threshold: 3
+    
+    # Environment variables for database connection
+    env:
+      - name: POSTGRES_DB
+        value: octavia_interview_buddy
+      - name: POSTGRES_USER
+        secret: postgres-user
+      - name: POSTGRES_PASSWORD
+        secret: postgres-password
+      - name: PGDATA
+        value: /var/lib/postgresql/data/pgdata
+    
+    # Connection pooler (PgBouncer)
+    connection_pooler:
+      enabled: true
+      pool_mode: transaction
+      max_client_conn: 200
+      default_pool_size: 20
+      reserve_pool_size: 5
+    
+    # Automated maintenance
+    maintenance_window:
+      day: sunday
+      hour: 2  # 2 AM UTC
+      timezone: UTC
+    
+    # Tags for organization
+    labels:
+      app: octavia-interview-buddy
+      service: database
+      environment: production
+      version: "1.0"

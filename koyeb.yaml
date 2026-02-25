@@ -1,5 +1,41 @@
-# Koyeb Service Configuration for Octavia Interview Buddy Backend
+# Koyeb Service Configuration for Octavia Interview Buddy
+# Includes both backend web service and PostgreSQL database service
+
+# Application configuration
+application:
+  name: octavia-interview-buddy
+  region: us-east-1
+
+# Services configuration
 services:
+  # Database Service
+  - name: octavia-postgres
+    type: database
+    database:
+      engine: postgresql
+      version: "15"
+      instance_type: "standard-2x"  # 2 vCPUs, 4GB RAM
+      disk_size: 20  # GB storage
+      backup_retention_days: 7
+      enable_point_in_time_recovery: true
+      enable_encryption: true
+    env:
+      - name: POSTGRES_DB
+        value: octavia_interview_buddy
+      - name: POSTGRES_USER
+        secret: postgres-user
+      - name: POSTGRES_PASSWORD
+        secret: postgres-password
+    scaling:
+      min: 1
+      max: 3
+      metrics:
+        - type: cpu
+          target: 70
+        - type: memory
+          target: 80
+    
+  # Backend Web Service
   - name: octavia-backend
     type: web
     source:
@@ -16,10 +52,11 @@ services:
         value: production
       - name: PORT
         value: 8080
+      # Database connection - will be updated after database deployment
       - name: KOYEB_DATABASE_URL
-        value: "postgres://koyeb-adm:npg_ZC5b6weVJEzG@ep-snowy-mountain-a4hq7qmm.us-east-1.pg.koyeb.app:5432/koyebdb?sslmode=require"
+        value: "postgresql://octavia_db_user:PLACEHOLDER_PASSWORD@octavia-postgres:5432/octavia_interview_buddy?sslmode=require"
       - name: DATABASE_URL
-        value: "postgres://koyeb-adm:npg_ZC5b6weVJEzG@ep-snowy-mountain-a4hq7qmm.us-east-1.pg.koyeb.app:5432/koyebdb?sslmode=require"
+        value: "postgresql://octavia_db_user:PLACEHOLDER_PASSWORD@octavia-postgres:5432/octavia_interview_buddy?sslmode=require"
       - name: FIREBASE_PRIVATE_KEY
         secret: firebase-private-key
       - name: FIREBASE_CLIENT_EMAIL

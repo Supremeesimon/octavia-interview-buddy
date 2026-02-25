@@ -15,6 +15,9 @@ router.post('/payment-methods', authenticateToken, authorizeRole('institution_ad
 // Delete payment method for institution - only institution admins
 router.delete('/payment-methods', authenticateToken, authorizeRole('institution_admin'), stripeController.deletePaymentMethod);
 
+// Get payment methods for ALL institutions - platform admin only
+router.get('/all-payment-methods', authenticateToken, authorizeRole('platform_admin'), stripeController.getAllInstitutionPaymentMethods);
+
 // Get invoices for institution - allow institution admins and teachers
 router.get('/invoices', authenticateToken, authorizeRole('institution_admin', 'teacher'), stripeController.getInvoices);
 

@@ -181,14 +181,18 @@ const FinancialManagement = () => {
             setOriginalMarkupPercentage(pricingSettings.markupPercentage);
             setOriginalLicenseCost(pricingSettings.annualLicenseCost);
             setIsPricingSynced(true); // Mark as synced since we just loaded from DB
+            console.log('Loaded pricing settings from Firebase:', pricingSettings);
           } else if (isMounted) {
             // Use default values if Firebase is not available
             setFirebaseError("Unable to load pricing settings from Firebase. Using default values.");
+            setIsPricingSynced(false); // Mark as not synced since we're using defaults
+            console.log('Using default pricing values since Firebase is not available');
           }
         } catch (error) {
           console.warn('Failed to load platform pricing settings:', error);
           if (isMounted) {
             setFirebaseError("Failed to load pricing settings from Firebase. Using default values.");
+            setIsPricingSynced(false); // Mark as not synced on error
           }
         }
         
@@ -296,25 +300,38 @@ const FinancialManagement = () => {
         
         // If the values are not synced, update the UI to match the database
         if (!syncResult.isSynced) {
-          setVapiCost(syncResult.vapiCost);
-          setMarkupPercentage(syncResult.markupPercentage);
-          setLicenseCost(syncResult.licenseCost);
-          
-          // Update original values as well
-          setOriginalVapiCost(syncResult.vapiCost);
-          setOriginalMarkupPercentage(syncResult.markupPercentage);
-          setOriginalLicenseCost(syncResult.licenseCost);
+          // Only update if we got actual database values (not just UI state)
+          if (syncResult.vapiCost !== vapiCost || 
+              syncResult.markupPercentage !== markupPercentage || 
+              syncResult.licenseCost !== licenseCost) {
+            
+            setVapiCost(syncResult.vapiCost);
+            setMarkupPercentage(syncResult.markupPercentage);
+            setLicenseCost(syncResult.licenseCost);
+            
+            // Update original values as well
+            setOriginalVapiCost(syncResult.vapiCost);
+            setOriginalMarkupPercentage(syncResult.markupPercentage);
+            setOriginalLicenseCost(syncResult.licenseCost);
+            
+            console.log('Pricing values updated from database:', {
+              vapiCost: syncResult.vapiCost,
+              markupPercentage: syncResult.markupPercentage,
+              licenseCost: syncResult.licenseCost
+            });
+          }
           
           // Update sync status
           setIsPricingSynced(false);
-          
-          console.log('Pricing values automatically synced with database');
+          console.log('Pricing is NOT synchronized with database');
         } else {
           // If values are synced, update the sync status
           setIsPricingSynced(true);
+          console.log('Pricing is synchronized with database');
         }
       } catch (error) {
         console.error('Error during periodic sync verification:', error);
+        setIsPricingSynced(false);
       }
     }, 30000); // Check every 30 seconds
     

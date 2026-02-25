@@ -48,8 +48,20 @@ export class PlatformSettingsService {
         };
       }
       
-      // Return null if document doesn't exist
-      return null;
+      // Document doesn't exist - create it with default values
+      console.log('Pricing document not found, creating with default values...');
+      const defaultSettings = {
+        vapiCostPerMinute: 0.11,
+        markupPercentage: 36.36,
+        annualLicenseCost: 19.96
+      };
+      
+      await this.updatePricingSettings(defaultSettings);
+      
+      return {
+        ...defaultSettings,
+        updatedAt: new Date()
+      };
     } catch (error: any) {
       // Check if it's a permission error
       if (error.code === 'permission-denied') {

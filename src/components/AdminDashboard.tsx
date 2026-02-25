@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { 
   Users, 
   MessageSquare, 
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from 'react-router-dom';
 import InstitutionInterests from '@/components/InstitutionInterests';
+
 import { InstitutionService } from '@/services/institution.service';
 import { InstitutionInterestService } from '@/services/institution-interest.service';
 import { authService } from '@/services/auth.service';
@@ -374,6 +375,7 @@ const AdminDashboard = () => {
             tooltip="View detailed platform analytics"
             className={activeTab === "analytics" ? "border-b-2 border-primary" : ""}
           >Analytics</TabsTrigger>
+
           <TabsTrigger 
             value="system" 
             tooltip="Check system status and health"
@@ -1131,6 +1133,8 @@ const AdminDashboard = () => {
             </TabsContent>
           </Tabs>
         </TabsContent>
+        
+
         
         <TabsContent value="system" className="space-y-6">
           <h2 className="text-2xl font-bold">System Status</h2>

@@ -21,6 +21,16 @@ const Header = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useFirebaseAuth();
   
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Logged out successfully');
+      navigate('/');
+    } catch (error) {
+      toast.error('Failed to log out');
+    }
+  };
+  
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
@@ -145,7 +155,15 @@ const Header = () => {
                   <p>Go to your dashboard</p>
                 </TooltipContent>
               </Tooltip>
-              {/* AccountSwitcher removed */}
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleLogout}
+                className="text-sm border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors duration-200"
+              >
+                Sign Out
+              </Button>
             </>
           ) : (
             // Unauthenticated user navigation
@@ -209,9 +227,12 @@ const Header = () => {
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
-                  <div className="px-2 py-1 border-t mt-1">
-                    {/* AccountSwitcher removed */}
-                  </div>
+                  <DropdownMenuItem 
+                    onClick={handleLogout}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    Sign Out
+                  </DropdownMenuItem>
                 </>
               ) : (
                 // Unauthenticated user mobile menu

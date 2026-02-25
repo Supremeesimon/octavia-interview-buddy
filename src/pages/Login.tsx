@@ -23,79 +23,30 @@ const Login = () => {
     e.preventDefault();
     
     try {
+      console.log('Starting login process for:', email);
       const result = await login(email, password);
+      console.log('Login successful, user role:', result.user.role);
       
-      // Check if we're adding a new account via account switcher
-      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
+      // Navigate based on user role (normal login flow)
+      console.log('Normal login flow, navigating to:', result.user.role);
+      toast.success(`Welcome back, ${result.user.name}!`);
       
-      if (isAddingNewAccount) {
-        // Add current account to account switcher
-        addCurrentAccount();
-        
-        // Show success message
-        toast.success(`Account added successfully: ${result.user.name}`);
-        
-        // Clear the flag
-        localStorage.removeItem('addingNewAccountViaSwitcher');
-        
-        // Check for return context and navigate back if available
-        const returnUrl = localStorage.getItem('postAuthRedirect');
-        if (returnUrl) {
-          localStorage.removeItem('postAuthRedirect');
-          
-          // Close the current window if it's a popup
-          if (window.opener && window.opener !== window) {
-            // This is a popup window, close it and refresh the opener
-            window.close();
-            
-            // Try to refresh the opener window
-            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
-              try {
-                (window.opener as Window).location.reload();
-              } catch (reloadError) {
-                console.error('Could not reload opener window:', reloadError);
-              }
-            }
-          } else {
-            // Not a popup, navigate to return URL
-            window.location.href = returnUrl;
-          }
-          return;
-        }
-        
-        // If no return context, just navigate to the appropriate dashboard
-        switch (result.user.role) {
-          case 'student':
-            navigate('/student');
-            break;
-          case 'institution_admin':
-            navigate('/dashboard');
-            break;
-          case 'platform_admin':
-            navigate('/admin');
-            break;
-          default:
-            navigate('/');
-        }
-      } else {
-        // Navigate based on user role (normal login flow)
-        switch (result.user.role) {
-          case 'student':
-            navigate('/student');
-            break;
-          case 'institution_admin':
-            navigate('/dashboard');
-            break;
-          case 'platform_admin':
-            navigate('/admin');
-            break;
-          default:
-            navigate('/');
-        }
-        
-        toast.success(`Welcome back, ${result.user.name}!`);
+      // Navigate immediately - auth state should be updated by useFirebaseAuth hook
+      switch (result.user.role) {
+        case 'student':
+          navigate('/student');
+          break;
+        case 'institution_admin':
+          navigate('/dashboard');
+          break;
+        case 'platform_admin':
+          navigate('/admin');
+          break;
+        default:
+          navigate('/');
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       // Provide more specific error messages for OAuth users
       if (error.message.includes('wrong password') && email.includes('gmail.com')) {
         toast.error('Accounts created with Google cannot use email/password login. Please use "Sign in with Google" instead.');
@@ -109,76 +60,22 @@ const Login = () => {
     try {
       const result = await loginWithGoogle();
       
-      // Check if we're adding a new account via account switcher
-      const isAddingNewAccount = localStorage.getItem('addingNewAccountViaSwitcher') === 'true';
-      
-      if (isAddingNewAccount) {
-        // Add current account to account switcher
-        addCurrentAccount();
-        
-        // Show success message
-        toast.success(`Account added successfully: ${result.user.name}`);
-        
-        // Clear the flag
-        localStorage.removeItem('addingNewAccountViaSwitcher');
-        
-        // Check for return context and navigate back if available
-        const returnUrl = localStorage.getItem('postAuthRedirect');
-        if (returnUrl) {
-          localStorage.removeItem('postAuthRedirect');
-          
-          // Close the current window if it's a popup
-          if (window.opener && window.opener !== window) {
-            // This is a popup window, close it and refresh the opener
-            window.close();
-            
-            // Try to refresh the opener window
-            if (window.opener && typeof (window.opener as any).location !== 'undefined') {
-              try {
-                (window.opener as Window).location.reload();
-              } catch (reloadError) {
-                console.error('Could not reload opener window:', reloadError);
-              }
-            }
-          } else {
-            // Not a popup, navigate to return URL
-            window.location.href = returnUrl;
-          }
-          return;
-        }
-        
-        // If no return context, just navigate to the appropriate dashboard
-        switch (result.user.role) {
-          case 'student':
-            navigate('/student');
-            break;
-          case 'institution_admin':
-            navigate('/dashboard');
-            break;
-          case 'platform_admin':
-            navigate('/admin');
-            break;
-          default:
-            navigate('/');
-        }
-      } else {
-        // Navigate based on user role (normal login flow)
-        switch (result.user.role) {
-          case 'student':
-            navigate('/student');
-            break;
-          case 'institution_admin':
-            navigate('/dashboard');
-            break;
-          case 'platform_admin':
-            navigate('/admin');
-            break;
-          default:
-            navigate('/');
-        }
-        
-        toast.success(`Welcome back, ${result.user.name}!`);
+      // Navigate based on user role (normal login flow)
+      switch (result.user.role) {
+        case 'student':
+          navigate('/student');
+          break;
+        case 'institution_admin':
+          navigate('/dashboard');
+          break;
+        case 'platform_admin':
+          navigate('/admin');
+          break;
+        default:
+          navigate('/');
       }
+      
+      toast.success(`Welcome back, ${result.user.name}!`);
     } catch (error: any) {
       toast.error(error.message || 'Google sign in failed');
     }

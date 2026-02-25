@@ -340,6 +340,39 @@ export class SessionService {
     }
   }
 
+  static async getAllInstitutionPaymentMethods(): Promise<{data: any[], summary: any}> {
+    try {
+      const response: ApiResponse<any> = await apiClient.get(`${this.stripeBaseUrl}/all-payment-methods`);
+      return response.data || { data: [], summary: {} };
+    } catch (error: any) {
+      // Handle different types of errors appropriately
+      if (error.status === 403) {
+        // Permission denied - expected for non-admin users
+        console.warn('Access denied: Only platform admins can view all institution payment methods');
+        return { data: [], summary: {} };
+      }
+      
+      // For 404 responses, return empty data
+      if (error.status === 404) {
+        return { data: [], summary: {} };
+      }
+      
+      // Show error toast for actual errors (network issues, 5xx server errors, etc.)
+      if (error.status === undefined) {
+        // Network error
+        toast.error('Network error: Failed to fetch institution payment methods');
+      } else if (error.status >= 500) {
+        // Server error
+        toast.error('Server error: Failed to fetch institution payment methods');
+      } else {
+        // Other errors - log but don't show toast
+        console.warn(`Institution payment methods request failed with status ${error.status}:`, error.message);
+      }
+      
+      return { data: [], summary: {} };
+    }
+  }
+
   // Add Stripe-related methods
   static async getPaymentMethods(): Promise<any[]> {
     try {

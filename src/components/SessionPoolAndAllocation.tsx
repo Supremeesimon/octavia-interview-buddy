@@ -1,0 +1,282 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import SessionPoolStatus from './session/SessionPoolStatus';
+import SessionDuration from './session/SessionDuration';
+import SessionAllocation from './session/SessionAllocation';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { PlatformSettingsService } from '@/services/platform-settings.service';
+import { InstitutionService } from '@/services/institution.service';
+import { SessionService } from '@/services/session.service';
+import { PricingSyncService } from '@/services/pricing-sync.service';
+import { useToast } from '@/hooks/use-toast';
+import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
+import { canAccessFinancialData } from '@/utils/role-utils';
+
+interface SessionPoolAndAllocationProps {
+  institutionId?: string;
+  totalSessions?: number;
+  usedSessions?: number;
+}
+
+const SessionPoolAndAllocation = ({ 
+  institutionId,
+  totalSessions: propTotalSessions,
+  usedSessions: propUsedSessions
+}: SessionPoolAndAllocationProps) => {
+  const [sessionLength, setSessionLength] = useState(30); // Default 30 minutes to match automated setup
+  const [totalSessions, setTotalSessions] = useState(propTotalSessions || 0);
+  const [usedSessions, setUsedSessions] = useState(propUsedSessions || 0);
+  const [loading, setLoading] = useState(false);
+  const [pricePerMinute, setPricePerMinute] = useState<number | null>(null); // Use null to indicate "Not Available"
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const { user } = useFirebaseAuth();
+  
+  // Helper function to get current institution settings
+  const getCurrentInstitutionSettings = async (): Promise<any> => {
+    if (!institutionId) return {};
+    
+    try {
+      const institution = await InstitutionService.getInstitutionById(institutionId);
+      return {
+        ...institution?.settings,
+        // Ensure allocation settings have defaults
+        openToAllStudents: institution?.settings?.openToAllStudents ?? true,
+        allocationMethod: institution?.settings?.allocationMethod ?? 'institution',
+        sessionsPerStudent: institution?.settings?.sessionsPerStudent ?? 3
+      };
+    } catch (error) {
+      console.error('Failed to fetch current institution settings:', error);
+      return {
+        openToAllStudents: true,
+        allocationMethod: 'institution',
+        sessionsPerStudent: 3
+      };
+    }
+  };
+  
+  // Function to save session length setting
+  const saveSessionLength = useCallback(async (newSessionLength: number) => {
+    if (!institutionId) return;
+    
+    try {
+      // First get the current institution to preserve existing settings
+      const institution = await InstitutionService.getInstitutionById(institutionId);
+      
+      // Update the institution's session length setting in Firestore
+      await InstitutionService.updateInstitution(institutionId, {
+        settings: {
+          // Preserve existing settings while updating sessionLength
+          ...institution?.settings,
+          sessionLength: newSessionLength,
+          // Preserve allocation settings with defaults if they don't exist
+          openToAllStudents: institution?.settings?.openToAllStudents ?? true,
+          allocationMethod: institution?.settings?.allocationMethod ?? 'institution',
+          sessionsPerStudent: institution?.settings?.sessionsPerStudent ?? 3
+        }
+      });
+    } catch (error) {
+      console.error('Failed to save session length setting:', error);
+      // Don't show toast for this error as it's not critical
+    }
+  }, [institutionId]);
+  
+  // Effect to save session length when it changes (with debouncing)
+  useEffect(() => {
+    // Only save if we have an institution ID and the session length is different from default
+    if (institutionId && sessionLength !== 30) {
+      const saveTimer = setTimeout(() => {
+        saveSessionLength(sessionLength);
+      }, 1000); // Debounce the save by 1 second
+      
+      return () => clearTimeout(saveTimer);
+    }
+  }, [sessionLength, institutionId, saveSessionLength]);
+  
+  // Fetch platform pricing settings and institution-specific overrides
+  useEffect(() => {
+    const fetchPricingSettings = async () => {
+      try {
+        // First get platform default settings
+        const platformSettings = await PlatformSettingsService.getAllSettings();
+        let calculatedPrice: number | null = null; // Use null to indicate "Not Available"
+        
+        if (platformSettings) {
+          // Only validate and calculate pricing for users with appropriate access
+          if (canAccessFinancialData(user)) {
+            // CRITICAL: Validate platform pricing before using
+            const pricingToValidate = {
+              vapiCost: platformSettings.vapiCostPerMinute,
+              markupPercentage: platformSettings.markupPercentage,
+              licenseCost: platformSettings.annualLicenseCost
+            };
+            
+            if (PricingSyncService.validatePricing(pricingToValidate)) {
+              // Calculate price per minute based on VAPI cost and markup
+              calculatedPrice = platformSettings.vapiCostPerMinute * (1 + platformSettings.markupPercentage / 100);
+            } else {
+              // Even with validation issues, use the actual values from Firebase if they exist
+              if (platformSettings.vapiCostPerMinute && platformSettings.markupPercentage) {
+                calculatedPrice = platformSettings.vapiCostPerMinute * (1 + platformSettings.markupPercentage / 100);
+              } else {
+                calculatedPrice = null; // Not available
+              }
+            }
+          } else {
+            // For non-financial users, use a simplified approach without exposing details
+            calculatedPrice = platformSettings.vapiCostPerMinute * (1 + platformSettings.markupPercentage / 100);
+          }
+        } else {
+          // Data not available
+          calculatedPrice = null; // Not available
+        }
+        
+        // If we have an institution ID, check for institution-specific pricing override
+        if (institutionId) {
+          try {
+            const institution = await InstitutionService.getInstitutionById(institutionId);
+            if (institution?.pricingOverride?.isEnabled) {
+              // Only validate for users with appropriate access
+              if (canAccessFinancialData(user)) {
+                // CRITICAL: Validate institution pricing override before using
+                if (PricingSyncService.validateInstitutionPricing(institution)) {
+                  // Use institution-specific pricing
+                  calculatedPrice = institution.pricingOverride.customVapiCost * 
+                                   (1 + institution.pricingOverride.customMarkupPercentage / 100);
+                } else {
+                  // Even with validation issues, use the actual values if they exist
+                  if (institution.pricingOverride.customVapiCost && institution.pricingOverride.customMarkupPercentage) {
+                    calculatedPrice = institution.pricingOverride.customVapiCost * 
+                                     (1 + institution.pricingOverride.customMarkupPercentage / 100);
+                  }
+                  // If institution pricing is invalid, fall back to null (Not Available)
+                }
+              } else {
+                // For non-financial users, use the values without validation details
+                calculatedPrice = institution.pricingOverride.customVapiCost * 
+                                 (1 + institution.pricingOverride.customMarkupPercentage / 100);
+              }
+            }
+            
+            // Also fetch the institution's session length setting
+            if (institution?.settings?.sessionLength) {
+              setSessionLength(institution.settings.sessionLength);
+            }
+          } catch (error) {
+            // Silently handle errors for institution-specific pricing
+          }
+        }
+        
+        setPricePerMinute(calculatedPrice);
+      } catch (error) {
+        // Data not available due to error
+        setPricePerMinute(null);
+      }
+    };
+    
+    fetchPricingSettings();
+  }, [institutionId, user]);
+  
+  // Fetch interview session data from the backend
+  useEffect(() => {
+    const fetchSessionData = async () => {
+      if (!institutionId) {
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        // Get interview session data from the SessionService
+        const sessionPool = await SessionService.getSessionPool();
+        if (sessionPool) {
+          setTotalSessions(sessionPool.totalSessions);
+          setUsedSessions(sessionPool.usedSessions);
+        } else {
+          // If no session pool exists, set defaults
+          setTotalSessions(0);
+          setUsedSessions(0);
+        }
+      } catch (error: any) {
+        // Handle different types of errors appropriately
+        // Only show error toast for actual network errors or server errors
+        if (error.status === undefined) {
+          // Network error
+          toast({
+            title: "Network Error",
+            description: "Failed to load interview session data due to network issues. Using default values.",
+            variant: "destructive"
+          });
+        } else if (error.status >= 500) {
+          // Server error
+          toast({
+            title: "Server Error",
+            description: "Failed to load interview session data due to server issues. Using default values.",
+            variant: "destructive"
+          });
+        }
+        // For 404, 400, 401, 403 and other client errors, don't show toast as they're normal states
+        // Set default values
+        setTotalSessions(0);
+        setUsedSessions(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    // Only fetch if we don't have props or if props are undefined
+    if (institutionId && (propTotalSessions === undefined || propUsedSessions === undefined)) {
+      fetchSessionData();
+    } else {
+      // If we have props, set the state immediately
+      if (propTotalSessions !== undefined) {
+        setTotalSessions(propTotalSessions);
+      }
+      if (propUsedSessions !== undefined) {
+        setUsedSessions(propUsedSessions);
+      }
+      setLoading(false);
+    }
+  }, [institutionId, propTotalSessions, propUsedSessions, toast]);
+  
+  // If we receive new props, update state
+  useEffect(() => {
+    if (propTotalSessions !== undefined) {
+      setTotalSessions(propTotalSessions);
+    }
+    if (propUsedSessions !== undefined) {
+      setUsedSessions(propUsedSessions);
+    }
+  }, [propTotalSessions, propUsedSessions]);
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6 overflow-hidden w-full">
+      {/* Session Pool Status and Duration in a responsive grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <SessionPoolStatus 
+          totalSessions={totalSessions} 
+          usedSessions={usedSessions} 
+        />
+        <SessionDuration 
+          sessionLength={sessionLength} 
+          setSessionLength={setSessionLength} 
+          pricePerMinute={pricePerMinute} 
+        />
+      </div>
+      
+      {/* Session Allocation */}
+      {institutionId && (
+        <SessionAllocation institutionId={institutionId} />
+      )}
+    </div>
+  );
+};
+
+export default SessionPoolAndAllocation;

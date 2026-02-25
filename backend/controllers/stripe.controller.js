@@ -153,6 +153,89 @@ const stripeController = {
   },
 
   /**
+   * Get payment methods for ALL institutions (Platform Admin only)
+   */
+  async getAllInstitutionPaymentMethods(req, res) {
+    try {
+      // Check if user is platform admin
+      if (!req.user || req.user.role !== 'platform_admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. Only platform administrators can access all institution payment methods.'
+        });
+      }
+
+      // Get all institutions with their stripe customer IDs
+      const institutionsResult = await db.query(
+        `SELECT id, name, stripe_customer_id 
+         FROM institutions 
+         WHERE stripe_customer_id IS NOT NULL 
+         ORDER BY name`
+      );
+
+      const institutions = institutionsResult.rows;
+      const paymentMethodsData = [];
+
+      // Get payment methods for each institution
+      for (const institution of institutions) {
+        try {
+          // Get payment methods from Stripe
+          const paymentMethods = await stripe.paymentMethods.list({
+            customer: institution.stripe_customer_id,
+            type: 'card',
+          });
+
+          const paymentData = Array.isArray(paymentMethods.data) ? paymentMethods.data : [];
+          
+          paymentMethodsData.push({
+            institutionId: institution.id,
+            institutionName: institution.name,
+            stripeCustomerId: institution.stripe_customer_id,
+            paymentMethods: paymentData.map(pm => ({
+              id: pm.id,
+              brand: pm.card ? pm.card.brand : 'Unknown',
+              last4: pm.card ? pm.card.last4 : '0000',
+              expMonth: pm.card ? pm.card.exp_month : 1,
+              expYear: pm.card ? pm.card.exp_year : 2025,
+              isDefault: pm.id === (paymentData.length > 0 ? paymentData[0].id : null)
+            })),
+            hasPaymentMethods: paymentData.length > 0
+          });
+        } catch (error) {
+          console.warn(`Failed to fetch payment methods for institution ${institution.id}:`, error.message);
+          // Continue with other institutions even if one fails
+          paymentMethodsData.push({
+            institutionId: institution.id,
+            institutionName: institution.name,
+            stripeCustomerId: institution.stripe_customer_id,
+            paymentMethods: [],
+            hasPaymentMethods: false,
+            error: error.message
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        data: paymentMethodsData,
+        summary: {
+          totalInstitutions: institutions.length,
+          institutionsWithPaymentMethods: paymentMethodsData.filter(inst => inst.hasPaymentMethods).length,
+          adoptionRate: institutions.length > 0 ? 
+            Math.round((paymentMethodsData.filter(inst => inst.hasPaymentMethods).length / institutions.length) * 100) : 0
+        }
+      });
+    } catch (error) {
+      console.error('Get all institution payment methods error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while fetching institution payment methods',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  },
+
+  /**
    * Get invoices for the institution
    */
   async getInvoices(req, res) {

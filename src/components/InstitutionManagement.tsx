@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { InstitutionService } from '@/services/institution.service';
 import { InstitutionDashboardService } from '@/services/institution-dashboard.service';
+import { SessionService } from '@/services/session.service';
 import { Institution } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,27 @@ const InstitutionManagement = () => {
     departmentPerformance: []
   });
   const [loadingAnalyticsData, setLoadingAnalyticsData] = useState(false);
+  const [institutionPaymentStatus, setInstitutionPaymentStatus] = useState<Record<string, boolean>>({});
+  const [loadingPaymentStatus, setLoadingPaymentStatus] = useState(false);
+  
+  // Fetch payment method status for all institutions
+  const fetchPaymentStatus = async () => {
+    try {
+      setLoadingPaymentStatus(true);
+      const paymentData = await SessionService.getAllInstitutionPaymentMethods();
+      
+      const statusMap: Record<string, boolean> = {};
+      paymentData.data?.forEach((institution: any) => {
+        statusMap[institution.institutionId] = institution.hasPaymentMethods;
+      });
+      
+      setInstitutionPaymentStatus(statusMap);
+    } catch (error) {
+      console.error('Error fetching payment status:', error);
+    } finally {
+      setLoadingPaymentStatus(false);
+    }
+  };
   
   // Fetch real institution data
   useEffect(() => {
@@ -77,6 +99,7 @@ const InstitutionManagement = () => {
     };
     
     fetchInstitutions();
+    fetchPaymentStatus();
   }, []);
   
   const handleApproveInstitution = async (institutionId: string) => {
@@ -336,7 +359,7 @@ const InstitutionManagement = () => {
                       <TableHead>Institution</TableHead>
                       <TableHead>Admin</TableHead>
                       <TableHead>Students</TableHead>
-                      <TableHead>Plan</TableHead>
+                      <TableHead>Payment Method</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Session Pool</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -375,13 +398,18 @@ const InstitutionManagement = () => {
                           </TableCell>
                           <TableCell>{institution.studentsCount}</TableCell>
                           <TableCell>
-                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' : 
-                                institution.plan === 'Scale' ? 'bg-purple-100 text-purple-800' : 
-                                institution.plan === 'Ship' ? 'bg-green-100 text-green-800' : 
-                                'bg-gray-100 text-gray-800'}`
-                            }>
-                              {institution.plan}
+                            <div className="flex items-center gap-2">
+                              {institutionPaymentStatus[institution.id] ? (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                  <CreditCard className="h-3 w-3 mr-1" />
+                                  Card Added
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                                  <CreditCard className="h-3 w-3 mr-1" />
+                                  No Card
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -398,6 +426,7 @@ const InstitutionManagement = () => {
                               </div>
                             )}
                           </TableCell>
+
                           <TableCell>
                             <div className="text-sm">
                               <div>Used: {institution.usedSessions}/{institution.totalSessions}</div>
@@ -891,7 +920,7 @@ const InstitutionManagement = () => {
           <DialogHeader>
             <DialogTitle>{selectedInstitution ? 'Edit Institution' : 'Add New Institution'}</DialogTitle>
             <DialogDescription>
-              {selectedInstitution ? 'Update the details for this institution.' : 'Fill in the details to add a new institution to the platform.'}
+              {selectedInstitution ? 'Update the details for this institution. Payment methods are managed separately through the billing section.' : 'Fill in the details to add a new institution to the platform.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -919,19 +948,7 @@ const InstitutionManagement = () => {
                 className="col-span-3"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="plan" className="text-right text-sm font-medium">Plan</label>
-              <select 
-                id="plan" 
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                defaultValue={selectedInstitution?.plan || 'Build'}
-              >
-                <option value="Build">Build</option>
-                <option value="Ship">Ship</option>
-                <option value="Scale">Scale</option>
-                <option value="Enterprise">Enterprise</option>
-              </select>
-            </div>
+
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="status" className="text-right text-sm font-medium">Status</label>
               <select 

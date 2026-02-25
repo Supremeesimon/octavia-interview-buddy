@@ -15,10 +15,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole 
 }) => {
   const { user, isLoading, isAuthenticated, isAccountSwitching } = useFirebaseAuth();
-  const { isSwitching } = useAccountSwitcher(); // Add account switcher state
+  // const { isSwitching } = useAccountSwitcher(); // Removed
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
-  console.log('ProtectedRoute check:', { user, isLoading, isAuthenticated, requiredRole, isSwitching, isAccountSwitching });
+  console.log('ProtectedRoute check:', { user, isLoading, isAuthenticated, requiredRole, isAccountSwitching });
 
   // Add a small delay to prevent immediate re-evaluation during account switching
   useEffect(() => {
@@ -61,13 +61,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Check role requirements if specified
-  // Skip role check if an account switch is in progress to avoid premature redirects
-  if (requiredRole && user?.role !== requiredRole && !isSwitching && !isAccountSwitching) {
-    console.log('ProtectedRoute: User role mismatch', { userRole: user?.role, requiredRole, isSwitching, isAccountSwitching });
-    // Only show permission error if we're not in the middle of an account switch
-    if (!isSwitching && !isAccountSwitching) {
-      toast.error('You do not have permission to access this page');
-    }
+  if (requiredRole && user?.role !== requiredRole) {
+    console.log('ProtectedRoute: User role mismatch', { userRole: user?.role, requiredRole });
+    toast.error('You do not have permission to access this page');
     // Redirect based on user role
     switch (user?.role) {
       case 'student':
@@ -81,17 +77,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       default:
         return <Navigate to="/" replace />;
     }
-  }
-  
-  // If an account switch is in progress, show loading state instead of redirecting
-  if (requiredRole && user?.role !== requiredRole && (isSwitching || isAccountSwitching)) {
-    console.log('ProtectedRoute: Account switch in progress, showing loading');
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2">Switching account...</span>
-      </div>
-    );
   }
 
   console.log('ProtectedRoute: User authorized, rendering children');

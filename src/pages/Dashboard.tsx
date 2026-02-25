@@ -14,6 +14,8 @@ import { InstitutionService } from '@/services/institution.service';
 const InstitutionDashboard = lazy(() => import('@/components/InstitutionDashboard'));
 const BillingControls = lazy(() => import('@/components/BillingControls'));
 const SessionManagement = lazy(() => import('@/components/SessionManagement'));
+const SessionPoolAndAllocation = lazy(() => import('@/components/SessionPoolAndAllocation'));
+const BillingAndPurchases = lazy(() => import('@/components/BillingAndPurchases'));
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
@@ -36,7 +38,7 @@ const Dashboard = () => {
     if (typeof window !== 'undefined') {
       try {
         const savedTab = localStorage.getItem('dashboardActiveTab');
-        const validTabs = ['overview', 'billing']; 
+        const validTabs = ['overview', 'session-allocation', 'billing']; 
         const initialTab = savedTab && validTabs.includes(savedTab) ? savedTab : 'overview';
         return initialTab;
       } catch (error) {
@@ -174,13 +176,20 @@ const Dashboard = () => {
               onValueChange={handleTabChange}
               value={activeTab}
             >
-              <TabsList className="w-full grid grid-cols-2 mb-4"> 
+              <TabsList className="w-full grid grid-cols-3 mb-4"> 
                 <TabsTrigger 
                   value="overview"
                   tooltip="Overview of your institution's performance metrics and key statistics"
                   className={activeTab === "overview" ? "border-b-2 border-primary" : ""}
                 >
                   Overview
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="session-allocation"
+                  tooltip="Manage interview session allocation across departments and student groups"
+                  className={activeTab === "session-allocation" ? "border-b-2 border-primary" : ""}
+                >
+                  Interview Session Allocation
                 </TabsTrigger>
                 <TabsTrigger 
                   value="billing"
@@ -196,14 +205,18 @@ const Dashboard = () => {
                   <InstitutionDashboard user={user} />
                 </Suspense>
               </TabsContent>
-              <TabsContent value="billing" className="overflow-hidden">
+              <TabsContent value="session-allocation" className="overflow-hidden">
                 <Suspense fallback={<LoadingSpinner />}>
                   <div className="space-y-6">
-                    <SessionManagement 
+                    <SessionPoolAndAllocation 
                       institutionId={user?.institutionId}
                     />
-                    <BillingControls />
                   </div>
+                </Suspense>
+              </TabsContent>
+              <TabsContent value="billing" className="overflow-hidden">
+                <Suspense fallback={<LoadingSpinner />}>
+                  <BillingAndPurchases institutionId={user?.institutionId} />
                 </Suspense>
               </TabsContent>
             </Tabs>
