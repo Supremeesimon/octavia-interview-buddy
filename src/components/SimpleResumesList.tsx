@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, Upload, Loader2, Download, AlertCircle, Trash2, Eye, Search, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 
 const SimpleResumesList = () => {
+  const navigate = useNavigate();
   const { user, isLoading: isAuthLoading } = useFirebaseAuth();
   const { uploadResume, listUserFiles, deleteFile, isUploading, uploadProgress, error, clearError } = useFirebaseStorage();
   
@@ -394,6 +396,16 @@ const SimpleResumesList = () => {
                     >
                       <Trash2 className="h-4 w-4 mr-2 text-red-500" />
                       <span className="text-red-500">Delete</span>
+                    </Button>
+                    <Button 
+                      className="w-full mt-2"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/jobs-for-resume?resume=${encodeURIComponent(resume.originalName)}`)}
+                      disabled={!resume.downloadURL}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      AI Recommended Jobs
                     </Button>
                   </div>
                 </CardContent>

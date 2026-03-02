@@ -5,6 +5,7 @@ import { File, FileText, Upload, Calendar, Clock, Download, Eye, Pencil, Trash2,
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
+import { useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const ResumesList = () => {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { user, isLoading: isAuthLoading } = useFirebaseAuth();
   const { uploadResume, listUserFiles, deleteFile, isUploading, uploadProgress, error, clearError } = useFirebaseStorage();
@@ -344,7 +346,15 @@ const ResumesList = () => {
                   </span>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-end pt-2">
+              <CardFooter className="flex justify-between pt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate(`/jobs-for-resume?resume=${encodeURIComponent(resume.originalName)}`)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  AI Recommended Jobs
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -363,6 +373,10 @@ const ResumesList = () => {
                     <DropdownMenuItem>
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate(`/jobs-for-resume?resume=${encodeURIComponent(resume.originalName)}`)}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      AI Recommended Jobs
                     </DropdownMenuItem>
                     {!resume.isDefault && (
                       <DropdownMenuItem 

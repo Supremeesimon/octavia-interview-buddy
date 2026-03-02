@@ -92,6 +92,28 @@ const Interview = () => {
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-primary" />
+                          AI Recommended Jobs
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          Find jobs tailored to your resume and skills with our AI-powered
+                          recommendation engine.
+                        </p>
+                        <Button 
+                          className="mt-3 w-full" 
+                          variant="outline"
+                          onClick={() => navigate('/jobs-for-resume')}
+                        >
+                          View Recommendations
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2">
                           <Mic className="h-5 w-5 text-primary" />
                           Voice Interaction
                         </CardTitle>

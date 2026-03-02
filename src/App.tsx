@@ -29,6 +29,7 @@ const TeacherDashboardPage = React.lazy(() => import('@/pages/TeacherDashboardPa
 const AdminControlPanel = React.lazy(() => import('@/pages/AdminControlPanel'));
 const Interview = React.lazy(() => import('@/pages/Interview'));
 const ResumesPage = React.lazy(() => import('@/pages/ResumesPage'));
+const JobsForResume = React.lazy(() => import('@/pages/JobsForResume'));
 const JobsPage = React.lazy(() => import('@/pages/JobsPage'));
 const JobDetailsPage = React.lazy(() => import('@/pages/JobDetailsPage'));
 const JobApplicationPage = React.lazy(() => import('@/pages/JobApplicationPage'));
@@ -75,6 +76,7 @@ function App() {
                   <Route path="/teacher-dashboard" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboardPage /></ProtectedRoute>} />
                   <Route path="/interview" element={<Interview />} />
                   <Route path="/resumes" element={<ResumesPage />} />
+                  <Route path="/jobs-for-resume" element={<JobsForResume />} />
                   <Route path="/analytics" element={<ProtectedRoute><ComprehensiveAnalyticsDashboard /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute requiredRole="platform_admin"><AdminControlPanel /></ProtectedRoute>} />
                   <Route path="/admin/add-institution" element={<ProtectedRoute requiredRole="platform_admin"><AddInstitutionPage /></ProtectedRoute>} />

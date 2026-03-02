@@ -32,6 +32,7 @@ import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import DebugDashboard from './DebugDashboard';
 import StudentMessageInbox from './StudentMessageInbox';
 import InterviewSessionRequest from './InterviewSessionRequest';
+import ExternalUserSubscription from './ExternalUserSubscription';
 import { InstitutionService } from '@/services/institution.service';
 import { firebaseAuthService } from '@/services/firebase-auth.service';
 
@@ -319,8 +320,16 @@ const StudentDashboard = () => {
               {hasResumes && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-md">
                   <p className="text-sm text-blue-800">
-                    <span className="font-medium">Suggested for:</span> {resumeSuggestions}
+                    <span className="font-medium">Ready for your live conversation:</span> Engage with our ultra-realistic Intelligent interviewer
                   </p>
+                  <div className="mt-2">
+                    <button 
+                      className="text-sm text-blue-600 hover:underline cursor-pointer"
+                      onClick={() => navigate('/jobs-for-resume')}
+                    >
+                      Available jobs for this resume →
+                    </button>
+                  </div>
                 </div>
               )}
               {!hasResumes && (
@@ -370,12 +379,21 @@ const StudentDashboard = () => {
                       
                       return (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
-                          <span className="text-sm truncate max-w-[70%]" title={displayName}>
-                            {displayName}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatFileSize(file.size)}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-sm truncate max-w-[70%]" title={displayName}>
+                              {displayName}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatFileSize(file.size)}
+                            </span>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => navigate(`/jobs-for-resume?resume=${encodeURIComponent(file.name)}`)}
+                          >
+                            AI Recommended Jobs
+                          </Button>
                         </div>
                       );
                     })}
@@ -608,6 +626,13 @@ const StudentDashboard = () => {
           departmentId="engineering" // This would come from user data in a real implementation
         />
       </div>
+      
+      {/* External User Subscription Panel */}
+      {!user?.institutionId && (
+        <div className="mb-8">
+          <ExternalUserSubscription />
+        </div>
+      )}
       
       <Tabs defaultValue="history" className="mb-8">
         <TabsList className="mb-6">
