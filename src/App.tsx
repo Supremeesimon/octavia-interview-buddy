@@ -34,6 +34,8 @@ const JobsPage = React.lazy(() => import('@/pages/JobsPage'));
 const JobDetailsPage = React.lazy(() => import('@/pages/JobDetailsPage'));
 const JobApplicationPage = React.lazy(() => import('@/pages/JobApplicationPage'));
 const AddInstitutionPage = React.lazy(() => import('@/pages/AddInstitutionPage'));
+const SignupRedirect = React.lazy(() => import('@/components/SignupRedirect'));
+const SubscriptionGuard = React.lazy(() => import('@/components/SubscriptionGuard'));
 const InstitutionAnalyticsPage = React.lazy(() => import('@/pages/InstitutionAnalyticsPage'));
 const ExportDataPage = React.lazy(() => import('@/pages/ExportDataPage'));
 const AboutPage = React.lazy(() => import('@/pages/AboutPage'));
@@ -47,6 +49,8 @@ const NotFound = React.lazy(() => import('@/pages/NotFound'));
 const TestAuthPage = React.lazy(() => import('@/pages/TestAuthPage'));
 const ComprehensiveAnalyticsDashboard = React.lazy(() => import('@/pages/ComprehensiveAnalyticsDashboard'));
 const ExternalSignup = React.lazy(() => import('@/pages/ExternalSignup'));
+const PremiumSubscriptionPage = React.lazy(() => import('@/pages/PremiumSubscriptionPage'));
+const DemoPage = React.lazy(() => import('@/pages/DemoPage'));
 const EnhancedSignup = React.lazy(() => import('@/pages/EnhancedSignup'));
 const InstitutionalSignup = React.lazy(() => import('@/pages/InstitutionalSignup'));
 const InstitutionalLogin = React.lazy(() => import('@/pages/InstitutionalLogin'));
@@ -68,13 +72,13 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/signup" element={<SignupRedirect />} />
                   <Route path="/signup-institutional-redirect" element={<InstitutionalSignupRedirect />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/dashboard" element={<ProtectedRoute requiredRole="institution_admin"><Dashboard /></ProtectedRoute>} />
                   <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
                   <Route path="/teacher-dashboard" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboardPage /></ProtectedRoute>} />
-                  <Route path="/interview" element={<Interview />} />
+                  <Route path="/interview" element={<SubscriptionGuard><Interview /></SubscriptionGuard>} />
                   <Route path="/resumes" element={<ResumesPage />} />
                   <Route path="/jobs-for-resume" element={<JobsForResume />} />
                   <Route path="/analytics" element={<ProtectedRoute><ComprehensiveAnalyticsDashboard /></ProtectedRoute>} />
@@ -91,6 +95,8 @@ function App() {
                   <Route path="/vapi-test" element={<VapiTestPage />} />
                   <Route path="/test-auth" element={<TestAuthPage />} />
                   <Route path="/signup-external" element={<ExternalSignup />} />
+                  <Route path="/subscribe" element={<PremiumSubscriptionPage />} />
+                  <Route path="/demo" element={<DemoPage />} />
                   <Route path="/signup-enhanced" element={<EnhancedSignup />} />
                   <Route path="/signup-institution" element={<InstitutionalSignup />} />
                   <Route path="/signup-institution/:institutionId" element={<InstitutionalSignup />} />

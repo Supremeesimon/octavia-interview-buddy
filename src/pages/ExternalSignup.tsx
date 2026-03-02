@@ -66,6 +66,50 @@ const ExternalSignup = () => {
         // Removed department and yearOfStudy fields for external users
       });
       
+      // Check if there's a pending payment to process
+      const pendingPaymentIntent = localStorage.getItem('pendingPaymentIntent');
+      const pendingPaymentMethodId = localStorage.getItem('pendingPaymentMethodId');
+      
+      if (pendingPaymentIntent && pendingPaymentMethodId) {
+        try {
+          const paymentIntentData = JSON.parse(pendingPaymentIntent);
+          
+          // Process the guest payment after signup
+          // Get the token from the auth context after successful registration
+          const token = localStorage.getItem('token');
+          
+          const response = await fetch('/api/subscriptions/process-guest-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              planType: paymentIntentData.planType,
+              paymentMethodId: pendingPaymentMethodId,
+            }),
+          });
+          
+          const responseJson = await response.json();
+          
+          if (response.ok) {
+            toast.success('Welcome and thank you for your subscription! Your premium features are now activated.');
+            
+            // Clear the pending payment data
+            localStorage.removeItem('pendingPaymentIntent');
+            localStorage.removeItem('pendingPaymentMethodId');
+            
+            navigate('/student');
+            return;
+          } else {
+            toast.success(`Welcome ${result.user.name}! Please check your email to verify your account. Note: There was an issue processing your previous payment, please contact support if needed.`);
+          }
+        } catch (paymentError) {
+          console.error('Error processing pending payment:', paymentError);
+          toast.success(`Welcome ${result.user.name}! Please check your email to verify your account. Note: There was an issue processing your previous payment, please contact support if needed.`);
+        }
+      }
+      
       navigate('/student');
       toast.success(`Welcome ${result.user.name}! Please check your email to verify your account.`);
     } catch (error: any) {

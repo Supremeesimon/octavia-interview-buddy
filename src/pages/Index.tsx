@@ -5,6 +5,7 @@ import Features from '@/components/Features';
 import HowItWorks from '@/components/HowItWorks';
 import InstitutionContactForm from '@/components/InstitutionContactForm';
 import InstitutionMetrics from '@/components/InstitutionMetrics';
+import DashboardDemoTabs from '@/components/DashboardDemoTabs';
 
 const Index = () => {
   return (
@@ -15,6 +16,7 @@ const Index = () => {
         <HowItWorks />
         <Features />
         <InstitutionMetrics />
+        <DashboardDemoTabs />
         <InstitutionContactForm />
       </main>
     </div>

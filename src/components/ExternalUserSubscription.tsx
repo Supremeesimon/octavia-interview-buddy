@@ -76,7 +76,9 @@ const ExternalUserSubscription = () => {
 
   const handleSubscribe = async (paymentMethodId: string) => {
     if (!user?.id) {
-      toast.error('User not authenticated');
+      toast.error('Please sign up or log in first to complete your subscription');
+      // Redirect to signup page
+      window.location.href = '/signup-external';
       return;
     }
 

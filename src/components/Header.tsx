@@ -87,7 +87,7 @@ const Header = () => {
 
   const authLinks = [
     { name: 'Login', path: '/login', tooltip: 'Sign in to your account' },
-    { name: 'Signup', path: '/signup-external', tooltip: 'Create a new account' },
+    { name: 'Subscribe', path: '/subscribe', tooltip: 'Subscribe to unlock premium features' }
   ];
   
   return (
@@ -241,7 +241,7 @@ const Header = () => {
                     <Link to="/login">Login</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/signup-external">Signup</Link>
+                    <Link to="/subscribe">Subscribe</Link>
                   </DropdownMenuItem>
                 </>
               )}

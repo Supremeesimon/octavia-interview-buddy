@@ -285,6 +285,10 @@ CREATE TABLE institution_stats (
 );
 
 -- =============================================================================
+
+-- Index for temp customers
+CREATE INDEX idx_temp_customers_stripe_id ON temp_customers(stripe_customer_id);
+
 -- AUDIT AND LOGGING TABLES
 -- =============================================================================
 
