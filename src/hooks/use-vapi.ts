@@ -31,7 +31,8 @@ interface UseVapiReturn {
     interviewType?: string,
     studentId?: string,
     departmentId?: string,
-    institutionId?: string
+    institutionId?: string,
+    candidateName?: string
   ) => Promise<void>;
   endInterview: () => Promise<void>;
   toggleMute: () => void;
@@ -318,7 +319,8 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
     interviewType: string = 'general',
     studentId?: string,
     departmentId?: string,
-    institutionId?: string
+    institutionId?: string,
+    candidateName?: string
   ) => {
     setIsLoading(true);
     setError(null);
@@ -333,7 +335,8 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
         interviewType,
         studentId,
         departmentId,
-        institutionId
+        institutionId,
+        candidateName
       });
       
       const call = await vapiService.startInterview(
@@ -342,7 +345,8 @@ export const useVapi = (props?: UseVapiProps): UseVapiReturn => {
         vapiCallbacks,
         studentId,
         departmentId,
-        institutionId
+        institutionId,
+        candidateName
       );
       
       setCurrentCall(call);

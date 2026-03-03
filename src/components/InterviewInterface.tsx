@@ -10,6 +10,7 @@ import useVapi from '@/hooks/use-vapi';
 import { useAuth } from '@/hooks/use-auth';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
+import { extractTextFromResume } from '@/utils/resume-parser';
 import type { InterviewFeedback } from '@/types';
 
 interface InterviewInterfaceProps {
@@ -254,9 +255,42 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       
       // Log the resumeData being passed
       console.log('Resume data:', selectedResume);
-      console.log('Resume data type:', typeof selectedResume);
-      console.log('Resume data keys:', selectedResume ? Object.keys(selectedResume) : 'null/undefined');
       
+      // Prepare resume data with parsed text content
+      let finalResumeData = { ...selectedResume };
+      
+      // If we have a download URL but no parsed content, try to fetch and parse the file
+      if (selectedResume?.downloadURL && !selectedResume.content && !selectedResume.parsedContent) {
+        try {
+          toast.info("Analyzing resume content...");
+          console.log('Fetching resume from:', selectedResume.downloadURL);
+          
+          const response = await fetch(selectedResume.downloadURL);
+          const blob = await response.blob();
+          const file = new File([blob], selectedResume.fileName || 'resume.pdf', { type: blob.type });
+          
+          console.log('Extracting text from resume file:', file.name, file.type);
+          const text = await extractTextFromResume(file);
+          console.log('Extracted text length:', text.length);
+          
+          if (text && text.length > 50) {
+            finalResumeData = {
+              ...selectedResume,
+              type: 'text', // Switch type to text so vapi service uses the content
+              content: text,
+              originalType: selectedResume.type // Keep original type for reference
+            };
+            toast.success("Resume content analyzed successfully");
+          } else {
+            console.warn('Extracted text was too short or empty');
+          }
+        } catch (parseError) {
+          console.error('Error parsing resume file:', parseError);
+          // Continue with original resume data if parsing fails
+          toast.error("Could not read resume content, proceeding with metadata only");
+        }
+      }
+
       // Extract hierarchical information from user context
       const studentId = user?.id || '';
       const institutionId = user?.institutionId || '';
@@ -278,11 +312,12 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       }
       
       await startInterview(
-        selectedResume, 
+        finalResumeData, 
         'general',
         studentId,
         departmentId,
-        institutionId
+        institutionId,
+        user?.name || 'Candidate'
       );
     } catch (error) {
       console.error('Failed to start interview:', error);

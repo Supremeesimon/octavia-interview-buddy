@@ -48,7 +48,8 @@ const config: Config = {
   },
   vapi: {
     url: import.meta.env.VITE_VAPI_URL || 'https://api.vapi.ai',
-    publicKey: import.meta.env.VITE_VAPI_PUBLIC_KEY || '',
+    // Fallback to the known public key if not in env (for dev convenience)
+    publicKey: import.meta.env.VITE_VAPI_PUBLIC_KEY || '5205aa88-5883-4c11-8f4a-56b033e40f63',
   },
   features: {
     enableAnalytics: false, // Will be set based on environment below

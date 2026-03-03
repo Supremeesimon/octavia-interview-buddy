@@ -99,7 +99,27 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
   const [hasCheckedSubscription, setHasCheckedSubscription] = useState(false);
   const [isAllowed, setIsAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
   const navigate = useNavigate();
+
+  const handleManageSubscription = async () => {
+    try {
+      setIsManagingSubscription(true);
+      const response = await apiClient.post('/stripe/create-portal-session', {
+        returnUrl: window.location.href
+      });
+      if (response.data.success) {
+        window.location.href = response.data.url;
+      } else {
+        toast.error('Failed to open subscription portal');
+      }
+    } catch (error) {
+      console.error('Error opening portal:', error);
+      toast.error('Failed to open subscription portal. Please try again later.');
+    } finally {
+      setIsManagingSubscription(false);
+    }
+  };
 
   useEffect(() => {
     const checkSubscription = async () => {
@@ -244,6 +264,14 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
                 className="w-full bg-primary hover:bg-primary/90"
               >
                 View Subscription Plans
+              </Button>
+              <Button 
+                variant="secondary" 
+                onClick={handleManageSubscription}
+                disabled={isManagingSubscription} 
+                className="w-full"
+              >
+                {isManagingSubscription ? 'Opening Portal...' : 'Manage Account'}
               </Button>
               <Button 
                 variant="outline" 

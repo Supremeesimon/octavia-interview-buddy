@@ -21,4 +21,7 @@ router.get('/all-payment-methods', authenticateToken, authorizeRole('platform_ad
 // Get invoices for institution - allow institution admins and teachers
 router.get('/invoices', authenticateToken, authorizeRole('institution_admin', 'teacher'), stripeController.getInvoices);
 
+// Create billing portal session - allow any authenticated user (logic handled in controller)
+router.post('/create-portal-session', authenticateToken, stripeController.createPortalSession);
+
 module.exports = router;

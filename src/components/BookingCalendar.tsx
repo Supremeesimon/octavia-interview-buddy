@@ -90,13 +90,23 @@ const BookingCalendar = ({
   };
   
   // Check if there are available sessions from the institution's pool
-  const noAvailableSessions = availableSessions <= 0;
+  // This variable is now calculated inside getBookingLimitationMessage to avoid scope issues
+  // const noAvailableSessions = availableSessions <= 0;
   
   // Check if the student has reached their booking limit (if applicable)
   const reachedBookingLimit = allowedBookingsPerMonth > 0 && usedBookings >= allowedBookingsPerMonth;
   
   // Determine the correct message to show when booking is not possible
   const getBookingLimitationMessage = () => {
+    // For external users (no availableSessions passed or -1), we don't show institution limits
+    if (availableSessions === undefined || availableSessions === -1) {
+      return null;
+    }
+
+    // Check if there are available sessions from the institution's pool
+    // Note: availableSessions is only relevant for institutional users
+    const noAvailableSessions = availableSessions <= 0;
+
     if (noAvailableSessions) {
       return {
         title: "No interview slots available",
@@ -114,8 +124,15 @@ const BookingCalendar = ({
     return null;
   };
   
+  // External users (availableSessions undefined/-1) can always book if they have subscription
+  // We determine this by checking if availableSessions is provided (institutional) or not (external)
+  const isExternalUser = availableSessions === undefined || availableSessions === -1;
+  
+  // Re-calculate booking limitation message based on user type
   const bookingLimitationMessage = getBookingLimitationMessage();
-  const canBook = !noAvailableSessions && !reachedBookingLimit;
+  
+  // Determine if user can book
+  const canBook = isExternalUser || (!bookingLimitationMessage);
   
   return (
     <Card tooltip="Schedule your interview with Octavia AI" className="w-full">
@@ -126,13 +143,24 @@ const BookingCalendar = ({
         </CardDescription>
         
         <div className="mt-2 flex items-center text-sm">
-          <div className="text-muted-foreground">
-            Available sessions: <span className="font-medium">{availableSessions}</span>
-          </div>
+          {!isExternalUser && (
+            <>
+              <div className="text-muted-foreground">
+                Available sessions: <span className="font-medium">{availableSessions}</span>
+              </div>
+              
+              {allowedBookingsPerMonth > 0 && (
+                <div className="ml-4 text-muted-foreground">
+                  Your bookings: <span className="font-medium">{usedBookings}/{allowedBookingsPerMonth}</span> this month
+                </div>
+              )}
+            </>
+          )}
           
-          {allowedBookingsPerMonth > 0 && (
-            <div className="ml-4 text-muted-foreground">
-              Your bookings: <span className="font-medium">{usedBookings}/{allowedBookingsPerMonth}</span> this month
+          {isExternalUser && (
+            <div className="text-muted-foreground flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="font-medium text-green-600">Unlimited sessions enabled</span>
             </div>
           )}
         </div>

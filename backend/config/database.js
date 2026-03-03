@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 
 // Load environment variables from both backend directory and parent directory
-dotenv.config(); // Load from backend directory first
+dotenv.config({ path: path.join(__dirname, '../.env') }); // Load from backend directory explicitly
 dotenv.config({ path: path.resolve(__dirname, '../../.env.local') }); // Then load from parent directory
 
 // Determine environment
@@ -32,6 +32,10 @@ if (isKoyeb && process.env.KOYEB_DATABASE_URL) {
 } else if (isProduction && process.env.DATABASE_URL) {
   // Other production environment with DATABASE_URL
   console.log('Using production DATABASE_URL');
+  // Mask password for logging
+  const maskedUrl = process.env.DATABASE_URL.replace(/:[^:@]*@/, ':****@');
+  console.log('Connection string:', maskedUrl);
+  
   poolConfig = {
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_SSL === 'require' ? { rejectUnauthorized: false } : false
@@ -39,6 +43,13 @@ if (isKoyeb && process.env.KOYEB_DATABASE_URL) {
 } else {
   // Local development environment
   console.log('Using local development database configuration');
+  console.log('DB Config:', {
+    user: process.env.DB_USER || process.env.USER || 'postgres',
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'octavia_interview_buddy',
+    port: process.env.DB_PORT || 5432
+  });
+  
   poolConfig = {
     user: process.env.DB_USER || process.env.USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',

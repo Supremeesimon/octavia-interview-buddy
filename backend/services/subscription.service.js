@@ -531,7 +531,6 @@ class SubscriptionService {
       console.error('Error cancelling subscription:', error);
       throw new Error(`Failed to cancel subscription: ${error.message}`);
     }
-    }
   }
 
   /**

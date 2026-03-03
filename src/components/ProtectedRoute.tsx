@@ -20,22 +20,32 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   
   console.log('ProtectedRoute check:', { user, isLoading, isAuthenticated, requiredRole, isAccountSwitching });
 
-  // Add a small delay to prevent immediate re-evaluation during account switching
+  // Use a much shorter delay or no delay if we already have a user
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // If we have user data, we can stop checking immediately
+    if (user && isAuthenticated) {
       setIsCheckingAuth(false);
-    }, 100); // Small delay to allow state to settle
-
-    return () => clearTimeout(timer);
-  }, []);
+    } 
+    // If we're not loading anymore but have no user, we should also stop checking
+    else if (!isLoading && !user) {
+      setIsCheckingAuth(false);
+    }
+    // Otherwise, use a small timeout to allow state to settle
+    else {
+      const timer = setTimeout(() => {
+        setIsCheckingAuth(false);
+      }, 50); 
+      return () => clearTimeout(timer);
+    }
+  }, [user, isAuthenticated, isLoading]);
 
   // Show loading state while checking auth
   if (isLoading || isCheckingAuth) {
-    console.log('ProtectedRoute: Still loading auth state');
+    // Only show loading spinner if it takes longer than 200ms
+    // This prevents flickering for fast loads
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen opacity-0 animate-in fade-in duration-300 delay-200 fill-mode-forwards">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2">Loading authentication...</span>
       </div>
     );
   }

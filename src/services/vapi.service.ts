@@ -51,6 +51,7 @@ export class VapiService {
   private callbacks: VapiCallbacks = {};
   private assistantId: string = 'a1218d48-1102-4890-a0a6-d0ed2d207410'; // Default Octavia assistant ID
   private callMetadata: any = {}; // Add this to store metadata separately
+  private secretToken: string = import.meta.env.VITE_VAPI_SECRET_TOKEN || '6b5b3b6b84e23056a73897e11ece8062'; // Secret token for tool calls
 
   private constructor() {
     this.initializeVapi();
@@ -530,9 +531,25 @@ export class VapiService {
     callbacks: VapiCallbacks = {},
     studentId?: string,
     departmentId?: string,
-    institutionId?: string
+    institutionId?: string,
+    candidateName?: string
   ): Promise<VapiCall> {
     this.callbacks = callbacks;
+
+    // Extract resume content
+    let resumeContent = '';
+    if (resumeData) {
+      if (resumeData.type === 'text' && resumeData.content) {
+        resumeContent = typeof resumeData.content === 'string' ? resumeData.content : '';
+      } else if (resumeData.type === 'file') {
+        // Fallback for files since we don't have real parsing yet
+        // In the future, this should be replaced with actual parsed content
+        resumeContent = `Resume file: ${resumeData.fileName || 'Provided'}. (Content parsing not available)`;
+      } else if (resumeData.parsedContent) {
+        // If we have parsed content available
+        resumeContent = JSON.stringify(resumeData.parsedContent);
+      }
+    }
 
     // Prepare metadata for the assistant with hierarchical information
     const assistantOverrides = {
@@ -542,7 +559,9 @@ export class VapiService {
         institutionId: institutionId || '',
         interviewType: interviewType || 'general',
         resumeId: resumeData ? 'provided' : '',
-        sessionId: 'session-' + Date.now()
+        sessionId: 'session-' + Date.now(),
+        candidateName: candidateName || 'Candidate',
+        resumeContent: resumeContent
       }
     };
 
@@ -574,7 +593,29 @@ export class VapiService {
       
       // Start the call with the assistant ID and assistant overrides
       vapiLog.info('Executing vapi.start...');
-      const call = await this.vapi.start(assistantId, assistantOverrides);
+      
+      // Ensure we have a valid assistant ID
+      if (!assistantId) {
+        throw new Error('Assistant ID is undefined or empty');
+      }
+
+      // Ensure assistantOverrides is valid
+      if (!assistantOverrides || typeof assistantOverrides !== 'object') {
+        throw new Error('Assistant overrides object is invalid');
+      }
+
+      // Check if we are using the mock VAPI
+      if (this.vapi.start.toString().includes('[MOCK VAPI]')) {
+        vapiLog.info('Using Mock VAPI start method');
+      }
+
+      let call;
+      try {
+        call = await this.vapi.start(assistantId, assistantOverrides);
+      } catch (startError: any) {
+        vapiLog.error('Error during vapi.start() execution:', startError);
+        throw new Error(`VAPI start method threw an error: ${startError.message || startError}`);
+      }
       
       vapiLog.info('VAPI start response received:', call);
       vapiLog.info('Response type:', typeof call);
@@ -625,18 +666,20 @@ export class VapiService {
       vapiLog.info('Interview call started successfully:', this.currentCall);
       return this.currentCall;
     } catch (error: any) {
+      // Log detailed error information
       vapiLog.error('Failed to start VAPI call:', error);
-      vapiLog.error('Stack trace:', error.stack);
-      // Log additional debugging information
-      vapiLog.error('Assistant ID used:', this.getAssistantIdForType(interviewType));
-      vapiLog.error('VAPI instance available:', !!this.vapi);
-      vapiLog.error('VAPI start method available:', !!this.vapi?.start);
+      if (error.stack) vapiLog.error('Stack trace:', error.stack);
+      
+      // Log critical variables for debugging
+      const debugAssistantId = this.getAssistantIdForType(interviewType);
+      vapiLog.error('Assistant ID used:', debugAssistantId);
+      vapiLog.error('VAPI instance initialized:', !!this.vapi);
       
       // Provide more specific error messages based on the error type
       let errorMessage = 'Unknown error occurred';
-      if (error.message) {
+      if (error && error.message) {
         errorMessage = error.message;
-      } else if (error.toString) {
+      } else if (error && error.toString) {
         errorMessage = error.toString();
       }
       

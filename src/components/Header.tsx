@@ -87,7 +87,7 @@ const Header = () => {
 
   const authLinks = [
     { name: 'Login', path: '/login', tooltip: 'Sign in to your account' },
-    { name: 'Subscribe', path: '/subscribe', tooltip: 'Subscribe to unlock premium features' }
+    { name: 'Get Started', path: '/subscribe', tooltip: 'Subscribe to unlock premium features' }
   ];
   
   return (
@@ -153,6 +153,20 @@ const Header = () => {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Go to your dashboard</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link 
+                    to="/profile"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+                  >
+                    Profile
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>View your profile</p>
                 </TooltipContent>
               </Tooltip>
               
@@ -227,6 +241,11 @@ const Header = () => {
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile">
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={handleLogout}
                     className="text-destructive focus:text-destructive"
@@ -241,7 +260,7 @@ const Header = () => {
                     <Link to="/login">Login</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/subscribe">Subscribe</Link>
+                    <Link to="/subscribe">Get Started</Link>
                   </DropdownMenuItem>
                 </>
               )}

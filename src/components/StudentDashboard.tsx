@@ -18,6 +18,7 @@ import {
   Download,
   ArrowRight,
   Loader2,
+  Trophy,
   Bell
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -29,6 +30,7 @@ import { useStudentDashboard } from '@/hooks/use-student-dashboard';
 import { useInterviewFeedback } from '@/hooks/use-interview-feedback';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
+import { cn } from '@/lib/utils';
 import DebugDashboard from './DebugDashboard';
 import StudentMessageInbox from './StudentMessageInbox';
 import InterviewSessionRequest from './InterviewSessionRequest';
@@ -247,15 +249,44 @@ const StudentDashboard = () => {
   };
 
   // Show loading state while data is being fetched
-  if (isLoading || isFeedbackLoading || !institutionSettingsLoaded) {
+  if ((isLoading || isFeedbackLoading || !institutionSettingsLoaded) && !user) {
+    // Only show full loading screen if we don't even have user data yet
     return (
-      <div className="container mx-auto px-4 max-w-5xl">
+      <div className="container mx-auto px-4 max-w-5xl opacity-0 animate-in fade-in duration-300 delay-200 fill-mode-forwards">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </div>
     );
   }
+  
+  const handleBookInterviewClick = () => {
+    // Check if user is institutional or external
+    if (user?.institutionId) {
+      setShowBookingCalendar(true);
+      return;
+    }
+
+    // For external users, check subscription/trial status
+    const hasActiveSubscription = user?.hasActiveSubscription;
+    const trialUsed = user?.trialUsed; // We'll need to add this to the user profile
+
+    if (!hasActiveSubscription) {
+      if (!trialUsed) {
+        // Not subscribed and haven't used trial yet
+        toast.info("Start your 14-day free trial to book interviews!");
+        navigate('/subscribe');
+      } else {
+        // Not subscribed and already used trial
+        toast.warning("Your trial has ended. Please subscribe to continue booking interviews.");
+        navigate('/subscribe');
+      }
+      return;
+    }
+
+    // If they have an active subscription (or are in active trial)
+    setShowBookingCalendar(true);
+  };
   
   return (
     <div className="container mx-auto px-4 max-w-5xl">
@@ -270,47 +301,40 @@ const StudentDashboard = () => {
       <Card className="mb-8 bg-primary/5 border-primary/20">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-            <div className="p-3 rounded-full bg-primary/10">
-              <GraduationCap className="h-8 w-8 text-primary" />
-            </div>
             <div>
               <h2 className="text-2xl font-bold mb-1">Welcome, {studentName}!</h2>
               <p className="text-muted-foreground mb-4">Complete these steps to prepare for your interviews</p>
               
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  {hasResumes ? 
-                    <CheckCircle className="h-5 w-5 text-green-500" /> : 
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  }
-                  <span className={hasResumes ? "text-green-600" : "text-muted-foreground"}>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg transition-colors", hasResumes ? "bg-green-50" : "bg-red-50")}>
+                    <FileUp className={cn("h-5 w-5", hasResumes ? "text-green-600" : "text-red-600")} />
+                  </div>
+                  <span className={cn("text-sm font-medium", hasResumes ? "text-green-700" : "text-muted-foreground")}>
                     {hasResumes ? 'Resume uploaded' : 'Upload your resume'}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {hasLinkedIn ? 
-                    <CheckCircle className="h-5 w-5 text-green-500" /> : 
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  }
-                  <span className={hasLinkedIn ? "text-green-600" : "text-muted-foreground"}>
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg transition-colors", hasLinkedIn ? "bg-green-50" : "bg-red-50")}>
+                    <Linkedin className={cn("h-5 w-5", hasLinkedIn ? "text-green-600" : "text-red-600")} />
+                  </div>
+                  <span className={cn("text-sm font-medium", hasLinkedIn ? "text-green-700" : "text-muted-foreground")}>
                     Add your LinkedIn profile
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {hasScheduledInterviews ? 
-                    <CheckCircle className="h-5 w-5 text-green-500" /> : 
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  }
-                  <span className={hasScheduledInterviews ? "text-green-600" : "text-muted-foreground"}>
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg transition-colors", hasScheduledInterviews ? "bg-green-50" : "bg-red-50")}>
+                    <Calendar className={cn("h-5 w-5", hasScheduledInterviews ? "text-green-600" : "text-red-600")} />
+                  </div>
+                  <span className={cn("text-sm font-medium", hasScheduledInterviews ? "text-green-700" : "text-muted-foreground")}>
                     Book your first interview
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {completedInterviews > 0 ? 
-                    <CheckCircle className="h-5 w-5 text-green-500" /> : 
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  }
-                  <span className={completedInterviews > 0 ? "text-green-600" : "text-muted-foreground"}>
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg transition-colors", completedInterviews > 0 ? "bg-green-50" : "bg-red-50")}>
+                    <Trophy className={cn("h-5 w-5", completedInterviews > 0 ? "text-green-600" : "text-red-600")} />
+                  </div>
+                  <span className={cn("text-sm font-medium", completedInterviews > 0 ? "text-green-700" : "text-muted-foreground")}>
                     Complete your first interview
                   </span>
                 </div>
@@ -582,7 +606,7 @@ const StudentDashboard = () => {
               <div className="flex flex-col items-center justify-center text-center h-40">
                 <Calendar className="h-12 w-12 text-muted-foreground opacity-30 mb-4" />
                 <p className="text-muted-foreground mb-4">No interviews scheduled</p>
-                <Button onClick={() => setShowBookingCalendar(true)}>Book an Interview</Button>
+                <Button onClick={handleBookInterviewClick}>Book an Interview</Button>
               </div>
             )}
           </CardContent>
@@ -598,7 +622,7 @@ const StudentDashboard = () => {
                 <Button 
                   variant="outline" 
                   className="w-full"
-                  onClick={() => setShowBookingCalendar(true)}
+                  onClick={handleBookInterviewClick}
                 >
                   Reschedule
                 </Button>
@@ -618,21 +642,9 @@ const StudentDashboard = () => {
         </Card>
       </div>
       
-      {/* Interview Session Request Panel */}
-      <div className="mb-8">
-        <InterviewSessionRequest 
-          studentId={user?.id || ''} 
-          institutionId={user?.institutionId || ''}
-          departmentId="engineering" // This would come from user data in a real implementation
-        />
-      </div>
+      {/* Interview Session Request Panel removed */}
       
-      {/* External User Subscription Panel */}
-      {!user?.institutionId && (
-        <div className="mb-8">
-          <ExternalUserSubscription />
-        </div>
-      )}
+      {/* External User Subscription Panel removed */}
       
       <Tabs defaultValue="history" className="mb-8">
         <TabsList className="mb-6">
@@ -643,7 +655,6 @@ const StudentDashboard = () => {
             <Bell className="h-4 w-4 mr-2" />
             Messages
           </TabsTrigger>
-          <TabsTrigger value="debug">Debug Info</TabsTrigger>
         </TabsList>
         
         <TabsContent value="history">
@@ -852,9 +863,7 @@ const StudentDashboard = () => {
         <TabsContent value="messages">
           <StudentMessageInbox />
         </TabsContent>
-        <TabsContent value="debug">
-          <DebugDashboard />
-        </TabsContent>
+        {/* Debug Info tab removed */}
       </Tabs>
     </div>
   );

@@ -33,19 +33,22 @@ const Login = () => {
       toast.success(`Welcome back, ${result.user.name}!`);
       
       // Navigate immediately - auth state should be updated by useFirebaseAuth hook
-      switch (result.user.role) {
-        case 'student':
-          navigate('/student');
-          break;
-        case 'institution_admin':
-          navigate('/dashboard');
-          break;
-        case 'platform_admin':
-          navigate('/admin');
-          break;
-        default:
-          navigate('/');
-      }
+      // Further reduced delay to 50ms for snappy response
+      setTimeout(() => {
+        switch (result.user.role) {
+          case 'student':
+            navigate('/student', { replace: true });
+            break;
+          case 'institution_admin':
+            navigate('/dashboard', { replace: true });
+            break;
+          case 'platform_admin':
+            navigate('/admin', { replace: true });
+            break;
+          default:
+            navigate('/', { replace: true });
+        }
+      }, 50);
     } catch (error: any) {
       console.error('Login error:', error);
       // Provide more specific error messages for OAuth users

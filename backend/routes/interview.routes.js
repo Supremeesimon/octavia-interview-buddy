@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const interviewController = require('../controllers/interview.controller');
 const { authenticateToken } = require('../middleware/auth.middleware');
+const { verifyVapiSecret } = require('../middleware/vapi.middleware');
+
+// Book interview (Vapi webhook)
+// This must be defined before generic /:id routes
+router.post('/book', verifyVapiSecret, interviewController.bookInterviewFromVapi);
 
 // Get interviews for current user
 router.get('/', authenticateToken, interviewController.getUserInterviews);

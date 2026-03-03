@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-ro
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
+import { AuthProvider } from '@/contexts/AuthContext';
 import '@/App.css';
 
 // Import components
@@ -56,6 +57,7 @@ const InstitutionalSignup = React.lazy(() => import('@/pages/InstitutionalSignup
 const InstitutionalLogin = React.lazy(() => import('@/pages/InstitutionalLogin'));
 const InstitutionalSignupRedirect = React.lazy(() => import('@/pages/InstitutionalSignupRedirect'));
 const UserDiagnosticsPage = React.lazy(() => import('@/pages/UserDiagnosticsPage'));
+const UserProfilePage = React.lazy(() => import('@/pages/UserProfilePage'));
 
 // Create a client
 const queryClient = new QueryClient();
@@ -64,58 +66,61 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <BrowserRouter>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow">
-              <Suspense fallback={<LoadingSpinner />}>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<SignupRedirect />} />
-                  <Route path="/signup-institutional-redirect" element={<InstitutionalSignupRedirect />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/dashboard" element={<ProtectedRoute requiredRole="institution_admin"><Dashboard /></ProtectedRoute>} />
-                  <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
-                  <Route path="/teacher-dashboard" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboardPage /></ProtectedRoute>} />
-                  <Route path="/interview" element={<SubscriptionGuard><Interview /></SubscriptionGuard>} />
-                  <Route path="/resumes" element={<ResumesPage />} />
-                  <Route path="/jobs-for-resume" element={<JobsForResume />} />
-                  <Route path="/analytics" element={<ProtectedRoute><ComprehensiveAnalyticsDashboard /></ProtectedRoute>} />
-                  <Route path="/admin" element={<ProtectedRoute requiredRole="platform_admin"><AdminControlPanel /></ProtectedRoute>} />
-                  <Route path="/admin/add-institution" element={<ProtectedRoute requiredRole="platform_admin"><AddInstitutionPage /></ProtectedRoute>} />
-                  <Route path="/admin/institution/:id/analytics" element={<ProtectedRoute requiredRole="platform_admin"><InstitutionAnalyticsPage /></ProtectedRoute>} />
-                  <Route path="/admin/export" element={<ProtectedRoute requiredRole="platform_admin"><ExportDataPage /></ProtectedRoute>} />
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/privacy" element={<PrivacyPolicyPage />} />
-                  <Route path="/terms" element={<TermsOfServicePage />} />
-                  <Route path="/departments" element={<DepartmentAllocationPage />} />
-                  <Route path="/student-groups" element={<StudentGroupAllocationPage />} />
-                  <Route path="/analytics/anonymous-data" element={<AnonymousDataPage />} />
-                  <Route path="/vapi-test" element={<VapiTestPage />} />
-                  <Route path="/test-auth" element={<TestAuthPage />} />
-                  <Route path="/signup-external" element={<ExternalSignup />} />
-                  <Route path="/subscribe" element={<PremiumSubscriptionPage />} />
-                  <Route path="/demo" element={<DemoPage />} />
-                  <Route path="/signup-enhanced" element={<EnhancedSignup />} />
-                  <Route path="/signup-institution" element={<InstitutionalSignup />} />
-                  <Route path="/signup-institution/:institutionId" element={<InstitutionalSignup />} />
-                  <Route path="/login-institution" element={<InstitutionalLogin />} />
-                  <Route path="/login-institution/:token" element={<InstitutionalLogin />} />
-                  <Route path="/diagnostics" element={<ProtectedRoute requiredRole="platform_admin"><UserDiagnosticsPage /></ProtectedRoute>} />
-                  {/* Jobs pages are temporarily hidden */}
-                  {/* <Route path="/jobs" element={<JobsPage />} /> */}
-                  {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}
-                  {/* <Route path="/jobs/apply/:id" element={<JobApplicationPage />} /> */}
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </main>
-            <Footer />
-            <Toaster />
-          </div>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-grow">
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<SignupRedirect />} />
+                    <Route path="/signup-institutional-redirect" element={<InstitutionalSignupRedirect />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/dashboard" element={<ProtectedRoute requiredRole="institution_admin"><Dashboard /></ProtectedRoute>} />
+                    <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboardPage /></ProtectedRoute>} />
+                    <Route path="/teacher-dashboard" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboardPage /></ProtectedRoute>} />
+                    <Route path="/interview" element={<SubscriptionGuard><Interview /></SubscriptionGuard>} />
+                    <Route path="/resumes" element={<ResumesPage />} />
+                    <Route path="/jobs-for-resume" element={<JobsForResume />} />
+                    <Route path="/analytics" element={<ProtectedRoute><ComprehensiveAnalyticsDashboard /></ProtectedRoute>} />
+                    <Route path="/admin" element={<ProtectedRoute requiredRole="platform_admin"><AdminControlPanel /></ProtectedRoute>} />
+                    <Route path="/admin/add-institution" element={<ProtectedRoute requiredRole="platform_admin"><AddInstitutionPage /></ProtectedRoute>} />
+                    <Route path="/admin/institution/:id/analytics" element={<ProtectedRoute requiredRole="platform_admin"><InstitutionAnalyticsPage /></ProtectedRoute>} />
+                    <Route path="/admin/export" element={<ProtectedRoute requiredRole="platform_admin"><ExportDataPage /></ProtectedRoute>} />
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                    <Route path="/terms" element={<TermsOfServicePage />} />
+                    <Route path="/departments" element={<DepartmentAllocationPage />} />
+                    <Route path="/student-groups" element={<StudentGroupAllocationPage />} />
+                    <Route path="/analytics/anonymous-data" element={<AnonymousDataPage />} />
+                    <Route path="/vapi-test" element={<VapiTestPage />} />
+                    <Route path="/test-auth" element={<TestAuthPage />} />
+                    <Route path="/signup-external" element={<ExternalSignup />} />
+                    <Route path="/subscribe" element={<PremiumSubscriptionPage />} />
+                    <Route path="/demo" element={<DemoPage />} />
+                    <Route path="/signup-enhanced" element={<EnhancedSignup />} />
+                    <Route path="/signup-institution" element={<InstitutionalSignup />} />
+                    <Route path="/signup-institution/:institutionId" element={<InstitutionalSignup />} />
+                    <Route path="/login-institution" element={<InstitutionalLogin />} />
+                    <Route path="/login-institution/:token" element={<InstitutionalLogin />} />
+                    <Route path="/diagnostics" element={<ProtectedRoute requiredRole="platform_admin"><UserDiagnosticsPage /></ProtectedRoute>} />
+                    <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
+                    {/* Jobs pages are temporarily hidden */}
+                    {/* <Route path="/jobs" element={<JobsPage />} /> */}
+                    {/* <Route path="/jobs/details/:id" element={<JobDetailsPage />} /> */}
+                    {/* <Route path="/jobs/apply/:id" element={<JobApplicationPage />} /> */}
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </main>
+              <Footer />
+              <Toaster />
+            </div>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -1,6 +1,94 @@
 const db = require('../config/database');
+const brevoService = require('../services/brevo.service');
 
 const interviewController = {
+  // Book interview from Vapi webhook
+  async bookInterviewFromVapi(req, res) {
+    try {
+      const { name, email, datetime, timezone, role, assistant } = req.body;
+
+      // Basic validation
+      if (!email || !datetime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email and datetime are required'
+        });
+      }
+
+      // Insert into vapi_bookings table
+      // We use a separate table for Vapi bookings to avoid strict foreign key constraints
+      // of the main interviews table (which requires resume_id and user_id)
+      const result = await db.query(
+        `INSERT INTO vapi_bookings (name, email, scheduled_at, timezone, role, assistant, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'confirmed')
+         RETURNING id, name, email, scheduled_at`,
+        [name, email, datetime, timezone, role, assistant]
+      );
+
+      const booking = result.rows[0];
+
+      // Format date for email
+      const dateOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short',
+        timeZone: timezone 
+      };
+      const formattedDate = new Date(datetime).toLocaleString('en-US', dateOptions);
+
+      // Send confirmation email
+      const emailSubject = `Interview Confirmed: ${role} with ${assistant}`;
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Interview Confirmed</h2>
+          <p>Hi ${name},</p>
+          <p>Your interview for <strong>${role}</strong> with <strong>${assistant}</strong> has been successfully scheduled.</p>
+          <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>Date & Time:</strong> ${formattedDate}</p>
+            <p style="margin: 10px 0 0;"><strong>Assistant:</strong> ${assistant}</p>
+          </div>
+          <p>We look forward to speaking with you!</p>
+          <p style="font-size: 12px; color: #888; margin-top: 30px;">
+            Powered by Octavia Interview Buddy
+          </p>
+        </div>
+      `;
+
+      try {
+        await brevoService.sendEmail(email, emailSubject, emailHtml);
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+        // We don't block the response if email fails, but we log it
+      }
+
+      res.json({
+        success: true,
+        message: 'Interview scheduled successfully',
+        bookingId: booking.id
+      });
+
+    } catch (error) {
+      console.error('Vapi booking error:', error);
+      
+      // Check if table exists error
+      if (error.code === '42P01') { // undefined_table
+        return res.status(500).json({
+          success: false,
+          message: 'Database configuration error: Bookings table not found'
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  },
+
   // Get interviews for current user
   async getUserInterviews(req, res) {
     try {

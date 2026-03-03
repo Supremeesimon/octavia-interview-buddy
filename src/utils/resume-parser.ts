@@ -1,34 +1,83 @@
 /**
  * Utility functions to extract relevant information from resume files
  */
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set worker source using unpkg to ensure we get the correct version matching our package
+// We use the version from the installed package to ensure compatibility
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+
+/**
+ * Extract text content from a File object (PDF or Text)
+ */
+export const extractTextFromResume = async (file: File): Promise<string> => {
+  try {
+    if (file.type === 'application/pdf') {
+      return await extractTextFromPDF(file);
+    } else if (file.type === 'text/plain') {
+      return await file.text();
+    } else {
+      console.warn('Unsupported file type for text extraction:', file.type);
+      return `[Resume file: ${file.name}] (Content extraction not supported for this file type)`;
+    }
+  } catch (error) {
+    console.error('Error extracting text from resume:', error);
+    return `[Resume file: ${file.name}] (Error extracting content: ${error.message})`;
+  }
+};
+
+/**
+ * Extract text from a PDF file
+ */
+const extractTextFromPDF = async (file: File): Promise<string> => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdfDocument = await loadingTask.promise;
+    
+    let fullText = '';
+    
+    // Iterate through each page
+    for (let i = 1; i <= pdfDocument.numPages; i++) {
+      const page = await pdfDocument.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      fullText += pageText + '\n';
+    }
+    
+    return fullText.trim();
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    throw new Error('Failed to parse PDF content');
+  }
+};
 
 // Mock function to extract skills and location from resume content
-export const extractSkillsAndLocationFromResume = async (resumeFile: any): Promise<{ skills: string[], location: string }> => {
+// Updated to use the extracted text if available
+export const extractSkillsAndLocationFromResume = async (resumeFile: any): Promise<{ skills: string[], location: string, text?: string }> => {
   try {
-    // In a real implementation, this would:
-    // 1. Download the PDF content
-    // 2. Parse the PDF to extract text
-    // 3. Use NLP techniques to identify skills and location
+    // Attempt to extract real text first
+    let text = '';
+    if (resumeFile instanceof File) {
+      text = await extractTextFromResume(resumeFile);
+    }
     
-    // For now, we'll simulate the extraction with mock data based on typical resume content
-    // In a real implementation, we'd use a library like pdf.js to parse the PDF content
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Mock extraction based on resume filename or metadata
-    const fileName = resumeFile.name.toLowerCase();
+    // Determine skills based on filename OR content
+    const contentToAnalyze = (text + ' ' + (resumeFile.name || '')).toLowerCase();
     
     // Define some common skill sets based on job types
     let skills: string[] = [];
     
-    if (fileName.includes('software') || fileName.includes('engineer') || fileName.includes('developer')) {
+    if (contentToAnalyze.includes('software') || contentToAnalyze.includes('engineer') || contentToAnalyze.includes('developer') || contentToAnalyze.includes('javascript')) {
       skills = ['JavaScript', 'React', 'Node.js', 'Python', 'TypeScript', 'MongoDB', 'Express'];
-    } else if (fileName.includes('product') || fileName.includes('manager')) {
+    } else if (contentToAnalyze.includes('product') || contentToAnalyze.includes('manager') || contentToAnalyze.includes('roadmap')) {
       skills = ['Product Strategy', 'Agile', 'User Research', 'Roadmapping', 'Analytics', 'Stakeholder Management'];
-    } else if (fileName.includes('design') || fileName.includes('ui') || fileName.includes('ux')) {
+    } else if (contentToAnalyze.includes('design') || contentToAnalyze.includes('ui') || contentToAnalyze.includes('ux') || contentToAnalyze.includes('figma')) {
       skills = ['Figma', 'Adobe XD', 'User Research', 'Prototyping', 'Wireframing', 'Design Systems'];
-    } else if (fileName.includes('devops') || fileName.includes('cloud')) {
+    } else if (contentToAnalyze.includes('devops') || contentToAnalyze.includes('cloud') || contentToAnalyze.includes('aws')) {
       skills = ['AWS', 'Docker', 'Kubernetes', 'Jenkins', 'Terraform', 'CI/CD', 'Linux'];
     } else {
       // Default skills set
@@ -39,21 +88,22 @@ export const extractSkillsAndLocationFromResume = async (resumeFile: any): Promi
     // For now, we'll return a default location or try to infer from filename
     let location = 'Remote';
     
-    if (fileName.includes('sf') || fileName.includes('sanfran') || fileName.includes('california')) {
+    if (contentToAnalyze.includes('sf') || contentToAnalyze.includes('san francisco') || contentToAnalyze.includes('california')) {
       location = 'San Francisco, CA';
-    } else if (fileName.includes('nyc') || fileName.includes('newyork') || fileName.includes('manhattan')) {
+    } else if (contentToAnalyze.includes('nyc') || contentToAnalyze.includes('new york') || contentToAnalyze.includes('manhattan')) {
       location = 'New York, NY';
-    } else if (fileName.includes('austin') || fileName.includes('texas')) {
+    } else if (contentToAnalyze.includes('austin') || contentToAnalyze.includes('texas')) {
       location = 'Austin, TX';
-    } else if (fileName.includes('seattle') || fileName.includes('washington')) {
+    } else if (contentToAnalyze.includes('seattle') || contentToAnalyze.includes('washington')) {
       location = 'Seattle, WA';
-    } else if (fileName.includes('remote') || fileName.includes('distributed')) {
+    } else if (contentToAnalyze.includes('remote') || contentToAnalyze.includes('distributed')) {
       location = 'Remote';
     }
     
     return {
       skills,
-      location
+      location,
+      text // Return the extracted text so it can be used by the caller
     };
   } catch (error) {
     console.error('Error extracting data from resume:', error);

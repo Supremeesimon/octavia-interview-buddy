@@ -282,6 +282,61 @@ const stripeController = {
         message: 'Internal server error'
       });
     }
+  },
+
+  /**
+   * Create a billing portal session
+   */
+  async createPortalSession(req, res) {
+    try {
+      const user = req.user;
+      let stripeCustomerId;
+
+      // Check if user is associated with an institution
+      if (user.institutionId) {
+        // Get customer ID from institution
+        const result = await db.query(
+          'SELECT stripe_customer_id FROM institutions WHERE id = $1',
+          [user.institutionId]
+        );
+        if (result.rows.length > 0) {
+          stripeCustomerId = result.rows[0].stripe_customer_id;
+        }
+      } else {
+        // Check if user is an individual user
+        // We need to fetch the stripe_customer_id from the users table
+        const result = await db.query(
+          'SELECT stripe_customer_id FROM users WHERE id = $1',
+          [user.id]
+        );
+        if (result.rows.length > 0) {
+          stripeCustomerId = result.rows[0].stripe_customer_id;
+        }
+      }
+
+      if (!stripeCustomerId) {
+        return res.status(404).json({
+          success: false,
+          message: 'Stripe customer not found. Please ensure you have an active subscription or billing account.'
+        });
+      }
+
+      const returnUrl = req.body.returnUrl || req.headers.origin || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard`;
+      
+      const sessionUrl = await StripeService.createPortalSession(stripeCustomerId, returnUrl);
+
+      res.json({
+        success: true,
+        url: sessionUrl
+      });
+    } catch (error) {
+      console.error('Create portal session error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while creating portal session',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
   }
 };
 

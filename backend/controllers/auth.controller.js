@@ -605,6 +605,14 @@ const authController = {
       const firebaseEmail = decodedToken.email;
       console.log('Looking up user in database with UID:', firebaseUid, 'and email:', firebaseEmail);
 
+      if (!firebaseEmail) {
+        console.log('Token exchange failed: Firebase token is missing email claim');
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required for registration. Please use an authentication provider that shares your email address.'
+        });
+      }
+
       // Find user in database by Firebase UID
       console.log('Executing database query for firebase_uid:', firebaseUid);
       let result;

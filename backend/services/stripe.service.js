@@ -262,6 +262,25 @@ class StripeService {
       throw new Error(`Failed to delete payment method: ${error.message}`);
     }
   }
+
+  /**
+   * Create a billing portal session
+   * @param {string} customerId - The Stripe customer ID
+   * @param {string} returnUrl - The URL to redirect to after exiting the portal
+   * @returns {Promise<string>} The portal session URL
+   */
+  static async createPortalSession(customerId, returnUrl) {
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: returnUrl,
+      });
+      return session.url;
+    } catch (error) {
+      console.error('Error creating portal session:', error);
+      throw new Error(`Failed to create portal session: ${error.message}`);
+    }
+  }
 }
 
 module.exports = StripeService;
