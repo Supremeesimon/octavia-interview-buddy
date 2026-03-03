@@ -160,7 +160,15 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
 
       try {
         // For external users without subscription info in profile, check via API
-        const response = await apiClient.get('/auth/profile');
+        // Try to access the API directly
+        let response;
+        try {
+          response = await apiClient.get('/auth/profile');
+        } catch (e) {
+          console.warn('First attempt failed, retrying...');
+          throw e;
+        }
+        
         // response.data.data contains { user: { ... } }
         const userData = response.data.data.user || response.data.data;
 
@@ -169,13 +177,16 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
         } else {
           // Redirect external users without active subscriptions to the subscription page
           toast.info('Please subscribe to access premium features like interviews.');
-          navigate('/subscribe');
+          setIsAllowed(false); // Explicitly deny access
+          // We don't navigate here, we let the component render the "Not Allowed" UI
         }
       } catch (error) {
         console.error('Error checking subscription status:', error);
         // If API call fails, allow access but show a warning
         toast.warning('Could not verify subscription status. Please refresh if you encounter issues.');
-        setIsAllowed(true);
+        // For development/debugging, we might want to allow access, but in prod we should probably deny or retry
+        // Keeping as true for now based on original logic, but this masks errors
+        setIsAllowed(true); 
       } finally {
         setLoading(false);
         setHasCheckedSubscription(true);

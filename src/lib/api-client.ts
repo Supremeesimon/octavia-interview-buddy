@@ -101,7 +101,19 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
-      const response = await fetch(`${this.baseUrl}${url}`, {
+      // Clean up URL construction
+      let requestUrl = url;
+      
+      if (!url.startsWith('http')) {
+        const path = url.startsWith('/') ? url : `/${url}`;
+        
+        // Remove trailing slash from baseUrl if present
+        const baseUrl = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
+        
+        requestUrl = `${baseUrl}${path}`;
+      }
+
+      const response = await fetch(requestUrl, {
         ...options,
         headers: this.getHeaders(options.headers as Record<string, string>),
         signal: controller.signal,

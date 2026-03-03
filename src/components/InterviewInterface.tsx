@@ -94,14 +94,44 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   // Check interview eligibility
   useEffect(() => {
     const checkEligibility = async () => {
+      // First check if user object has subscription info directly (optimized path)
+      if (user && typeof user.hasActiveSubscription !== 'undefined') {
+        // Use the data already in the user object
+        // Map the boolean/string values to the eligibility format expected by UI
+        const isEligible = !!user.hasActiveSubscription;
+        
+        // Default values if we don't have detailed usage stats yet
+        // We'll fetch the full details in the background if needed, 
+        // but this gives us an instant "Plan" state
+        setEligibility({
+          eligible: isEligible,
+          reason: isEligible ? undefined : 'no_subscription',
+          remaining: user.subscription?.interviewsLimit ? (user.subscription.interviewsLimit - (user.subscription.interviewsUsed || 0)) : 0,
+          plan: user.subscription?.plan || (isEligible ? 'active' : 'none'),
+          used: user.subscription?.interviewsUsed || 0,
+          limit: user.subscription?.interviewsLimit || 0
+        });
+        
+        // If we have detailed subscription data, we don't need to call the service
+        if (user.subscription) {
+          return;
+        }
+      }
+      
+      // Fallback to service call if data is missing or incomplete
       if (user?.id) {
-        const result = await interviewService.checkInterviewEligibility(user.id);
-        setEligibility(result);
+        try {
+          const result = await interviewService.checkInterviewEligibility(user.id);
+          setEligibility(result);
+        } catch (error) {
+          console.error('Error checking eligibility:', error);
+          // Don't overwrite if we already set something from user object
+        }
       }
     };
     
     checkEligibility();
-  }, [user?.id]);
+  }, [user, user?.id, user?.hasActiveSubscription]);
   
   // Load available resumes when component mounts
   useEffect(() => {
