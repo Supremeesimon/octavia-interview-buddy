@@ -20,6 +20,15 @@ service cloud.firestore {
       return request.auth.token.admin == true;
     }
 
+    // Users collection (unified user record for subscriptions and limits)
+    match /users/{userId} {
+      // Users can read and write their own data (needed for subscription checks and usage increment)
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      
+      // Platform admins can read all users
+      allow read: if isAuthenticated() && isPlatformAdmin();
+    }
+
     // External users collection
     match /externalUsers/{userId} {
       // Users can read and write their own data

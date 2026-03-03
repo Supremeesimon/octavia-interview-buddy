@@ -1,7 +1,62 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../config/database');
+const firebaseAdmin = require('../config/firebase');
 
 class SubscriptionService {
+  /**
+   * Update Firestore user document with subscription details
+   */
+  static async updateFirestoreSubscription(userId, subscriptionData) {
+    if (!firebaseAdmin) return;
+    
+    try {
+      // Get Firebase UID from Postgres
+      const userResult = await db.query('SELECT firebase_uid FROM users WHERE id = $1', [userId]);
+      if (!userResult.rows[0] || !userResult.rows[0].firebase_uid) {
+        // If we can't find it by ID, maybe userId IS the firebase_uid? 
+        // But the service uses integer IDs usually? No, it uses UUIDs likely.
+        // Let's assume userId is Postgres ID as per other methods.
+        // If query returns nothing, maybe we can't sync.
+        console.warn(`No Firebase UID found for user ${userId}, skipping Firestore sync`);
+        return;
+      }
+      const firebaseUid = userResult.rows[0].firebase_uid;
+
+      const firestore = firebaseAdmin.firestore();
+      const userRef = firestore.collection('users').doc(firebaseUid);
+      
+      const limits = {
+        standard: 5,
+        pro: 10,
+        monthly: 5, // Legacy
+        quarterly: 20 // Legacy
+      };
+
+      const updateData = {
+        subscription: {
+          plan: subscriptionData.planType,
+          status: subscriptionData.status,
+          interviewsLimit: limits[subscriptionData.planType] || 0,
+          currentPeriodEnd: subscriptionData.periodEnd,
+          trialEnd: subscriptionData.trialEnd || null
+        },
+        hasActiveSubscription: ['active', 'trialing'].includes(subscriptionData.status)
+      };
+
+      // Only set interviewsUsed if it's explicitly provided (e.g. reset)
+      // Otherwise we preserve existing value in Firestore or default to 0 if not set
+      if (typeof subscriptionData.interviewsUsed !== 'undefined') {
+        updateData.subscription.interviewsUsed = subscriptionData.interviewsUsed;
+      }
+
+      await userRef.set(updateData, { merge: true });
+      
+      console.log(`Updated Firestore subscription for user ${userId} (Firebase UID: ${firebaseUid})`);
+    } catch (error) {
+      console.error('Error updating Firestore subscription:', error);
+    }
+  }
+
   /**
    * Create a Stripe customer for an external user
    * @param {string} userId - The user ID in our database
@@ -135,8 +190,14 @@ class SubscriptionService {
       // Create subscription record
       const prices = {
         monthly: 2000, // $20.00 in cents
-        quarterly: 4500 // $45.00 in cents
+        quarterly: 4500, // $45.00 in cents
+        standard: 2000,
+        pro: 4500
       };
+
+      if (!prices[planType]) {
+        throw new Error('Invalid plan type');
+      }
 
       // Create subscription in Stripe
       const subscription = await stripe.subscriptions.create({
@@ -193,6 +254,15 @@ class SubscriptionService {
         [new Date(subscription.current_period_end * 1000), userId]
       );
 
+      // Sync with Firestore
+      await this.updateFirestoreSubscription(userId, {
+        planType,
+        status: subscription.status,
+        periodEnd: new Date(subscription.current_period_end * 1000),
+        trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+        interviewsUsed: 0
+      });
+
       // Mark temporary customer as processed
       await db.query(
         `DELETE FROM temp_customers WHERE id = $1`,
@@ -242,7 +312,9 @@ class SubscriptionService {
       // Define prices based on plan type
       const prices = {
         monthly: 2000, // $20.00 in cents
-        quarterly: 4500 // $45.00 in cents
+        quarterly: 4500, // $45.00 in cents
+        standard: 2000,
+        pro: 4500
       };
 
       if (!prices[planType]) {
@@ -315,6 +387,15 @@ class SubscriptionService {
          WHERE id = $2`,
         [new Date(subscription.current_period_end * 1000), userId]
       );
+
+      // Sync with Firestore
+      await this.updateFirestoreSubscription(userId, {
+        planType,
+        status: subscription.status,
+        periodEnd: new Date(subscription.current_period_end * 1000),
+        trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+        interviewsUsed: 0 // Reset usage on new subscription
+      });
 
       return {
         id: insertResult.rows[0].id,
@@ -359,7 +440,9 @@ class SubscriptionService {
       // Define prices based on plan type
       const prices = {
         monthly: 2000, // $20.00 in cents
-        quarterly: 4500 // $45.00 in cents
+        quarterly: 4500, // $45.00 in cents
+        standard: 2000,
+        pro: 4500
       };
 
       if (!prices[planType]) {
@@ -432,6 +515,15 @@ class SubscriptionService {
          WHERE id = $2`,
         [new Date(subscription.current_period_end * 1000), userId]
       );
+
+      // Sync with Firestore
+      await this.updateFirestoreSubscription(userId, {
+        planType,
+        status: subscription.status,
+        periodEnd: new Date(subscription.current_period_end * 1000),
+        trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+        interviewsUsed: 0
+      });
 
       return {
         id: insertResult.rows[0].id,
@@ -554,7 +646,9 @@ class SubscriptionService {
       // Define prices based on plan type
       const prices = {
         monthly: 2000, // $20.00 in cents
-        quarterly: 4500 // $45.00 in cents
+        quarterly: 4500, // $45.00 in cents
+        standard: 2000,
+        pro: 4500
       };
 
       if (!prices[newPlanType]) {
@@ -684,6 +778,21 @@ class SubscriptionService {
         [new Date(subscription.current_period_end * 1000), userId]
       );
     }
+
+    // Get plan type from our DB
+    const subResult = await db.query('SELECT plan_type FROM subscriptions WHERE stripe_subscription_id = $1', [subscription.id]);
+    const planType = subResult.rows[0] ? subResult.rows[0].plan_type : 'free';
+
+    // Sync with Firestore
+    await this.updateFirestoreSubscription(userId, {
+      planType,
+      status: subscription.status,
+      periodEnd: new Date(subscription.current_period_end * 1000),
+      trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null
+      // We don't reset interviewsUsed here automatically unless we know it's a renewal?
+      // But subscription update happens on renewal too.
+      // Ideally handlePaymentSucceeded handles renewal reset.
+    });
   }
 
   /**
@@ -722,6 +831,18 @@ class SubscriptionService {
        WHERE id = $1`,
       [userId]
     );
+
+    // Sync with Firestore
+    // Get plan type
+    const subResult = await db.query('SELECT plan_type FROM subscriptions WHERE stripe_subscription_id = $1', [subscription.id]);
+    const planType = subResult.rows[0] ? subResult.rows[0].plan_type : 'free';
+
+    await this.updateFirestoreSubscription(userId, {
+      planType,
+      status: 'cancelled',
+      periodEnd: new Date(),
+      trialEnd: null
+    });
   }
 
   /**
@@ -758,6 +879,19 @@ class SubscriptionService {
            WHERE id = $2`,
           [new Date(stripeSubscription.current_period_end * 1000), userId]
         );
+
+        // Get plan type
+        const subResult = await db.query('SELECT plan_type FROM subscriptions WHERE stripe_subscription_id = $1', [invoice.subscription]);
+        const planType = subResult.rows[0] ? subResult.rows[0].plan_type : 'free';
+
+        // Sync with Firestore and reset usage
+        await this.updateFirestoreSubscription(userId, {
+          planType,
+          status: stripeSubscription.status,
+          periodEnd: new Date(stripeSubscription.current_period_end * 1000),
+          trialEnd: stripeSubscription.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
+          interviewsUsed: 0 // Reset usage on renewal/payment
+        });
       }
     }
   }

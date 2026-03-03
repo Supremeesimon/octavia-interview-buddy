@@ -3,7 +3,7 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, CreditCard, RotateCcw } from 'lucide-react';
+import { CheckCircle, CreditCard, RotateCcw, ChartLine, History, Headphones, Zap, Mic, Clock } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -135,7 +135,7 @@ const PaymentFormInner: React.FC<PaymentFormProps> = ({ planType, onComplete, on
               Processing...
             </>
           ) : (
-            `Pay $${planType === 'monthly' ? '20' : '45'}`
+            `Start Trial (Pay $${planType === 'monthly' ? '20' : '45'} in 14 days)`
           )}
         </Button>
       </div>
@@ -191,7 +191,7 @@ const PremiumSubscriptionPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-            <Card className="border-primary border-2">
+            <Card className="border-primary border-2 flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>Monthly Plan</span>
@@ -199,29 +199,46 @@ const PremiumSubscriptionPage = () => {
                 </CardTitle>
                 <CardDescription>Perfect for occasional practice</CardDescription>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Unlimited interview sessions</span>
+              <CardContent className="flex-1 flex flex-col">
+                <div className="space-y-3 text-sm text-muted-foreground flex-1">
+                  <div className="pb-1">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-primary mb-2">Core Features</p>
+                    <div className="space-y-3">
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
+                        <div>
+                          <strong className="text-foreground">Unlimited interview sessions</strong>
+                          <div className="text-xs">Practice key scenarios</div>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <ChartLine className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
+                        <div>
+                          <strong className="text-foreground">Advanced AI feedback</strong>
+                          <div className="text-xs">Summary and score after sessions</div>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <History className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
+                        <div>
+                          <strong className="text-foreground">Career coaching tools</strong>
+                          <div className="text-xs">Review your recent progress</div>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Headphones className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
+                        <div>
+                          <strong className="text-foreground">Priority support</strong>
+                          <div className="text-xs">Email assistance</div>
+                        </div>
+                      </li>
+                    </div>
+                  </div>
+                  <li className="flex items-center gap-2 pt-1 border-t border-border/50">
+                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span>14-day free trial</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Advanced AI feedback</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Career coaching tools</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Priority support</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Performance analytics</span>
-                  </li>
-                </ul>
+                </div>
                 <Button 
                   className="w-full mt-6 bg-primary hover:bg-primary/90 text-white py-6 text-lg"
                   onClick={() => {
@@ -234,7 +251,7 @@ const PremiumSubscriptionPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-primary border-2 bg-primary/5">
+            <Card className="border-primary border-2 bg-primary/5 flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>Quarterly Plan</span>
@@ -242,29 +259,60 @@ const PremiumSubscriptionPage = () => {
                 </CardTitle>
                 <CardDescription className="text-purple-700">Best value - save 25%</CardDescription>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Everything in Monthly Plan</span>
+              <CardContent className="flex-1 flex flex-col">
+                <div className="space-y-3 text-sm text-muted-foreground flex-1">
+                  <div className="pb-1">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-primary mb-2">Core Features</p>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
+                      <div>
+                        <strong className="text-foreground">Everything in Monthly Plan</strong>
+                        <div className="text-xs">More practice, faster results</div>
+                      </div>
+                    </li>
+                  </div>
+                  <div className="pt-2 pb-1 border-t border-border/50">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-primary mb-2">Advanced Features</p>
+                    <div className="space-y-3">
+                      <li className="flex items-start gap-2">
+                        <ChartLine className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <strong className="text-foreground">Resume builder tools</strong>
+                          <div className="text-xs">Deeper behavioral insights</div>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Zap className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <strong className="text-foreground">Interview scheduling assistant</strong>
+                          <div className="text-xs">Live coaching during the call</div>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Mic className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <strong className="text-foreground">Mock interview recordings</strong>
+                          <div className="text-xs">Full review capabilities</div>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <History className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                        <div>
+                          <strong className="text-foreground">Expert career advice</strong>
+                          <div className="text-xs">Long-term progress tracking</div>
+                        </div>
+                      </li>
+                    </div>
+                  </div>
+                  <li className="flex items-center gap-2 pt-1 border-t border-border/50">
+                    <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    <span>Priority support</span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Resume builder tools</span>
+                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span>14-day free trial</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Interview scheduling assistant</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Mock interview recordings</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Expert career advice</span>
-                  </li>
-                </ul>
+                </div>
                 <Button 
                   className="w-full mt-6 bg-purple-500 hover:bg-purple-600 text-white py-6 text-lg"
                   onClick={() => {
@@ -291,9 +339,17 @@ const PremiumSubscriptionPage = () => {
                     ✕
                   </button>
                 </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                  <h4 className="font-semibold text-blue-800 mb-1">14-Day Free Trial Active</h4>
+                  <p className="text-sm text-blue-700">
+                    You will <strong>not</strong> be charged today. 
+                    Your first payment of <strong>${selectedPlan === 'monthly' ? '20' : '45'}</strong> will be processed on <strong>{new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString()}</strong>.
+                  </p>
+                </div>
+                
                 <p className="text-sm text-muted-foreground mb-4">
-                  Enter your payment details to subscribe to the {selectedPlan} plan for ${selectedPlan === 'monthly' ? '20' : '45'}. 
-                  After payment, you'll create your account.
+                  Enter your payment details to start your trial. You can cancel anytime before the trial ends to avoid being charged.
+                  After setting up your trial, you'll create your account.
                 </p>
                 
                 <PaymentForm 

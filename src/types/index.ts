@@ -64,6 +64,17 @@ export interface UserProfile extends User {
   department?: string;
   yearOfStudy?: string;
   linkedinUrl?: string; // Added LinkedIn URL field
+  subscription?: UserSubscription;
+  trialUsed?: boolean;
+}
+
+export interface UserSubscription {
+  plan: 'free' | 'standard' | 'pro';
+  status: 'active' | 'trialing' | 'cancelled' | 'expired' | 'none';
+  trialEnd?: Date;
+  currentPeriodEnd?: Date;
+  interviewsLimit: number;
+  interviewsUsed: number;
 }
 
 export interface Student extends User {

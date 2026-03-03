@@ -8,7 +8,7 @@ const userController = {
 
       const result = await db.query(
         `SELECT id, email, name, role, institution_id, profile_picture_url, linkedin_url,
-                is_email_verified, last_login_at, created_at
+                is_email_verified, last_login_at, created_at, has_active_subscription, subscription_expires_at
          FROM users WHERE id = $1`,
         [userId]
       );

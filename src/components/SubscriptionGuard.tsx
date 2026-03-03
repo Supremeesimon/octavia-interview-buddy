@@ -160,8 +160,9 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
 
       try {
         // For external users without subscription info in profile, check via API
-        const response = await apiClient.get('/users/me');
-        const userData = response.data.data;
+        const response = await apiClient.get('/auth/profile');
+        // response.data.data contains { user: { ... } }
+        const userData = response.data.data.user || response.data.data;
 
         if (userData.hasActiveSubscription) {
           setIsAllowed(true);

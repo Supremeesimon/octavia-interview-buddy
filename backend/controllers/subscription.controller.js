@@ -11,10 +11,10 @@ const subscriptionController = {
       const userId = req.user.id;
 
       // Validate plan type
-      if (!['monthly', 'quarterly'].includes(planType)) {
+      if (!['standard', 'pro', 'monthly', 'quarterly'].includes(planType)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid plan type. Valid options are "monthly" or "quarterly".'
+          message: 'Invalid plan type. Valid options are "standard" or "pro".'
         });
       }
 
@@ -69,10 +69,10 @@ const subscriptionController = {
       const { planType, email, name } = req.body;
 
       // Validate plan type
-      if (!['monthly', 'quarterly'].includes(planType)) {
+      if (!['standard', 'pro', 'monthly', 'quarterly'].includes(planType)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid plan type. Valid options are "monthly" or "quarterly".'
+          message: 'Invalid plan type. Valid options are "standard" or "pro".'
         });
       }
 
@@ -137,10 +137,10 @@ const subscriptionController = {
       const userId = req.user.id;
 
       // Validate plan type
-      if (!['monthly', 'quarterly'].includes(planType)) {
+      if (!['standard', 'pro', 'monthly', 'quarterly'].includes(planType)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid plan type. Valid options are "monthly" or "quarterly".'
+          message: 'Invalid plan type. Valid options are "standard" or "pro".'
         });
       }
 

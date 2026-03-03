@@ -835,7 +835,7 @@ const authController = {
       
       // Fetch user data from database
       const result = await db.query(
-        'SELECT id, email, name, role, institution_id, profile_picture_url, linkedin_url, is_email_verified, created_at, last_login_at FROM users WHERE id = $1',
+        'SELECT id, email, name, role, institution_id, profile_picture_url, linkedin_url, is_email_verified, created_at, last_login_at, has_active_subscription, subscription_expires_at FROM users WHERE id = $1',
         [userId]
       );
       
@@ -857,10 +857,12 @@ const authController = {
             role: user.role,
             institutionId: user.institution_id,
             profilePictureUrl: user.profile_picture_url,
-            linkedinUrl: user.linkedin_url, // Added LinkedIn URL to response
+            linkedinUrl: user.linkedin_url,
             isEmailVerified: user.is_email_verified,
             createdAt: user.created_at,
-            lastLoginAt: user.last_login_at
+            lastLoginAt: user.last_login_at,
+            hasActiveSubscription: user.has_active_subscription,
+            subscriptionExpiresAt: user.subscription_expires_at
           }
         }
       });

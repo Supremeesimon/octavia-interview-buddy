@@ -15,7 +15,7 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 
 interface Subscription {
   id: string;
   stripeSubscriptionId: string;
-  planType: 'monthly' | 'quarterly';
+  planType: 'standard' | 'pro';
   status: 'active' | 'inactive' | 'cancelled' | 'expired' | 'past_due' | 'trialing';
   priceCents: number;
   periodStart: Date;
@@ -31,7 +31,7 @@ const ExternalUserSubscription = () => {
   const { user } = useFirebaseAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'quarterly'>('monthly');
+  const [selectedPlan, setSelectedPlan] = useState<'standard' | 'pro'>('standard');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
@@ -110,9 +110,9 @@ const ExternalUserSubscription = () => {
           stripeSubscriptionId: result.data.stripeSubscriptionId,
           planType: selectedPlan,
           status: result.data.status,
-          priceCents: selectedPlan === 'monthly' ? 2000 : 4500,
+          priceCents: selectedPlan === 'standard' ? 2000 : 4500,
           periodStart: new Date(),
-          periodEnd: new Date(Date.now() + (selectedPlan === 'monthly' ? 30 : 90) * 24 * 60 * 60 * 1000),
+          periodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Both are monthly now
           cancelAtPeriodEnd: false,
           createdAt: new Date(),
           updatedAt: new Date()
@@ -190,6 +190,35 @@ const ExternalUserSubscription = () => {
     }
   };
 
+  const handleManageBilling = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/stripe/create-portal-session', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          returnUrl: window.location.href
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Failed to redirect to billing portal');
+      }
+    } catch (error) {
+      console.error('Error creating portal session:', error);
+      toast.error('Failed to redirect to billing portal');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-32">
@@ -225,7 +254,7 @@ const ExternalUserSubscription = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className={`border-2 ${selectedPlan === 'monthly' ? 'border-primary shadow-md' : 'border-border'} flex flex-col h-full`}>
+                <Card className={`border-2 ${selectedPlan === 'standard' ? 'border-primary shadow-md' : 'border-border'} flex flex-col h-full`}>
                   <CardContent className="p-4 flex flex-col flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold">Monthly Plan</h4>
@@ -238,28 +267,28 @@ const ExternalUserSubscription = () => {
                           <li className="flex items-start gap-2">
                             <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
                             <div>
-                              <strong className="text-foreground">Unlimited mock interviews</strong>
-                              <div className="text-xs">Practice as much as you need</div>
+                              <strong className="text-foreground">Unlimited interview sessions</strong>
+                              <div className="text-xs">Practice key scenarios</div>
                             </div>
                           </li>
                           <li className="flex items-start gap-2">
                             <LineChart className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
                             <div>
-                              <strong className="text-foreground">Basic end-of-call analysis</strong>
+                              <strong className="text-foreground">Advanced AI feedback</strong>
                               <div className="text-xs">Summary and score after sessions</div>
                             </div>
                           </li>
                           <li className="flex items-start gap-2">
                             <History className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
                             <div>
-                              <strong className="text-foreground">Last 5 interview history</strong>
+                              <strong className="text-foreground">Career coaching tools</strong>
                               <div className="text-xs">Review your recent progress</div>
                             </div>
                           </li>
                           <li className="flex items-start gap-2">
                             <Headphones className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
                             <div>
-                              <strong className="text-foreground">Standard support</strong>
+                              <strong className="text-foreground">Priority support</strong>
                               <div className="text-xs">Email assistance</div>
                             </div>
                           </li>
@@ -273,25 +302,31 @@ const ExternalUserSubscription = () => {
                     </ul>
                     <Button
                       className="w-full mt-4"
-                      variant={selectedPlan === 'monthly' ? 'default' : 'outline'}
-                      onClick={() => setSelectedPlan('monthly')}
+                      variant={selectedPlan === 'standard' ? 'default' : 'outline'}
+                      onClick={() => setSelectedPlan('standard')}
                     >
                       Select
                     </Button>
                   </CardContent>
                 </Card>
 
-                <Card className={`border-2 ${selectedPlan === 'quarterly' ? 'border-primary shadow-md' : 'border-border'} flex flex-col h-full`}>
+                <Card className={`border-2 ${selectedPlan === 'pro' ? 'border-primary shadow-md' : 'border-border'} flex flex-col h-full`}>
                   <CardContent className="p-4 flex flex-col flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold">Quarterly Plan</h4>
                       <Badge variant="secondary">$45/quarter</Badge>
                     </div>
                     <ul className="space-y-3 text-sm text-muted-foreground flex-1">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                        <span>Unlimited mock interviews</span>
-                      </li>
+                      <div className="pb-1">
+                        <p className="text-[10px] uppercase font-bold tracking-wider text-primary mb-2">Core Features</p>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
+                          <div>
+                            <strong className="text-foreground">Everything in Monthly Plan</strong>
+                            <div className="text-xs">More practice, faster results</div>
+                          </div>
+                        </li>
+                      </div>
                       
                       <div className="pt-2 pb-1 border-t border-border/50">
                         <p className="text-[10px] uppercase font-bold tracking-wider text-primary mb-2">Advanced Features</p>
@@ -299,28 +334,28 @@ const ExternalUserSubscription = () => {
                           <li className="flex items-start gap-2">
                             <LineChart className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
                             <div>
-                              <strong className="text-foreground">Advanced AI Analytics</strong>
+                              <strong className="text-foreground">Resume builder tools</strong>
                               <div className="text-xs">Deeper behavioral insights</div>
                             </div>
                           </li>
                           <li className="flex items-start gap-2">
                             <Zap className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
                             <div>
-                              <strong className="text-foreground">Real-time Feedback</strong>
+                              <strong className="text-foreground">Interview scheduling assistant</strong>
                               <div className="text-xs">Live coaching during the call</div>
                             </div>
                           </li>
                           <li className="flex items-start gap-2">
                             <Mic className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
                             <div>
-                              <strong className="text-foreground">Recordings & Transcripts</strong>
+                              <strong className="text-foreground">Mock interview recordings</strong>
                               <div className="text-xs">Full review capabilities</div>
                             </div>
                           </li>
                           <li className="flex items-start gap-2">
                             <History className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
                             <div>
-                              <strong className="text-foreground">Unlimited History</strong>
+                              <strong className="text-foreground">Expert career advice</strong>
                               <div className="text-xs">Long-term progress tracking</div>
                             </div>
                           </li>
@@ -332,18 +367,14 @@ const ExternalUserSubscription = () => {
                         <span>Priority support</span>
                       </li>
                       <li className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] h-5">25% SAVINGS</Badge>
-                        <span className="text-green-700 font-medium">vs monthly plan</span>
-                      </li>
-                      <li className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span>14-day free trial</span>
                       </li>
                     </ul>
                     <Button
                       className="w-full mt-4"
-                      variant={selectedPlan === 'quarterly' ? 'default' : 'outline'}
-                      onClick={() => setSelectedPlan('quarterly')}
+                      variant={selectedPlan === 'pro' ? 'default' : 'outline'}
+                      onClick={() => setSelectedPlan('pro')}
                     >
                       Select
                     </Button>
@@ -364,9 +395,17 @@ const ExternalUserSubscription = () => {
                       <DialogTitle>Start Your Free Trial</DialogTitle>
                       <DialogDescription>
                         Enter your payment details to start your 14-day free trial. You won't be charged today. 
-                        After the trial, you'll be charged ${selectedPlan === 'monthly' ? '20' : '45'} for the {selectedPlan} plan.
+                        Your first payment of ${selectedPlan === 'standard' ? '20' : '45'} will be processed on {new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString()}.
                       </DialogDescription>
                     </DialogHeader>
+                    
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                      <h4 className="font-semibold text-blue-800 mb-1">14-Day Free Trial Active</h4>
+                      <p className="text-sm text-blue-700">
+                        You will <strong>not</strong> be charged today. 
+                        You can cancel anytime before the trial ends to avoid being charged.
+                      </p>
+                    </div>
                     
                     <Elements stripe={stripePromise}>
                       <PaymentForm 
@@ -388,6 +427,12 @@ const ExternalUserSubscription = () => {
   // Trial ended and subscription not active
   const isTrialEnded = subscription && subscription.status === 'trialing' && subscription.trialEnd && new Date() > subscription.trialEnd;
 
+  const handleBuyMoreSessions = async (amount: number) => {
+    // This will be implemented to buy more sessions using Stripe
+    // For now we just show a toast
+    toast.info(`Buying ${amount} more sessions coming soon!`);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -408,7 +453,7 @@ const ExternalUserSubscription = () => {
                   {subscription.planType.charAt(0).toUpperCase() + subscription.planType.slice(1)} Plan
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  ${subscription.priceCents / 100} {subscription.planType === 'monthly' ? 'per month' : 'per quarter'}
+                  ${subscription.priceCents / 100} / month
                 </p>
               </div>
               <Badge className={getStatusBadgeVariant(subscription.status)}>
@@ -476,46 +521,86 @@ const ExternalUserSubscription = () => {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2 pt-2">
-              {(subscription.status === 'active' || subscription.status === 'trialing') && !subscription.cancelAtPeriodEnd && (
-                <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10">
-                      Cancel Subscription
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Cancel Subscription?</DialogTitle>
-                      <DialogDescription>
-                        Are you sure you want to cancel your subscription? Your access will continue until{' '}
-                        {formatDate(subscription.periodEnd)}. After that, you will lose access to premium features.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex justify-end gap-2 pt-4">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setCancelDialogOpen(false)}
-                      >
-                        Keep Subscription
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        onClick={handleCancelSubscription}
-                      >
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button onClick={handleManageBilling} variant="outline">
+                  Manage Billing
+                </Button>
+                {/* {(subscription.status === 'active' || subscription.status === 'trialing') && !subscription.cancelAtPeriodEnd && (
+                  <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10">
                         Cancel Subscription
                       </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-
-              {(subscription.status === 'cancelled' || subscription.cancelAtPeriodEnd) && (
-                <Button variant="outline" disabled>
-                  Subscription Cancelled
-                </Button>
-              )}
-            </div>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Cancel Subscription?</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to cancel your subscription? Your access will continue until{' '}
+                          {formatDate(subscription.periodEnd)}. After that, you will lose access to premium features.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setCancelDialogOpen(false)}
+                        >
+                          Keep Subscription
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          onClick={handleCancelSubscription}
+                        >
+                          Cancel Subscription
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )} */}
+  
+                {(subscription.status === 'cancelled' || subscription.cancelAtPeriodEnd) && (
+                  <Button variant="outline" disabled>
+                    Subscription Cancelled
+                  </Button>
+                )}
+              </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Buy More Interviews
+          </CardTitle>
+          <CardDescription>
+            Purchase one-time interview credits. No expiration.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border-2 border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => handleBuyMoreSessions(1)}>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold mb-1">1 Interview</div>
+                <div className="text-muted-foreground mb-4">$5</div>
+                <Button className="w-full" variant="outline">Buy Now</Button>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-primary/20 hover:border-primary transition-colors cursor-pointer" onClick={() => handleBuyMoreSessions(3)}>
+              <CardContent className="p-4 text-center relative overflow-hidden h-full flex flex-col justify-center">
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-bl-md">Popular</div>
+                <div className="text-2xl font-bold mb-1">3 Interviews</div>
+                <div className="text-muted-foreground mb-4">$12 <span className="text-xs text-green-600">($4/each)</span></div>
+                <Button className="w-full">Buy Now</Button>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => handleBuyMoreSessions(5)}>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold mb-1">5 Interviews</div>
+                <div className="text-muted-foreground mb-4">$18 <span className="text-xs text-green-600">($3.60/each)</span></div>
+                <Button className="w-full" variant="outline">Buy Now</Button>
+              </CardContent>
+            </Card>
           </div>
         </CardContent>
       </Card>
@@ -525,7 +610,7 @@ const ExternalUserSubscription = () => {
 
 // Payment Form Component
 interface PaymentFormProps {
-  planType: 'monthly' | 'quarterly';
+  planType: 'standard' | 'pro';
   onComplete: (paymentMethodId: string) => void;
   onCancel: () => void;
 }
@@ -647,7 +732,7 @@ const PaymentFormInner: React.FC<PaymentFormProps> = ({ planType, onComplete, on
               Processing...
             </>
           ) : (
-            `Start Trial & Pay $${planType === 'monthly' ? '20' : '45'} Later`
+            `Start Trial (Pay $${planType === 'standard' ? '20' : '45'} in 14 days)`
           )}
         </Button>
       </div>

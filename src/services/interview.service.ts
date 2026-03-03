@@ -28,8 +28,142 @@ export class InterviewService {
     studentStats: 'student-stats',
     institutionStats: 'institution-stats',
     endOfCallAnalysis: 'end-of-call-analysis',
-    departmentStats: 'department-stats' // Add department stats collection
+    departmentStats: 'department-stats', // Add department stats collection
+    users: 'users' // Add users collection for checking subscription
   } as const;
+
+  // Check if user is eligible to start an interview
+  async checkInterviewEligibility(userId: string): Promise<{ 
+    eligible: boolean; 
+    reason?: 'limit_reached' | 'no_subscription' | 'trial_expired'; 
+    remaining: number; 
+    plan: string;
+    used: number;
+    limit: number;
+  }> {
+    try {
+      // Get user document
+      const userDoc = await getDoc(doc(db, this.COLLECTIONS.users, userId));
+      
+      if (!userDoc.exists()) {
+        console.error('User not found:', userId);
+        return { eligible: false, reason: 'no_subscription', remaining: 0, plan: 'none', used: 0, limit: 0 };
+      }
+      
+      const userData = userDoc.data();
+      
+      // Check if user belongs to an institution
+      if (userData.institutionId) {
+        // Institution users have different logic (usually handled by session allocation)
+        // For now, assume they are eligible if they have sessions allocated
+        // This part might need to be expanded based on institution logic
+        return { eligible: true, remaining: 999, plan: 'institution', used: 0, limit: 999 };
+      }
+      
+      const subscription = userData.subscription || { 
+        plan: 'free', 
+        status: 'none', 
+        interviewsLimit: 0, 
+        interviewsUsed: 0 
+      };
+      
+      // Check for trial status
+      // If trialUsed is true and no active subscription, then not eligible
+      if (userData.trialUsed && subscription.status !== 'active' && subscription.status !== 'trialing') {
+         return { 
+          eligible: false, 
+          reason: 'trial_expired', 
+          remaining: 0, 
+          plan: subscription.plan,
+          used: subscription.interviewsUsed,
+          limit: subscription.interviewsLimit
+        };
+      }
+
+      // If no subscription and no trial used, they should start a trial (handled by UI)
+      // But strictly speaking for interview eligibility:
+      if (subscription.status !== 'active' && subscription.status !== 'trialing') {
+         // If they haven't used trial, they might be eligible for trial (1 free interview maybe? or just need to start trial)
+         // The requirement says: "if they are not subscribed itll ask them to begin 14 days trial"
+         // So they are not eligible to interview UNTIL they subscribe/start trial
+         return { 
+          eligible: false, 
+          reason: 'no_subscription', 
+          remaining: 0, 
+          plan: 'free',
+          used: 0,
+          limit: 0
+        };
+      }
+      
+      // Check limits
+      // Reset usage if new billing period (this logic should ideally be server-side or checked against dates)
+      // For now, we rely on the stored interviewsUsed count which should be reset by webhook
+      // But we can also check locally if currentPeriodStart > lastInterviewDate? 
+      // Simpler to rely on stored counters for now.
+      
+      const limit = subscription.interviewsLimit || 0;
+      const used = subscription.interviewsUsed || 0;
+      const remaining = Math.max(0, limit - used);
+      
+      if (remaining <= 0) {
+        return { 
+          eligible: false, 
+          reason: 'limit_reached', 
+          remaining: 0, 
+          plan: subscription.plan,
+          used,
+          limit
+        };
+      }
+      
+      return { 
+        eligible: true, 
+        remaining, 
+        plan: subscription.plan,
+        used,
+        limit
+      };
+      
+    } catch (error) {
+      console.error('Error checking interview eligibility:', error);
+      // Return a special error plan so the UI can handle it, but include the message for debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { 
+        eligible: false, 
+        reason: 'no_subscription', 
+        remaining: 0, 
+        plan: `error: ${errorMessage}`, 
+        used: 0, 
+        limit: 0 
+      };
+    }
+  }
+
+  // Increment interview usage for a user
+  async incrementInterviewUsage(userId: string): Promise<void> {
+    try {
+      const userRef = doc(db, this.COLLECTIONS.users, userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const subscription = userData.subscription || {};
+        
+        // Use setDoc with merge to safely update nested fields even if they don't exist
+        await setDoc(userRef, {
+          subscription: {
+            ...subscription,
+            interviewsUsed: (subscription.interviewsUsed || 0) + 1
+          },
+          trialUsed: true
+        }, { merge: true });
+      }
+    } catch (error) {
+      console.error('Error incrementing interview usage:', error);
+      // We don't throw here to avoid blocking the interview if stats update fails
+    }
+  }
 
   // Create a new interview session
   async createInterview(interviewData: Omit<Interview, 'id' | 'createdAt' | 'updatedAt'>): Promise<Interview> {

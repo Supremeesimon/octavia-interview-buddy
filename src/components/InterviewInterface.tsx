@@ -12,6 +12,7 @@ import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { useFirebaseStorage } from '@/hooks/use-firebase-storage';
 import { extractTextFromResume } from '@/utils/resume-parser';
 import type { InterviewFeedback } from '@/types';
+import { interviewService } from '@/services/interview.service';
 
 interface InterviewInterfaceProps {
   resumeData?: {
@@ -80,7 +81,27 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const [interviewEnded, setInterviewEnded] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [activeTab, setActiveTab] = useState('transcript');
+  const [eligibility, setEligibility] = useState<{
+    eligible: boolean;
+    reason?: 'limit_reached' | 'no_subscription' | 'trial_expired';
+    remaining: number;
+    plan: string;
+    used: number;
+    limit: number;
+  } | null>(null);
   const audioVisualizerRef = useRef<HTMLDivElement>(null);
+  
+  // Check interview eligibility
+  useEffect(() => {
+    const checkEligibility = async () => {
+      if (user?.id) {
+        const result = await interviewService.checkInterviewEligibility(user.id);
+        setEligibility(result);
+      }
+    };
+    
+    checkEligibility();
+  }, [user?.id]);
   
   // Load available resumes when component mounts
   useEffect(() => {
@@ -252,6 +273,30 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
   const handleStartInterview = async () => {
     try {
       console.log('handleStartInterview called');
+      
+      // Check eligibility before starting
+      if (user?.id) {
+        const check = await interviewService.checkInterviewEligibility(user.id);
+        
+        if (!check.eligible) {
+          if (check.reason === 'no_subscription') {
+            toast.info("Start your 14-day free trial to begin practicing!");
+            navigate('/subscribe');
+            return;
+          } else if (check.reason === 'trial_expired') {
+            toast.warning("Your trial has ended. Please subscribe to continue.");
+            navigate('/subscribe');
+            return;
+          } else if (check.reason === 'limit_reached') {
+            toast.error(`You have reached your monthly limit of ${check.limit} interviews.`);
+            navigate('/subscribe'); // Or show upgrade dialog
+            return;
+          }
+        }
+        
+        // Increment usage
+        await interviewService.incrementInterviewUsage(user.id);
+      }
       
       // Log the resumeData being passed
       console.log('Resume data:', selectedResume);
@@ -654,6 +699,39 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
                     Interview Length
                   </h4>
                   <p className="text-sm text-muted-foreground">15 minutes maximum</p>
+                  
+                  {user && eligibility && (
+                    <div className="mt-2 pt-2 border-t border-primary/20">
+                      {eligibility.plan.toString().toLowerCase().includes('error') ? (
+                         <div className="text-xs text-red-500 mt-1">
+                           <p className="font-medium">Subscription check failed</p>
+                           <p className="opacity-80 text-[10px] mt-0.5">{eligibility.plan.replace('error: ', '')}</p>
+                           <Button 
+                             variant="link" 
+                             className="h-auto p-0 text-[10px] text-red-600 underline mt-1"
+                             onClick={() => window.location.reload()}
+                           >
+                             Refresh Page
+                           </Button>
+                         </div>
+                      ) : (
+                        <>
+                          <div className="flex justify-between items-center text-sm">
+                            <span>Interviews Left:</span>
+                            <span className={cn(
+                              "font-bold",
+                              eligibility.remaining === 0 ? "text-red-500" : "text-green-600"
+                            )}>
+                              {eligibility.remaining} / {eligibility.limit}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Plan: {eligibility.plan.charAt(0).toUpperCase() + eligibility.plan.slice(1)}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 <Button 
