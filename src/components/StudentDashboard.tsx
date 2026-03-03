@@ -55,6 +55,7 @@ const StudentDashboard = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const { user } = useFirebaseAuth();
+  const isExternalUser = !user?.institutionId;
   
   // Fetch institution settings to get session length
   useEffect(() => {
@@ -268,8 +269,8 @@ const StudentDashboard = () => {
     }
 
     // For external users, check subscription/trial status
-    const hasActiveSubscription = user?.hasActiveSubscription;
-    const trialUsed = user?.trialUsed; // We'll need to add this to the user profile
+    const hasActiveSubscription = (user as any)?.hasActiveSubscription;
+    const trialUsed = (user as any)?.trialUsed; // We'll need to add this to the user profile
 
     if (!hasActiveSubscription) {
       if (!trialUsed) {
@@ -651,10 +652,12 @@ const StudentDashboard = () => {
           <TabsTrigger value="history">Interview History</TabsTrigger>
           <TabsTrigger value="feedback">Latest Feedback</TabsTrigger>
           <TabsTrigger value="performance">Performance Analysis</TabsTrigger>
-          <TabsTrigger value="messages">
-            <Bell className="h-4 w-4 mr-2" />
-            Messages
-          </TabsTrigger>
+          {!isExternalUser && (
+            <TabsTrigger value="messages">
+              <Bell className="h-4 w-4 mr-2" />
+              Messages
+            </TabsTrigger>
+          )}
         </TabsList>
         
         <TabsContent value="history">
@@ -860,9 +863,11 @@ const StudentDashboard = () => {
           </Card>
         </TabsContent>
         
-        <TabsContent value="messages">
-          <StudentMessageInbox />
-        </TabsContent>
+        {!isExternalUser && (
+          <TabsContent value="messages">
+            <StudentMessageInbox />
+          </TabsContent>
+        )}
         {/* Debug Info tab removed */}
       </Tabs>
     </div>
