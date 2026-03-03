@@ -297,6 +297,10 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       setInterviewEnded(true);
       // Clear any error state when interview ends normally
       clearError();
+      // Force a small delay to ensure state updates properly
+      setTimeout(() => {
+        // This ensures the UI updates properly
+      }, 100);
     } catch (error) {
       console.error('Failed to end interview:', error);
       // Only show error if it's not a normal end
@@ -312,6 +316,10 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
       
       if (!isNormalEnd) {
         toast.error(`Failed to end interview: ${error.message || 'An unknown error occurred'}`);
+      } else {
+        // Even if it's a "normal" end error, still set the interview as ended
+        setInterviewEnded(true);
+        clearError();
       }
     }
   }, [endInterview, clearError]);
@@ -345,7 +353,7 @@ const InterviewInterface = ({ resumeData }: InterviewInterfaceProps) => {
     // Check if user is authenticated with either system
     if (user) {
       // Navigate to the student dashboard with the interviews tab active
-      navigate('/student?tab=interviews');
+      navigate('/student#interviews');
       toast.success("Redirecting to your dashboard");
     } else {
       // If not authenticated, redirect to login

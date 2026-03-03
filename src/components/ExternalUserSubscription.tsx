@@ -65,7 +65,10 @@ const ExternalUserSubscription = () => {
         }
       } catch (error) {
         console.error('Error fetching subscription:', error);
-        toast.error('Failed to load subscription information');
+        // Only show error if user is authenticated but subscription fetch fails
+        if (user?.id) {
+          console.log('Subscription fetch failed for authenticated user');
+        }
       } finally {
         setLoading(false);
       }
@@ -535,5 +538,6 @@ const PaymentForm: React.FC<PaymentFormProps> = (props) => {
       <PaymentFormInner {...props} />
     </Elements>
   );
+};
 
 export default ExternalUserSubscription;

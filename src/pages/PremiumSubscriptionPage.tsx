@@ -80,6 +80,7 @@ const PaymentFormInner: React.FC<PaymentFormProps> = ({ planType, onComplete, on
         <div className="p-3 border rounded-md focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
           <CardElement
             options={{
+              hidePostalCode: true,
               style: {
                 base: {
                   fontSize: '16px',
