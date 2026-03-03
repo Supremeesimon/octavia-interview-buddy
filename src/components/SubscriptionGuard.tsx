@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Mic, MessageSquare, Briefcase, Brain, AlertCircle } from 'lucide-react';
 import { useFirebaseAuth } from '@/hooks/use-firebase-auth';
 import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -14,6 +16,83 @@ interface SubscriptionStatus {
   hasActiveSubscription: boolean;
   subscriptionExpiresAt?: string;
 }
+
+const TypewriterText = ({ text }: { text: string }) => {
+  const [displayText, setDisplayText] = useState('');
+  
+  useEffect(() => {
+    let i = 0;
+    setDisplayText(''); // Reset text when prop changes
+    const timer = setInterval(() => {
+      if (i < text.length) {
+        setDisplayText((prev) => text.substring(0, i + 1));
+        i++;
+      } else {
+        clearInterval(timer);
+      }
+    }, 20);
+    
+    return () => clearInterval(timer);
+  }, [text]);
+
+  return <span className="ml-2 font-mono text-sm">{displayText}</span>;
+};
+
+const AIArtisticAnimation = () => {
+  return (
+    <div className="relative w-32 h-32 mx-auto mb-8 flex items-center justify-center">
+      {/* Central Pulsating AI Core */}
+      <motion.div
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.3, 0.7, 0.3],
+          boxShadow: [
+            "0 0 20px rgba(var(--primary), 0.2)",
+            "0 0 50px rgba(var(--primary), 0.6)",
+            "0 0 20px rgba(var(--primary), 0.2)",
+          ]
+        }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center z-10"
+      >
+        <Brain className="w-8 h-8 text-primary" />
+      </motion.div>
+
+      {/* Orbiting Interview Elements */}
+      {[
+        { Icon: Mic, delay: 0 },
+        { Icon: MessageSquare, delay: 0.75 },
+        { Icon: Briefcase, delay: 1.5 },
+        { Icon: AlertCircle, delay: 2.25 }
+      ].map((item, idx) => (
+        <motion.div
+          key={idx}
+          animate={{
+            rotate: 360,
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "linear",
+            delay: -item.delay
+          }}
+          className="absolute w-full h-full flex items-start justify-center"
+        >
+          <motion.div
+            animate={{
+              scale: [1, 1.1, 1],
+              opacity: [0.6, 1, 0.6],
+            }}
+            transition={{ duration: 2, repeat: Infinity, delay: idx * 0.5 }}
+            className="p-1.5 bg-background border rounded-full shadow-sm"
+          >
+            <item.Icon className="w-4 h-4 text-primary" />
+          </motion.div>
+        </motion.div>
+      ))}
+    </div>
+  );
+};
 
 const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
   const { user, isAuthenticated, isLoading } = useFirebaseAuth();
@@ -100,9 +179,9 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
   // Show loading state while checking authentication and subscription
   if (loading || !hasCheckedSubscription) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2">Checking subscription status...</span>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+        <TypewriterText text="Authenticating..." />
       </div>
     );
   }
@@ -113,7 +192,7 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
       <div className="flex items-center justify-center min-h-screen">
         <Card className="w-full max-w-md p-6">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Access Restricted</CardTitle>
+            <AIArtisticAnimation />
             <CardDescription>Please log in to continue</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -130,9 +209,14 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/subscribe')} 
-                className="w-full"
+                className="w-full flex items-center justify-center gap-2"
               >
-                Subscribe
+                <img 
+                  src="/images/octavia-logo.jpg" 
+                  alt="Octavia Logo" 
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+                Begin 14 Days Free Trial
               </Button>
             </div>
           </CardContent>
@@ -147,7 +231,7 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }) => {
       <div className="flex items-center justify-center min-h-screen">
         <Card className="w-full max-w-md p-6">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Subscribe to Continue</CardTitle>
+            <AIArtisticAnimation />
             <CardDescription>Unlock premium features with our subscription plans</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

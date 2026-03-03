@@ -229,7 +229,7 @@ const PremiumSubscriptionPage = () => {
                     setShowPaymentDialog(true);
                   }}
                 >
-                  Get Started
+                  Begin 14 Days Free Trial
                 </Button>
               </CardContent>
             </Card>
@@ -272,7 +272,7 @@ const PremiumSubscriptionPage = () => {
                     setShowPaymentDialog(true);
                   }}
                 >
-                  Get Started
+                  Begin 14 Days Free Trial
                 </Button>
               </CardContent>
             </Card>

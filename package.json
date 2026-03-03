@@ -87,6 +87,7 @@
     "embla-carousel-react": "^8.3.0",
     "firebase": "^12.4.0",
     "firebase-admin": "^13.5.0",
+    "framer-motion": "^12.34.4",
     "input-otp": "^1.2.4",
     "jspdf": "^3.0.3",
     "lucide-react": "^0.462.0",

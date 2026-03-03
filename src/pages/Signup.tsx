@@ -435,9 +435,6 @@ const Signup = () => {
                       placeholder="your.name@example.com"
                       className="mt-1"
                     />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Please use a valid email address. Personal emails (Gmail, Yahoo, etc.) and institutional emails are both supported.
-                    </p>
                   </div>
 
                   <div>
@@ -453,40 +450,29 @@ const Signup = () => {
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="student-department">Department</Label>
-                    <Input
-                      id="student-department"
-                      value={studentForm.department}
-                      onChange={(e) => setStudentForm({...studentForm, department: e.target.value})}
-                      required
-                      placeholder="Enter your department"
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="student-year">Year of Study</Label>
-                    <select
-                      id="student-year"
-                      value={studentForm.yearOfStudy}
-                      onChange={(e) => setStudentForm({...studentForm, yearOfStudy: e.target.value})}
-                      required
-                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="">Select Year</option>
-                      {Array.from({ length: 50 }, (_, i) => 2001 + i).map(year => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                  </div>
-
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Processing..." : "Sign Up as Student"}
                   </Button>
                 </form>
 
-                {/* Google signup removed for student signup as they should use institutional emails */}
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleGoogleSignup}
+                  disabled={isLoading}
+                >
+                  <Chrome className="h-4 w-4 mr-2" />
+                  Sign up with Google
+                </Button>
 
                 <p className="text-xs text-center text-muted-foreground">
                   By signing up, you agree to our{' '}

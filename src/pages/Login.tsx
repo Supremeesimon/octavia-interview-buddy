@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAccountSwitcher } from '@/hooks/use-account-switcher';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(localStorage.getItem('remembered_email') || '');
   const [password, setPassword] = useState('');
   const { login, loginWithGoogle, isLoading } = useFirebaseAuth();
   const { addCurrentAccount } = useAccountSwitcher();
@@ -21,6 +21,7 @@ const Login = () => {
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem('remembered_email', email);
     
     try {
       console.log('Starting login process for:', email);
@@ -88,6 +89,13 @@ const Login = () => {
         <div className="w-full max-w-md">
           <Card className="p-8 shadow-lg rounded-xl">
             <div className="text-center mb-8">
+              <div className="flex justify-center mb-4">
+                <img 
+                  src="/images/octavia-logo.jpg" 
+                  alt="Octavia Logo" 
+                  className="w-16 h-16 rounded-full object-cover shadow-sm"
+                />
+              </div>
               <h1 className="text-2xl font-bold mb-2">Welcome Back</h1>
               <p className="text-muted-foreground">Sign in to your account</p>
             </div>
@@ -95,9 +103,28 @@ const Login = () => {
             {/* Info box for Google account users */}
             <Alert className="mb-6 bg-blue-50 border-blue-200">
               <AlertDescription>
-                <strong>Note:</strong> If you signed up with Google, please use the "Sign in with Google" button below.
+                Master the art of conversation with Artificial Intelligence
               </AlertDescription>
             </Alert>
+            
+            <Button 
+              variant="outline" 
+              className="w-full mb-6 border-primary text-primary hover:bg-primary/5" 
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+            >
+              <Chrome className="h-4 w-4 mr-2" />
+              Sign in with Google
+            </Button>
+
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or sign in with email</span>
+              </div>
+            </div>
             
             <form onSubmit={handleLogin}>
               <div className="space-y-5">
@@ -138,25 +165,6 @@ const Login = () => {
                 </Button>
               </div>
             </form>
-            
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
-            
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={handleGoogleLogin}
-              disabled={isLoading}
-            >
-              <Chrome className="h-4 w-4 mr-2" />
-              Sign in with Google
-            </Button>
             
             <div className="mt-8 text-center text-sm">
               <p className="text-muted-foreground">
